@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.LoopSide;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
@@ -308,7 +309,7 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         if (states.isEmpty() || states.size() > 2) {
             return;
         }
-        join(states.get(0), states.get(states.size() - 1));
+        join(states.get(0), states.get(states.size() - 1), Optional.empty());
     }
 
     private void editSelectedText() {
@@ -392,8 +393,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
     }
 
     /** Makes the arrow {@code fromId} → {@code toId}, selects it and opens its condition. */
-    private void join(String fromId, String toId) {
-        if (canvas.edit(machine -> MachineEdits.withNewTransition(machine, fromId, toId))) {
+    private void join(String fromId, String toId, Optional<LoopSide> loopSide) {
+        if (canvas.edit(machine -> MachineEdits.withNewTransition(machine, fromId, toId, loopSide))) {
             canvas.machine().map(MachineEdits::lastTransition).map(MachineTransition::id).ifPresent(id -> {
                 selection.selectTransition(id);
                 inline.editCondition(id);
@@ -406,10 +407,17 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
      * or its border band), drawn where the real one goes; elsewhere a straight line from the state's border to the
      * pointer (hand test of hito 3, 2026-11-17).
      */
+    /** The side of the start state the pointer is on: where a loop made now goes. */
+    private static Optional<LoopSide> loopSideAt(StateMachine machine, Drag current) {
+        return Optional.of(MachineDiagramGeometry.sideOf(MachineDiagramGeometry.of(machine).centre(current.stateId),
+                asPoint(current.pointer)));
+    }
+
     private Optional<MachineDiagramGeometry.Arrow> pendingArrow(Drag current) {
         return canvas.machine().filter(machine -> machine.state(current.stateId).isPresent()).map(machine -> {
             if (joinTarget(current).filter(current.stateId::equals).isPresent()) {
-                StateMachine withLoop = MachineEdits.withNewTransition(machine, current.stateId, current.stateId);
+                StateMachine withLoop = MachineEdits.withNewTransition(machine, current.stateId, current.stateId,
+                        loopSideAt(machine, current));
                 return MachineDiagramGeometry.of(withLoop).arrow(MachineEdits.lastTransition(withLoop).id());
             }
             MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
@@ -908,7 +916,8 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
             Optional<String> target = joinTarget(current);
             if (target.isPresent()) {
                 palette.clearTool();
-                join(current.stateId, target.get());
+                join(current.stateId, target.get(), current.stateId.equals(target.get())
+                        ? canvas.machine().flatMap(machine -> loopSideAt(machine, current)) : Optional.empty());
             }
         }
 

@@ -21,6 +21,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.machine.MachineMode;
+import cl.almejo.vsim.ui.machine.MachinePaletteIcons;
 import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.search.SearchField;
@@ -581,6 +582,14 @@ public final class CircuitTree extends JPanel {
         }).orElse(List.of());
     }
 
+    /** The colour the grey text of an unselected row is drawn with now (for tests); none for an unknown row. */
+    Optional<java.awt.Color> greyColorOf(String path) {
+        return Optional.ofNullable(nodesByPath.get(path)).map(node -> {
+            renderer.getTreeCellRendererComponent(tree, node, false, false, true, 0, false);
+            return renderer.muted.getForeground();
+        });
+    }
+
     Optional<Icon> iconOf(String path) {
         return nodeAt(path).map(this::icon);
     }
@@ -645,8 +654,12 @@ public final class CircuitTree extends JPanel {
     private Icon icon(CircuitTreeNode node) {
         Optional<CircuitTreeNode.MachineRow> machineRow = node.machineRow();
         if (machineRow.isPresent()) {
-            return machineRow.get().kind() == CircuitTreeNode.MachineRow.Kind.STATE
-                    ? new StateDot(machineRow.get().color(), machineRow.get().initial(), appearance) : null;
+            CircuitTreeNode.MachineRow row = machineRow.get();
+            return switch (row.kind()) {
+                case STATE -> new StateDot(row.color(), row.initial(), appearance);
+                case NOTES -> MachinePaletteIcons.of(MachinePaletteIcons.Kind.NOTE, appearance::scheme, ICON_SIZE);
+                case NOTE -> row.noteColor().map(color -> (Icon) new NoteSwatch(color, appearance)).orElse(null);
+            };
         }
         Optional<ComponentType> type = node.type();
         if (type.isEmpty()) {
@@ -740,7 +753,8 @@ public final class CircuitTree extends JPanel {
             }
             CircuitTreeNode node = row.node();
             Font font = owner.getFont();
-            Color grey = selected ? UIManager.getColor("Tree.selectionForeground") : ReadableColors.mutedText();
+            Color grey = selected ? UIManager.getColor("Tree.selectionForeground")
+                    : ReadableColors.readableOn(ReadableColors.mutedText(), owner.getBackground());
             CircuitTreeNode.MachineRow.Severity problem = node.machineRow()
                     .map(CircuitTreeNode.MachineRow::problem).orElse(CircuitTreeNode.MachineRow.Severity.NONE);
             Color foreground = selected ? UIManager.getColor("Tree.selectionForeground")

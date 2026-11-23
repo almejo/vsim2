@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.core.machine.LoopSide;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -416,7 +417,8 @@ final class MachineDiagramGeometry {
         Map<String, Integer> loopsOfState = new HashMap<>();
         for (MachineTransition transition : machine.transitions()) {
             if (transition.isSelfLoop()) {
-                int turn = loopsOfState.merge(transition.fromId(), 1, Integer::sum) - 1;
+                int turn = transition.loopSide().isPresent() ? 0
+                        : loopsOfState.merge(transition.fromId(), 1, Integer::sum) - 1;
                 arrows.put(transition.id(), selfLoop(transition, turn));
             } else if (joiningPair.get(pairKey(transition)) == 1) {
                 arrows.put(transition.id(), aroundThirdState(transition)
@@ -495,10 +497,33 @@ final class MachineDiagramGeometry {
                 control.getX(), control.getY(), end.getX(), end.getY()), start, end, control, label);
     }
 
+    /** The direction (radians, y down) a loop on {@code side} points to. */
+    private static double axisOf(LoopSide side) {
+        return switch (side) {
+            case TOP -> -Math.PI / 2;
+            case RIGHT -> 0;
+            case BOTTOM -> Math.PI / 2;
+            case LEFT -> Math.PI;
+        };
+    }
+
+    /**
+     * The side of a state centred on {@code centre} that {@code pointer} is on: the nearest of top, right, bottom and
+     * left by angle (on the centre itself, top).
+     */
+    static LoopSide sideOf(Point2D centre, Point2D pointer) {
+        double dx = pointer.getX() - centre.getX();
+        double dy = pointer.getY() - centre.getY();
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx > 0 ? LoopSide.RIGHT : LoopSide.LEFT;
+        }
+        return dy > 0 ? LoopSide.BOTTOM : LoopSide.TOP;
+    }
+
     /** A loop leaving and entering the state's border around its {@code turn}-th axis (the first one straight up). */
     private Arrow selfLoop(MachineTransition transition, int turn) {
         Point2D centre = centre(transition.fromId());
-        double axis = -Math.PI / 2 + turn * LOOP_TURN;
+        double axis = transition.loopSide().map(MachineDiagramGeometry::axisOf).orElse(-Math.PI / 2 + turn * LOOP_TURN);
         double radius = radius(transition.fromId());
         Point2D start = onCircle(centre, axis - LOOP_HALF_ANGLE, radius);
         Point2D end = onCircle(centre, axis + LOOP_HALF_ANGLE, radius);

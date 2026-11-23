@@ -95,6 +95,7 @@ final class MachinePinTable extends JPanel {
     private final transient Host host;
     private final transient List<Row> rows = new ArrayList<>();
     private final transient Map<String, JLabel> usesLabels = new HashMap<>();
+    private final transient Map<String, JLabel> fixedNameLabels = new HashMap<>();
     private final transient Map<String, AbstractButton> usesLinks = new HashMap<>();
     private final transient Map<String, AbstractButton> removeButtons = new HashMap<>();
     private final List<String> rowNames = new ArrayList<>();
@@ -209,6 +210,11 @@ final class MachinePinTable extends JPanel {
         return Optional.ofNullable(usesLabels.get(name)).map(JLabel::getForeground).orElse(null);
     }
 
+    /** The colour the name of an always-there pin («RST», «CLK») is drawn with now; none for another name. */
+    Color fixedNameColor(String name) {
+        return Optional.ofNullable(fixedNameLabels.get(name)).map(JLabel::getForeground).orElse(null);
+    }
+
     AbstractButton addButton() {
         return addButton;
     }
@@ -290,6 +296,7 @@ final class MachinePinTable extends JPanel {
             removeAll();
             rows.clear();
             usesLabels.clear();
+            fixedNameLabels.clear();
             usesLinks.clear();
             removeButtons.clear();
             rowNames.clear();
@@ -423,12 +430,12 @@ final class MachinePinTable extends JPanel {
     }
 
     private void addFixedRow(String name) {
-        JLabel nameLabel = new JLabel(name);
-        nameLabel.setEnabled(false);
+        JLabel nameLabel = new MutedLabel(name);
         nameLabel.setToolTipText(Messages.format("machine.pins.always.tooltip", name));
         JLabel always = new MutedLabel(Messages.text("machine.pins.always"));
         always.setToolTipText(nameLabel.getToolTipText());
         usesLabels.put(name, always);
+        fixedNameLabels.put(name, nameLabel);
         rowNames.add(name);
         add(new JLabel(""));
         add(nameLabel, "gapleft 4lp");

@@ -101,7 +101,7 @@ public final class CircuitTreeModel {
             String notesPath = path + NOTES_SEPARATOR;
             List<CircuitTreeNode> notes = machine.notes().stream().map(note -> machineNode(
                     notesPath + note.id(), noteName(note), new MachineRow(Kind.NOTE, definition.id(), note.id(), false,
-                            Optional.empty(), Severity.NONE), List.of())).toList();
+                            Optional.empty(), Severity.NONE, Optional.of(note.color())), List.of())).toList();
             rows.add(machineNode(notesPath, Messages.format("tree.machine.notes", machine.notes().size()),
                     new MachineRow(Kind.NOTES, definition.id(), "", false, Optional.empty(), Severity.NONE), notes));
         }

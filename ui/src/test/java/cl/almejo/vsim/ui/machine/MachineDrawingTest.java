@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.LoopSide;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
@@ -350,6 +351,56 @@ class MachineDrawingTest {
         MachineTransition arrow = machine().transitions().get(6);
         assertThat(arrow.isSelfLoop()).isTrue();
         assertThat(arrow.fromId()).isEqualTo("s1");
+    }
+
+    /**
+     * Fix round 4 (hand test 2026-11-22): a loop was always on top. It goes on the side of the state where the drag
+     * ends, is saved with the arrow and shows that way while it is drawn.
+     */
+    @Test
+    void aSelfLoopIsDrawnOnTheSideWhereTheDragEnds() {
+        MachineDiagramGeometry before = MachineDiagramGeometry.of(machine());
+        Point2D centre = before.centre("s1");
+        record Side(LoopSide side, double dx, double dy) {
+        }
+        List<Side> sides = List.of(new Side(LoopSide.RIGHT, 22, 3), new Side(LoopSide.BOTTOM, -4, 22),
+                new Side(LoopSide.LEFT, -22, -3), new Side(LoopSide.TOP, 4, -22));
+        for (Side wanted : sides) {
+            int arrowsBefore = machine().transitions().size();
+            Point2D end = at(centre.getX() + wanted.dx(), centre.getY() + wanted.dy());
+            int buttons = InputEvent.BUTTON1_DOWN_MASK;
+            mouse(MouseEvent.MOUSE_MOVED, at(160, 38), 0, 0);
+            mouse(MouseEvent.MOUSE_PRESSED, at(160, 38), buttons, 1);
+            mouse(MouseEvent.MOUSE_DRAGGED, at(160, 120), buttons, 0);
+            mouse(MouseEvent.MOUSE_DRAGGED, end, buttons, 0);
+            MachineDiagramGeometry.Arrow pending = mode.tool().overlay().pendingArrow().orElseThrow();
+            mouse(MouseEvent.MOUSE_RELEASED, end, 0, 1);
+
+            MachineTransition made = machine().transitions().get(arrowsBefore);
+            assertThat(made.isSelfLoop()).as(wanted.side().name()).isTrue();
+            assertThat(made.loopSide()).as(wanted.side().name()).contains(wanted.side());
+            Rectangle2D drawn = MachineDiagramGeometry.of(machine()).arrow(made.id()).path().getBounds2D();
+            assertThat(drawn).as("the preview is where the loop goes").isEqualTo(pending.path().getBounds2D());
+            double radius = before.radius("s1");
+            switch (wanted.side()) {
+                case RIGHT -> assertThat(drawn.getMaxX()).isGreaterThan(centre.getX() + radius + 20);
+                case BOTTOM -> assertThat(drawn.getMaxY()).isGreaterThan(centre.getY() + radius + 20);
+                case LEFT -> assertThat(drawn.getMinX()).isLessThan(centre.getX() - radius - 20);
+                case TOP -> assertThat(drawn.getMinY()).isLessThan(centre.getY() - radius - 20);
+            }
+            inline().cancel();
+        }
+    }
+
+    @Test
+    void aLoopWithNoSideKeepsTheOldPlacementAndAnUndoRemovesTheLoopWithItsSide() {
+        MachineDiagramGeometry.Arrow existing = MachineDiagramGeometry.of(machine()).arrow("t6");
+        drag(at(160, 38), at(160, 120), at(190, 3));
+        perform(view.actions().undo());
+
+        assertThat(machine().transitions()).hasSize(6);
+        assertThat(MachineDiagramGeometry.of(machine()).arrow("t6").path().getBounds2D())
+                .isEqualTo(existing.path().getBounds2D());
     }
 
     /**

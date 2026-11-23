@@ -12,6 +12,7 @@ public final class ReadableColors {
 
     /** WCAG AA's minimum contrast for normal text (1.4.3). */
     public static final double MINIMUM_TEXT_CONTRAST = 4.5;
+    private static final int READABLE_STEPS = 100;
     private static final Color LIGHT_ERROR_TEXT = new Color(0xC62828);
     private static final Color DARK_ERROR_TEXT = new Color(0xFF8F8F);
     private static final Color LIGHT_WARNING_TEXT = new Color(0x8A5300);
@@ -95,6 +96,26 @@ public final class ReadableColors {
         return base;
     }
 
+    /**
+     * {@code color} when it already reads on {@code background} at {@link #MINIMUM_TEXT_CONTRAST}:1; else the nearest
+     * colour on the way towards black or white (whichever contrasts more) that does. Read at paint time: never cache.
+     */
+    public static Color readableOn(Color color, Color background) {
+        if (contrast(color, background) >= MINIMUM_TEXT_CONTRAST) {
+            return color;
+        }
+        Color target = contrast(Color.WHITE, background) >= contrast(Color.BLACK, background) ? Color.WHITE : Color.BLACK;
+        for (int step = 1; step <= READABLE_STEPS; step++) {
+            Color candidate = new Color(mix(target.getRed(), color.getRed(), (double) step / READABLE_STEPS),
+                    mix(target.getGreen(), color.getGreen(), (double) step / READABLE_STEPS),
+                    mix(target.getBlue(), color.getBlue(), (double) step / READABLE_STEPS));
+            if (contrast(candidate, background) >= MINIMUM_TEXT_CONTRAST) {
+                return candidate;
+            }
+        }
+        return target;
+    }
+
     /** The simple brightness of {@code color}, 0 (black) to 1 (white): weighted sRGB channels, no gamma. */
     public static double perceivedBrightness(Color color) {
         return (0.2126 * color.getRed() + 0.7152 * color.getGreen() + 0.0722 * color.getBlue()) / 255;
@@ -105,28 +126,6 @@ public final class ReadableColors {
         double lighter = Math.max(luminance(first), luminance(second));
         double darker = Math.min(luminance(first), luminance(second));
         return (lighter + 0.05) / (darker + 0.05);
-    }
-
-    /**
-     * {@code text} itself when it reads on {@code background} (at least {@link #MINIMUM_TEXT_CONTRAST}:1), else
-     * {@code text} moved step by step towards black or white (whichever stands out more on {@code background}) until it
-     * does: the grey or the amber of a line painted on a tinted bar, not on the panel. Read each time, never cached.
-     */
-    public static Color readableOn(Color text, Color background) {
-        if (contrast(text, background) >= MINIMUM_TEXT_CONTRAST) {
-            return text;
-        }
-        Color extreme = contrast(Color.BLACK, background) >= contrast(Color.WHITE, background) ? Color.BLACK
-                : Color.WHITE;
-        for (int step = 1; step <= 20; step++) {
-            double share = step / 20.0;
-            Color candidate = new Color(mix(extreme.getRed(), text.getRed(), share),
-                    mix(extreme.getGreen(), text.getGreen(), share), mix(extreme.getBlue(), text.getBlue(), share));
-            if (contrast(candidate, background) >= MINIMUM_TEXT_CONTRAST) {
-                return candidate;
-            }
-        }
-        return extreme;
     }
 
     /** {@code color} as it shows painted over the opaque {@code background} (a translucent colour mixes with it). */

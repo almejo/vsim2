@@ -473,14 +473,13 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /**
-     * Brings the states {@code stateIds} and the arrows {@code transitionIds} (where a pin is used, from its row in
-     * Propiedades) into view and, with {@code blink}, makes them blink a few times in the selection's colour; without
-     * it («Animaciones» off) they are lit for a moment. Nothing is selected, so Propiedades keeps the pin list the
-     * student is working in (hito 3 review, I3); a new selection ends the showing.
+     * Selects the states {@code stateIds} and the arrows {@code transitionIds} (where a pin is used, from its row in
+     * Propiedades), brings them into view and, with {@code blink}, makes them blink a few times in the selection's
+     * colour; without it («Animaciones» off) they are lit for a moment. A new selection ends the showing. (Until
+     * fix round 4 nothing was selected, to keep the pin list in Propiedades; the user saw nothing happen.)
      */
     void revealElements(Set<String> stateIds, Set<String> transitionIds, boolean blink) {
-        boolean sized = bringIntoView(stateIds, transitionIds);
-        startFlash(blink, sized);
+        show(stateIds, transitionIds, blink);
         revealedElements = Optional.of(new Elements(Set.copyOf(stateIds), Set.copyOf(transitionIds)));
         if (!blink) {
             usesLight.restart();
@@ -519,7 +518,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         revealedElements = Optional.empty();
         usesLight.stop();
         blinkTimer.stop();
-        blinksLeft = blink ? REVEAL_BLINKS : 0;
+        blinksLeft = blink ? REVEAL_BLINKS + 1 : 0; // an odd count: it starts lit, so a «Ver» answers at once
         blinkWhenSized = blink && !sized;
         if (blink && sized) {
             blinkTimer.start();
@@ -572,6 +571,11 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** Whether a revealed problem is blinking now. */
     boolean isBlinking() {
         return blinkTimer.isRunning();
+    }
+
+    /** Whether the blinking is in its lit half now (what a reveal paints on top of the diagram). */
+    boolean isFlashLit() {
+        return blinkTimer.isRunning() && blinksLeft % 2 == 1;
     }
 
     private void blinkOnce() {
@@ -813,7 +817,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
                     new MachineDiagramPainter.Marks(activeState, selection, glows(), revealed(),
                             marchingAnts.phase()), colours);
             MachineDiagramPainter.paintOverlay(canvas, geometry, gestures.overlay(), marchingAnts.phase(), colours);
-            boolean lit = blinkTimer.isRunning() && blinksLeft % 2 == 1;
+            boolean lit = isFlashLit();
             if (lit) {
                 revealed().ifPresent(finding -> MachineDiagramPainter.paintFlash(canvas, machine.get(), geometry,
                         finding, colours));

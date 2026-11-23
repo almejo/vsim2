@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
+
 import java.awt.Color;
 import java.awt.Cursor;
 import java.io.Serial;
@@ -22,7 +24,11 @@ final class MachineLinkButton extends JButton {
 
     @Override
     public Color getForeground() {
+        if (!isEnabled()) {
+            return ReadableColors.mutedText(); // a link with nothing to do reads as quiet text, still at 4.5:1
+        }
         Color colour = UIManager.getColor("Component.linkColor");
-        return colour != null ? colour : super.getForeground();
+        return colour != null ? ReadableColors.readableOn(colour, ReadableColors.panelBackground())
+                : super.getForeground();
     }
 }

@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.LoopSide;
 import cl.almejo.vsim.core.machine.MachineBody;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.machine.MachineExamples;
@@ -211,6 +212,32 @@ class MachineFilesTest {
         assertThat(json).contains("\"color\" : \"violet\"").contains("\"color\" : \"green\"");
         assertThat(read.definition("maquina-1").orElseThrow().machine()).contains(machine);
         assertThat(format.write(read)).isEqualTo(json);
+    }
+
+    @Test
+    void aSelfLoopKeepsTheSideItWasDrawnOnAndAFileWithoutItReadsNoSide() throws CircuitFormatException {
+        StateMachine detector = MachineExamples.twoOnesDetector();
+        List<MachineTransition> arrows = new java.util.ArrayList<>(detector.transitions());
+        MachineTransition loop = new MachineTransition("t99", "s1", "s1", "x", List.of());
+        arrows.add(loop);
+        detector = detector.withTransitions(arrows);
+        arrows.set(arrows.size() - 1, loop.withLoopSide(Optional.of(LoopSide.BOTTOM)));
+        StateMachine machine = detector.withTransitions(arrows);
+        String plain = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(detector)));
+        String json = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine)));
+
+        StateMachine read = format.read(json).definition("maquina-1").orElseThrow().machine().orElseThrow();
+
+        assertThat(json).contains("\"loopSide\" : \"bottom\"");
+        assertThat(plain).doesNotContain("loopSide");
+        assertThat(read).isEqualTo(machine);
+        assertThat(read.transition(loop.id()).orElseThrow().loopSide()).contains(LoopSide.BOTTOM);
+        assertThat(format.read(plain).definition("maquina-1").orElseThrow().machine().orElseThrow().transitions())
+                .allSatisfy(transition -> assertThat(transition.loopSide()).isEmpty());
+        assertThat(format.read(json.replace("\"bottom\"", "\"diagonal\"")).definition("maquina-1").orElseThrow()
+                .machine().orElseThrow().transition(loop.id()).orElseThrow().loopSide()).isEmpty();
     }
 
     @Test

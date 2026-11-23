@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.LoopSide;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineText;
@@ -102,9 +103,16 @@ final class MachineEdits {
 
     /** {@code machine} with a new arrow from {@code fromId} to {@code toId} (the same for a loop), «otherwise». */
     static StateMachine withNewTransition(StateMachine machine, String fromId, String toId) {
+        return withNewTransition(machine, fromId, toId, Optional.empty());
+    }
+
+    /** {@link #withNewTransition(StateMachine, String, String)}; a loop is drawn on {@code loopSide} when it is given. */
+    static StateMachine withNewTransition(StateMachine machine, String fromId, String toId,
+                                          Optional<LoopSide> loopSide) {
         String id = firstFree(TRANSITION_ID_PREFIX, 1, candidate -> machine.transition(candidate).isPresent());
         List<MachineTransition> transitions = new ArrayList<>(machine.transitions());
-        transitions.add(new MachineTransition(id, fromId, toId, "", List.of()));
+        transitions.add(new MachineTransition(id, fromId, toId, "", List.of(),
+                fromId.equals(toId) ? loopSide : Optional.empty()));
         return machine.withTransitions(transitions);
     }
 
@@ -392,7 +400,7 @@ final class MachineEdits {
             String id = firstFree(TRANSITION_ID_PREFIX, 1, candidate -> sofar.stream()
                     .anyMatch(transition -> transition.id().equals(candidate)));
             transitions.add(new MachineTransition(id, newIds.get(copied.fromId()), newIds.get(copied.toId()),
-                    copied.condition(), copied.outputs()));
+                    copied.condition(), copied.outputs(), copied.loopSide()));
             transitionIds.add(id);
         }
         List<MachineNote> notes = new ArrayList<>(machine.notes());
