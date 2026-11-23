@@ -5,9 +5,15 @@ import java.util.Objects;
 
 /**
  * One place of a circuit for {@code vsim_list_places}: the main circuit ({@code definition} "main", no uses) or a
- * definition, named {@code name}, with each place it is used at ({@link PlaceUse}).
+ * definition, named {@code name}, with each place it is used at ({@link PlaceUse}). {@code stateMachine}: the
+ * definition is a state machine, whose inside the AI cannot edit yet.
  */
-public record PlaceSummary(String definition, String name, List<PlaceUse> uses) {
+public record PlaceSummary(String definition, String name, List<PlaceUse> uses, boolean stateMachine) {
+
+    /** A place that is not a state machine. */
+    public PlaceSummary(String definition, String name, List<PlaceUse> uses) {
+        this(definition, name, uses, false);
+    }
 
     public PlaceSummary {
         Objects.requireNonNull(definition, "definition");

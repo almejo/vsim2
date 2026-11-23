@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.ui.window.PlaceBar;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -112,7 +113,11 @@ final class EditHostSupport {
             try {
                 openDocument.execute(command);
             } catch (InsideEditRefusedException refusal) {
-                throw new AutomationException(AutomationError.NOT_ALLOWED, PlaceBar.explanation(refusal),
+                String explanation = PlaceBar.explanation(refusal);
+                if (refusal.messageKey().equals(EditInsideCommand.MACHINE_REFUSAL)) {
+                    explanation += " The AI cannot edit state machines yet; the user changes them in their own tab.";
+                }
+                throw new AutomationException(AutomationError.NOT_ALLOWED, explanation,
                         Map.of("reason", refusal.messageKey()));
             }
         }

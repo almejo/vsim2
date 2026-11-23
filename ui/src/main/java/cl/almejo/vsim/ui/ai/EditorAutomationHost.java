@@ -393,7 +393,7 @@ public final class EditorAutomationHost implements AutomationHost {
                     .map(use -> new PlaceSummary.PlaceUse(use.path(),
                             use.chain().stream().map(ElementId::value).toList()))
                     .toList();
-            places.add(new PlaceSummary(definition.id(), definition.name(), uses));
+            places.add(new PlaceSummary(definition.id(), definition.name(), uses, definition.isMachine()));
         }
         return places;
     }
