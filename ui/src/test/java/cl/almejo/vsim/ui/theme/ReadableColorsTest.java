@@ -69,4 +69,17 @@ class ReadableColorsTest {
         assertThat(ReadableColors.over(halfWhite, Color.BLACK)).isEqualTo(new Color(128, 128, 128));
         assertThat(ReadableColors.over(Color.RED, Color.BLACK)).isEqualTo(Color.RED);
     }
+
+    @Test
+    void aTextOnATintedBackgroundIsMovedOnlyAsFarAsItNeedsToRead() {
+        Color brownBar = new Color(0x4F4A44);
+        Color grey = new Color(0xADADAD);
+        assertThat(ReadableColors.contrast(grey, brownBar)).isLessThan(ReadableColors.MINIMUM_TEXT_CONTRAST);
+
+        Color readable = ReadableColors.readableOn(grey, brownBar);
+
+        assertThat(ReadableColors.contrast(readable, brownBar)).isGreaterThanOrEqualTo(4.5);
+        assertThat(readable.getRed()).as("lighter, still a grey").isGreaterThan(grey.getRed()).isLessThan(255);
+        assertThat(ReadableColors.readableOn(Color.BLACK, Color.WHITE)).isEqualTo(Color.BLACK);
+    }
 }
