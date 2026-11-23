@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.Color;
 
@@ -53,7 +54,8 @@ public final class MachineColors {
 
     /** The Moore outputs inside {@code state}: its name's colour a little towards its inside, like {@link #muted}. */
     static Color stateOutputs(ColorScheme scheme, MachineState state) {
-        return state.color().map(color -> mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX))
+        return state.color().map(color -> ReadableColors.readableOn(
+                        mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX), scheme.stateFill(color)))
                 .orElseGet(() -> muted(scheme));
     }
 
@@ -67,7 +69,7 @@ public final class MachineColors {
 
     /** Arrows, their conditions and the Moore outputs: the text colour a little towards the background. */
     public static Color muted(ColorScheme scheme) {
-        return mix(scheme.text(), scheme.background(), MUTED_MIX);
+        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), MUTED_MIX), scheme.background());
     }
 
     /** A condition that cannot be read: the scheme's red (the conflict's). */

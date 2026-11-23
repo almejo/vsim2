@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.machine;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
+
 import java.awt.Color;
 import java.awt.Cursor;
 import java.io.Serial;
@@ -23,6 +25,7 @@ final class MachineLinkButton extends JButton {
     @Override
     public Color getForeground() {
         Color colour = UIManager.getColor("Component.linkColor");
-        return colour != null ? colour : super.getForeground();
+        return colour != null ? ReadableColors.readableOn(colour, ReadableColors.panelBackground())
+                : super.getForeground();
     }
 }

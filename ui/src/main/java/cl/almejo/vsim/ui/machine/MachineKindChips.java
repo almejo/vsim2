@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.machine.MachineKind;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -33,6 +34,11 @@ final class MachineKindChips {
     private static final double UNLIT_MIX = 0.6;
 
     private MachineKindChips() {
+    }
+
+    /** The text of the pill that is not lit: faded like the outline, but never under the minimum contrast. */
+    static Color unlitText(ColorScheme scheme) {
+        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), UNLIT_MIX), scheme.background());
     }
 
     static Font defaultFont() {
@@ -115,6 +121,7 @@ final class MachineKindChips {
             graphics.setColor(unlit);
             graphics.setStroke(new java.awt.BasicStroke(1f));
             graphics.draw(pill);
+            graphics.setColor(unlitText(scheme));
         }
         FontMetrics metrics = graphics.getFontMetrics();
         graphics.drawString(text, (float) (bounds.getX() + PADDING_X),

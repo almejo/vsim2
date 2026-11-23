@@ -204,6 +204,16 @@ class MachinePinRowsTest {
     }
 
     @Test
+    void theNamesOfClockAndResetAreTheReadableMutedGreyNotTheDisabledOne() {
+        EditorView view = tabOf(MachineFixtures.detector());
+        MachinePinTable inputs = pins(view).table(Side.INPUT);
+
+        assertThat(inputs.fixedNameColor("RST")).isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.mutedText());
+        assertThat(inputs.fixedNameColor("CLK")).isEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.mutedText());
+        assertThat(inputs.fixedNameColor("x")).isNull();
+    }
+
+    @Test
     void theNoArrowTextIsDrawnWithTheReadableWarningColour() {
         EditorView view = tabOf(MachineFixtures.detector());
         MachinePinTable inputs = pins(view).table(Side.INPUT);

@@ -514,6 +514,22 @@ class CircuitTreeTest {
     }
 
     @Test
+    void theGreyTextOfARowReadsOnTheTreeBackgroundInTheDarkTheme() throws Exception {
+        javax.swing.LookAndFeel previous = javax.swing.UIManager.getLookAndFeel();
+        try {
+            javax.swing.UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf());
+            machineWithStates();
+            CircuitTree tree = tree();
+
+            assertThat(cl.almejo.vsim.ui.theme.ReadableColors.contrast(tree.greyColorOf("c1#s0").orElseThrow(),
+                    tree.tree().getBackground()))
+                    .isGreaterThanOrEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.MINIMUM_TEXT_CONTRAST);
+        } finally {
+            javax.swing.UIManager.setLookAndFeel(previous);
+        }
+    }
+
+    @Test
     void aClickOnAStateEntersItsMachineAtThatPiece() {
         machineWithStates();
         CircuitTree tree = tree();

@@ -581,6 +581,14 @@ public final class CircuitTree extends JPanel {
         }).orElse(List.of());
     }
 
+    /** The colour the grey text of an unselected row is drawn with now (for tests); none for an unknown row. */
+    Optional<java.awt.Color> greyColorOf(String path) {
+        return Optional.ofNullable(nodesByPath.get(path)).map(node -> {
+            renderer.getTreeCellRendererComponent(tree, node, false, false, true, 0, false);
+            return renderer.muted.getForeground();
+        });
+    }
+
     Optional<Icon> iconOf(String path) {
         return nodeAt(path).map(this::icon);
     }
@@ -740,7 +748,8 @@ public final class CircuitTree extends JPanel {
             }
             CircuitTreeNode node = row.node();
             Font font = owner.getFont();
-            Color grey = selected ? UIManager.getColor("Tree.selectionForeground") : ReadableColors.mutedText();
+            Color grey = selected ? UIManager.getColor("Tree.selectionForeground")
+                    : ReadableColors.readableOn(ReadableColors.mutedText(), owner.getBackground());
             CircuitTreeNode.MachineRow.Severity problem = node.machineRow()
                     .map(CircuitTreeNode.MachineRow::problem).orElse(CircuitTreeNode.MachineRow.Severity.NONE);
             Color foreground = selected ? UIManager.getColor("Tree.selectionForeground")
