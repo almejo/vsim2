@@ -365,7 +365,7 @@ apagada, con el borde tenue.
 
 ### Moore o Mealy
 
-En la esquina superior izquierda del diagrama de una máquina hay dos etiquetas, Moore y Mealy. Se encienden según dónde pongas las salidas: solo en estados (Moore), solo en flechas (Mealy) o en ambos lugares, y entonces se encienden las dos y una línea dice cuántas salidas hay en cada sitio, por ejemplo «2 salidas en estados, 1 en flechas». Si la máquina aún no tiene salidas, ninguna se enciende. Pasa el puntero sobre una etiqueta para ver qué significa. No son botones: un doble clic debajo de ellas sigue creando un estado.
+En la esquina superior izquierda del diagrama de una máquina hay dos etiquetas, Moore y Mealy. Se encienden según dónde pongas las salidas: solo en estados (Moore), solo en flechas (Mealy) o en ambos lugares, y entonces se encienden las dos y una línea dice cuántas salidas hay en cada sitio, por ejemplo «2 salidas en estados, 1 en flechas». Si la máquina aún no tiene salidas, ninguna se enciende. Tienen la letra de la interfaz y crecen con su tamaño (Preferencias ▸ Aspecto ▸ «Tamaño de la interfaz»). Pasa el puntero sobre una etiqueta para ver qué significa. No son botones: un doble clic debajo de ellas sigue creando un estado.
 
 ### La onda de la máquina
 

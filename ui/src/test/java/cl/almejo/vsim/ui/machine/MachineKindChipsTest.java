@@ -6,12 +6,15 @@ import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import javax.swing.UIManager;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -126,5 +129,30 @@ class MachineKindChipsTest {
         int green = first.getGreen() - second.getGreen();
         int blue = first.getBlue() - second.getBlue();
         return Math.sqrt(red * red + green * green + blue * blue);
+    }
+
+    /** Final review finding 4: the chips, their margins and their font follow the interface size (100 % and 200 %). */
+    @Test
+    void theChipsFollowTheInterfaceSize() throws Exception {
+        Font normalFont = MachineKindChips.defaultFont();
+        Rectangle2D normalMoore = MachineKindChips.mooreBounds(normalFont);
+        Rectangle2D normalMealy = MachineKindChips.mealyBounds(normalFont);
+        assertThat(normalFont.getSize()).isEqualTo(UIManager.getFont("Label.font").getSize());
+
+        UiTestSupport.atDoubleUiScale(() -> {
+            Font doubledFont = MachineKindChips.defaultFont();
+            Rectangle2D doubledMoore = MachineKindChips.mooreBounds(doubledFont);
+            Rectangle2D doubledMealy = MachineKindChips.mealyBounds(doubledFont);
+
+            assertThat(doubledFont.getSize()).isEqualTo(UIManager.getFont("Label.font").getSize())
+                    .isGreaterThanOrEqualTo(2 * normalFont.getSize() - 2);
+            assertThat(doubledMoore.getX()).as("the margin").isEqualTo(2 * normalMoore.getX());
+            assertThat(doubledMoore.getHeight()).as("a chip's height").isGreaterThanOrEqualTo(
+                    2 * normalMoore.getHeight() - 4);
+            assertThat(doubledMealy.getX() - doubledMoore.getMaxX()).as("the gap")
+                    .isEqualTo(2 * (normalMealy.getX() - normalMoore.getMaxX()));
+            assertThat(MachineKindChips.tooltipAt(centerOf(doubledMealy), kindOf(List.of(Z_ON), List.of()),
+                    doubledFont)).hasValueSatisfying(text -> assertThat(text).startsWith("Mealy:"));
+        });
     }
 }
