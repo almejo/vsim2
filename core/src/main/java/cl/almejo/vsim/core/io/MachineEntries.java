@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.machine.MachinePin;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTest;
 import cl.almejo.vsim.core.machine.MachineText;
+import cl.almejo.vsim.core.machine.LoopSide;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateColor;
@@ -59,8 +60,10 @@ final class MachineEntries {
                       @JsonInclude(JsonInclude.Include.NON_NULL) String color) {
     }
 
+    /** An arrow; {@code loopSide} (top, right, bottom, left) is written only on a self loop the user placed. */
     record TransitionEntry(String id, String from, String to, String condition,
-                           @JsonInclude(JsonInclude.Include.NON_EMPTY) List<OutputEntry> outputs) {
+                           @JsonInclude(JsonInclude.Include.NON_EMPTY) List<OutputEntry> outputs,
+                           @JsonInclude(JsonInclude.Include.NON_NULL) String loopSide) {
     }
 
     record OutputEntry(String output, int value) {
@@ -127,7 +130,8 @@ final class MachineEntries {
                 machine.states().stream().map(MachineEntries::stateEntry).toList(),
                 machine.transitions().stream().map(transition -> new TransitionEntry(transition.id(),
                         transition.fromId(), transition.toId(), transition.condition(),
-                        outputEntries(transition.outputs()))).toList(),
+                        outputEntries(transition.outputs()),
+                        transition.loopSide().map(side -> side.name().toLowerCase(Locale.ROOT)).orElse(null))).toList(),
                 machine.initialStateId().orElse(null), pinEntries(machine.inputs()), pinEntries(machine.outputs()),
                 machine.inputsAsBus(), machine.outputsAsBus(), machine.edge(),
                 MachineTestEntries.entries(machine),
@@ -173,7 +177,8 @@ final class MachineEntries {
             for (TransitionEntry transition : CircuitFormat.entries(entry.transitions())) {
                 CircuitFormat.requireEntry(transition, "transitions of " + definitionId);
                 transitions.add(new MachineTransition(transition.id(), transition.from(), transition.to(),
-                        transition.condition(), outputs(transition.outputs(), definitionId)));
+                        transition.condition(), outputs(transition.outputs(), definitionId),
+                        loopSide(transition)));
             }
             List<MachineTest> tests = MachineTestEntries.tests(CircuitFormat.entries(entry.tests()), definitionId);
             List<MachineNote> notes = new ArrayList<>();
@@ -191,6 +196,18 @@ final class MachineEntries {
                     edge, tests, notes, texts);
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw invalid("machine of " + definitionId + ": " + exception.getMessage(), exception);
+        }
+    }
+
+    /** The side a loop was placed on; none for a missing or unknown name (the loop then keeps the old placement). */
+    private static Optional<LoopSide> loopSide(TransitionEntry entry) {
+        if (entry.loopSide() == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(LoopSide.valueOf(entry.loopSide().toUpperCase(Locale.ROOT)));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
         }
     }
 
