@@ -9,9 +9,7 @@ import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
 
-import java.util.Comparator;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -31,12 +29,8 @@ public final class PartFormats {
      * a float at a width with no IEEE 754 format (the caller's default then applies).
      */
     public static Optional<String> of(Net net, CircuitDocument document, ComponentTypeRegistry registry) {
-        Comparator<PinRef> order = Comparator.comparingLong((PinRef pin) -> document.orderOf(pin.componentId()))
-                .thenComparingInt(PinRef::pinIndex);
-        List<PinRef> pins = net.pins().stream().filter(pin -> document.component(pin.componentId()).isPresent())
-                .sorted(order).toList();
         Set<Optional<String>> others = new LinkedHashSet<>();
-        for (PinRef pin : pins) {
+        for (PinRef pin : net.pinsInOrderOf(document)) {
             Component component = document.component(pin.componentId()).orElseThrow();
             Optional<ComponentType> type = registry.findTypeOf(component);
             if (type.isEmpty() || pin.pinIndex() >= type.get().pinCount()

@@ -1,12 +1,11 @@
 package cl.almejo.vsim.ui.whatsnew;
 
-import cl.almejo.vsim.ui.panels.FontFloor;
+import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.i18n.Messages;
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
-import javax.swing.UIManager;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -79,18 +78,15 @@ final class NewsBubble extends JComponent {
     }
 
     private static Font textFont() {
-        Font font = UIManager.getFont("Label.font");
-        return font == null ? new Font(Font.SANS_SERIF, Font.PLAIN, 13) : font;
+        return CardLook.textFont();
     }
 
     private static Font titleFont() {
-        Font font = textFont();
-        return font.deriveFont(Font.BOLD, font.getSize2D() + TITLE_GROWTH);
+        return CardLook.titleFont(TITLE_GROWTH);
     }
 
     private static Font smallFont() {
-        Font font = textFont();
-        return FontFloor.smaller(font, SMALL_SHRINK);
+        return CardLook.smallFont(SMALL_SHRINK);
     }
 
     /** How tall the bubble is at {@code width}, everything wrapped. */

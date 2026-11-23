@@ -13,13 +13,11 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
-import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.PlacingTool;
 import cl.almejo.vsim.ui.tools.RotateShortcuts;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
-import java.awt.Cursor;
 import java.awt.Graphics2D;
-import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Map;
 
@@ -28,7 +26,7 @@ import java.util.Map;
  * undo step (overview M4-A). A definition the document already has is kept (M4-0 {@code PutDefinitionsCommand}).
  * Shift keeps placing; R / Shift+R rotate; Esc or a right click return to the default tool.
  */
-public final class PlaceDefinitionTool implements Tool {
+public final class PlaceDefinitionTool extends PlacingTool {
 
     private static final ElementId PREVIEW_ID = new ElementId("preview");
 
@@ -49,30 +47,13 @@ public final class PlaceDefinitionTool implements Tool {
     }
 
     @Override
-    public boolean placesFromPalette() {
-        return true;
-    }
-
-    @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
         hover = event.snapped();
         context.repaint();
     }
 
     @Override
-    public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
-        mouseMoved(context, event);
-    }
-
-    @Override
-    public void mousePressed(ToolContext context, CanvasMouseEvent event) {
-        if (event.button() == CanvasMouseEvent.SECONDARY) {
-            context.useDefaultTool();
-            return;
-        }
-        if (event.button() != CanvasMouseEvent.PRIMARY) {
-            return;
-        }
+    protected void place(ToolContext context, CanvasMouseEvent event) {
         OpenDocument openDocument = context.openDocument();
         Component instance = type.newComponent(openDocument.document().newComponentId(), event.snapped(), rotation,
                 Map.of(), "");
@@ -81,9 +62,6 @@ public final class PlaceDefinitionTool implements Tool {
         context.selection().select(instance.id());
         context.componentPlaced(type.id());
         context.repaint();
-        if (!event.shiftDown()) {
-            context.useDefaultTool();
-        }
     }
 
     @Override
@@ -102,24 +80,10 @@ public final class PlaceDefinitionTool implements Tool {
     }
 
     @Override
-    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode == KeyEvent.VK_ESCAPE) {
-            context.useDefaultTool();
-            return true;
-        }
-        return false;
-    }
-
-    @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
         if (hover != null) {
             context.paintGhost(graphics, type.newComponent(PREVIEW_ID, hover, rotation, Map.of(), ""),
                     definitions.registryFor(context.openDocument().registry()));
         }
-    }
-
-    @Override
-    public Cursor cursor() {
-        return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 }

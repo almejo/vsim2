@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.ui.ai.AiColors;
+import cl.almejo.vsim.ui.ai.RoundedOutline;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.ThemeColors;
@@ -11,13 +12,9 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.UIManager;
-import javax.swing.border.AbstractBorder;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Insets;
 import java.awt.event.MouseEvent;
 import java.awt.font.TextAttribute;
 import java.util.ArrayList;
@@ -64,7 +61,7 @@ final class StageCard extends JPanel {
     StageCard(PresentedTask task, int stageIndex) {
         super(new MigLayout("insets 4 8 4 8, wrap 1, gap 0 1", "[grow, fill]"));
         setOpaque(false);
-        setBorder(new Outline(1));
+        setBorder(new RoundedOutline(1));
         TaskStage stage = task.stages().get(stageIndex);
         String title = (stageIndex + 1) + ". " + stage.title();
         switch (task.stageState(stageIndex)) {
@@ -199,29 +196,6 @@ final class StageCard extends JPanel {
                 case ITALIC -> base.deriveFont(Font.ITALIC);
                 case STRUCK -> base.deriveFont(Map.of(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON));
             };
-        }
-    }
-
-    /** A thin rounded outline in the theme's border colour, read when painted, with {@code padding} inside it. */
-    static final class Outline extends AbstractBorder {
-
-        private static final int ARC = 8;
-        private final int padding;
-
-        Outline(int padding) {
-            this.padding = padding;
-        }
-
-        @Override
-        public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
-            Color color = UIManager.getColor("Component.borderColor");
-            graphics.setColor(color != null ? color : Color.GRAY);
-            graphics.drawRoundRect(x, y, width - 1, height - 1, ARC, ARC);
-        }
-
-        @Override
-        public Insets getBorderInsets(Component component) {
-            return new Insets(padding, padding, padding, padding);
         }
     }
 }

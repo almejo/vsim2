@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 /**
  * The things «Ordenar circuito» separates, read from a document (spec 2026-11-06 §4.1–§4.2): one {@link Item} per
@@ -180,6 +181,26 @@ final class LayoutItems {
     /** Every item, in {@link #ID_ORDER}. */
     List<Item> items() {
         return items;
+    }
+
+    /**
+     * The parts (not the texts) in groups chained by pairs whose bodies are {@code joined} (stacked in a column, side
+     * by side in a row): each group in the order of the items, the groups in the order of their first member.
+     */
+    Collection<List<Item>> chainedParts(BiPredicate<Bounds, Bounds> joined) {
+        List<Item> parts = items.stream().filter(item -> !item.isText()).toList();
+        UnionFind<ElementId> joins = new UnionFind<>();
+        parts.forEach(part -> joins.add(part.id()));
+        for (int first = 0; first < parts.size(); first++) {
+            for (int second = first + 1; second < parts.size(); second++) {
+                if (joined.test(parts.get(first).bodyBox(), parts.get(second).bodyBox())) {
+                    joins.union(parts.get(first).id(), parts.get(second).id());
+                }
+            }
+        }
+        Map<ElementId, List<Item>> byRoot = new LinkedHashMap<>();
+        parts.forEach(part -> byRoot.computeIfAbsent(joins.find(part.id()), root -> new ArrayList<>()).add(part));
+        return byRoot.values();
     }
 
     /** The item named {@code id} (the smallest id of a cluster); empty for any other id. */

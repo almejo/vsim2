@@ -150,13 +150,7 @@ public final class ProbeResolver {
     /** A pin of {@code net} that {@code eligible} accepts: a driver first, else the first by document then pin order. */
     private static Optional<ProbeTarget> chosenPin(Net net, Predicate<PinRef> eligible, CircuitDocument document,
                                                    ComponentTypeRegistry registry) {
-        Comparator<PinRef> order = Comparator.comparingLong((PinRef pin) -> document.orderOf(pin.componentId()))
-                .thenComparingInt(PinRef::pinIndex);
-        List<PinRef> pins = net.pins().stream()
-                .filter(pin -> document.component(pin.componentId()).isPresent())
-                .filter(eligible)
-                .sorted(order)
-                .toList();
+        List<PinRef> pins = net.pinsInOrderOf(document).stream().filter(eligible).toList();
         return pins.stream()
                 .filter(pin -> isDriver(pin, document, registry))
                 .findFirst()

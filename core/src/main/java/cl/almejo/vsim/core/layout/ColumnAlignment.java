@@ -1,13 +1,10 @@
 package cl.almejo.vsim.core.layout;
 
-import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.geometry.UnionFind;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -90,20 +87,8 @@ final class ColumnAlignment {
      * in the order of their first member; groups with a row inside are left out.
      */
     static List<List<LayoutItems.Item>> columns(LayoutItems items) {
-        List<LayoutItems.Item> parts = items.items().stream().filter(item -> !item.isText()).toList();
-        UnionFind<ElementId> joins = new UnionFind<>();
-        parts.forEach(part -> joins.add(part.id()));
-        for (int first = 0; first < parts.size(); first++) {
-            for (int second = first + 1; second < parts.size(); second++) {
-                if (stacked(parts.get(first).bodyBox(), parts.get(second).bodyBox())) {
-                    joins.union(parts.get(first).id(), parts.get(second).id());
-                }
-            }
-        }
-        Map<ElementId, List<LayoutItems.Item>> byRoot = new LinkedHashMap<>();
-        parts.forEach(part -> byRoot.computeIfAbsent(joins.find(part.id()), root -> new ArrayList<>()).add(part));
         List<List<LayoutItems.Item>> columns = new ArrayList<>();
-        for (List<LayoutItems.Item> group : byRoot.values()) {
+        for (List<LayoutItems.Item> group : items.chainedParts(ColumnAlignment::stacked)) {
             if (group.size() > 1 && !holdsARow(group)) {
                 group.sort(Comparator.comparing(LayoutItems.Item::id, LayoutItems.ID_ORDER));
                 columns.add(group);

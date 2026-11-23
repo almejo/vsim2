@@ -8,7 +8,6 @@ import java.util.Locale;
 public final class LogisimRawFormat implements MemoryFileFormat {
 
     /** The byte order mark some editors put in front of a text file. */
-    private static final char BYTE_ORDER_MARK = '\uFEFF';
 
     public static final String ID = "logisim";
     static final String SIGNATURE = "v2.0 raw";
@@ -23,11 +22,8 @@ public final class LogisimRawFormat implements MemoryFileFormat {
 
     @Override
     public boolean canRead(String fileName, String firstLine) {
-        String first = firstLine == null ? "" : firstLine.strip();
-        if (!first.isEmpty() && first.charAt(0) == BYTE_ORDER_MARK) {
-            first = first.substring(1).strip();
-        }
-        return first.equals(SIGNATURE);
+        // stripped again after the BOM, unlike VSim's own format
+        return HexText.firstLineWithoutBom(firstLine).strip().equals(SIGNATURE);
     }
 
     @Override
@@ -52,12 +48,7 @@ public final class LogisimRawFormat implements MemoryFileFormat {
         for (int index = 1; index < lines.length; index++) {
             int lineNumber = index + 1;
             String line = lines[index];
-            int comment = line.indexOf('#');
-            String code = comment < 0 ? line : line.substring(0, comment);
-            for (String token : code.trim().split("\\s+")) {
-                if (token.isEmpty()) {
-                    continue;
-                }
+            for (String token : HexText.tokens(line)) {
                 int star = token.indexOf('*');
                 long count = 1;
                 String wordText = token;

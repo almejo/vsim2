@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.whatsnew;
 
-import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.CardLook;
@@ -17,7 +16,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -206,13 +204,7 @@ final class TipCard extends JComponent {
 
     @Override
     public void paint(Graphics graphics) {
-        Graphics2D painter = (Graphics2D) graphics.create();
-        try {
-            painter.setComposite(AlphaComposite.SrcOver.derive(opacity));
-            super.paint(painter);
-        } finally {
-            painter.dispose();
-        }
+        CardLook.paintFaded(graphics, opacity, super::paint);
     }
 
     @Override
@@ -245,18 +237,15 @@ final class TipCard extends JComponent {
     }
 
     private static Font textFont() {
-        Font font = UIManager.getFont("Label.font");
-        return font == null ? new Font(Font.SANS_SERIF, Font.PLAIN, 13) : font;
+        return CardLook.textFont();
     }
 
     private static Font titleFont() {
-        Font font = textFont();
-        return font.deriveFont(Font.BOLD, font.getSize2D() + TITLE_GROWTH);
+        return CardLook.titleFont(TITLE_GROWTH);
     }
 
     private static Font smallFont() {
-        Font font = textFont();
-        return FontFloor.smaller(font, SMALL_SHRINK);
+        return CardLook.smallFont(SMALL_SHRINK);
     }
 
     // --- what tests read ---

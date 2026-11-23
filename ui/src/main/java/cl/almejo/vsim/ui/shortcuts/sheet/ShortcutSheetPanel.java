@@ -22,7 +22,6 @@ import javax.swing.Scrollable;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
-import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
@@ -318,13 +317,7 @@ final class ShortcutSheetPanel extends JPanel {
 
     @Override
     public void paint(Graphics graphics) {
-        Graphics2D painter = (Graphics2D) graphics.create();
-        try {
-            painter.setComposite(AlphaComposite.SrcOver.derive(opacity));
-            super.paint(painter);
-        } finally {
-            painter.dispose();
-        }
+        CardLook.paintFaded(graphics, opacity, super::paint);
     }
 
     /** The veil, darker in both themes, and the card's soft shadow. */

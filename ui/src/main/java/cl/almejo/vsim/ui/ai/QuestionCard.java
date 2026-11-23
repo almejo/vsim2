@@ -12,14 +12,10 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
-import javax.swing.border.AbstractBorder;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Insets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +51,7 @@ public final class QuestionCard extends JPanel {
         this.question = Objects.requireNonNull(question, "question");
         this.answered = Objects.requireNonNull(answered, "answered");
         setOpaque(false);
-        setBorder(new Outline());
+        setBorder(new RoundedOutline(1));
         add(title);
         questionText.setText(question.text());
         add(questionText, "wmin 0");
@@ -206,24 +202,6 @@ public final class QuestionCard extends JPanel {
         public Font getFont() {
             Font font = UIManager.getFont("Label.font");
             return font != null ? font.deriveFont(Font.BOLD) : super.getFont();
-        }
-    }
-
-    /** A thin rounded outline in the theme's border colour, read when painted. */
-    private static final class Outline extends AbstractBorder {
-
-        private static final int ARC = 8;
-
-        @Override
-        public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
-            Color color = UIManager.getColor("Component.borderColor");
-            graphics.setColor(color != null ? color : Color.GRAY);
-            graphics.drawRoundRect(x, y, width - 1, height - 1, ARC, ARC);
-        }
-
-        @Override
-        public Insets getBorderInsets(Component component) {
-            return new Insets(1, 1, 1, 1);
         }
     }
 }

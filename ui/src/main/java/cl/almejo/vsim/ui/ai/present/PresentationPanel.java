@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.ai.AiPanel;
 import cl.almejo.vsim.ui.ai.AiUndoNotices;
 import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.ai.ChangedSettingsSection;
+import cl.almejo.vsim.ui.ai.RoundedOutline;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -124,7 +125,7 @@ final class PresentationPanel extends JPanel {
         this.controls = Objects.requireNonNull(controls, "controls");
         this.override = SettingsOverride.of(windowPreferences);
         Objects.requireNonNull(close, "close");
-        setBorder(BorderFactory.createCompoundBorder(new StageCard.Outline(1),
+        setBorder(BorderFactory.createCompoundBorder(new RoundedOutline(1),
                 BorderFactory.createEmptyBorder(5, 7, 7, 7)));
 
         buildHeader(close);

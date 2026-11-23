@@ -1,9 +1,11 @@
 package cl.almejo.vsim.ui.window;
 
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import java.awt.Component;
+import java.util.Optional;
 
 /**
  * The group of Archivo that holds «Importar ▸» and «Exportar ▸» (in that order) between a separator of its own and the
@@ -38,6 +40,26 @@ final class ImportExportGroup {
             position++;
         }
         file.insert(menu, position);
+    }
+
+    /** The submenu of {@code file} marked with the client property {@code mark}, if there is one. */
+    static Optional<JMenu> find(JMenu file, String mark) {
+        for (Component child : file.getMenuComponents()) {
+            if (child instanceof JMenu menu && Boolean.TRUE.equals(menu.getClientProperty(mark))) {
+                return Optional.of(menu);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** What takes {@code item} back out of {@code menu}, and the submenu out of the group once it is empty. */
+    static Runnable removal(JMenu file, JMenu menu, JMenuItem item) {
+        return () -> {
+            menu.remove(item);
+            if (menu.getMenuComponentCount() == 0) {
+                remove(file, menu);
+            }
+        };
     }
 
     /** Takes {@code menu} out and, when no submenu of the group is left, the group's separator too. */

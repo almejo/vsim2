@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import java.awt.Component;
 import java.util.Optional;
 
 /**
@@ -24,12 +23,7 @@ public final class ExportMenu {
 
     /** The «Exportar» submenu of {@code file}, when an extension made it. */
     public static Optional<JMenu> find(JMenu file) {
-        for (Component child : file.getMenuComponents()) {
-            if (child instanceof JMenu menu && Boolean.TRUE.equals(menu.getClientProperty(MARK))) {
-                return Optional.of(menu);
-            }
-        }
-        return Optional.empty();
+        return ImportExportGroup.find(file, MARK);
     }
 
     /**
@@ -49,12 +43,7 @@ public final class ExportMenu {
             }
         }
         menu.add(item, index);
-        return () -> {
-            menu.remove(item);
-            if (menu.getMenuComponentCount() == 0) {
-                ImportExportGroup.remove(file, menu);
-            }
-        };
+        return ImportExportGroup.removal(file, menu, item);
     }
 
     private static JMenu create(JMenu file) {

@@ -1,13 +1,17 @@
 package cl.almejo.vsim.ui.paint;
 
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
+import java.util.Map;
 
 /**
  * The drawing a Buffer and a tri-state buffer share: the triangle pointing right, the bubble of «Negar salida» before
- * the output, and the input and output leads (thick for a bus). Where the output lead starts is each painter's: the
- * tri-state's triangle is longer.
+ * the output, and the input and output leads (thick for a bus). Where the output lead starts is each painter's (the
+ * tri-state's two pixels sooner than the Buffer's).
  */
 final class BufferTriangle {
 
@@ -26,8 +30,17 @@ final class BufferTriangle {
         return negated ? outputLeadStart - BUBBLE_DIAMETER : outputLeadStart;
     }
 
-    /** The input lead up to the triangle and the output lead from {@code outputLeadStart} on. */
-    static void paintLeads(Graphics2D graphics, boolean bus, double outputLeadStart, ColorScheme scheme) {
+    /** Whether «Negar salida» is on: the bubble before the output. */
+    static boolean negated(Map<String, Object> parameters) {
+        return Boolean.TRUE.equals(parameters.get(StandardComponentTypes.NEGATE));
+    }
+
+    /**
+     * The input lead up to the triangle and the output lead from {@code outputLeadStart} on, thick when a pin of
+     * {@code shaped} (the type as its parameters shape it) is a bus.
+     */
+    static void paintLeads(Graphics2D graphics, ComponentType shaped, double outputLeadStart, ColorScheme scheme) {
+        boolean bus = shaped.pins().stream().anyMatch(pin -> pin.width() > 1);
         PainterSupport.pinLead(graphics, bus, 0, MIDDLE, TRIANGLE_BACK, MIDDLE, scheme);
         PainterSupport.pinLead(graphics, bus, outputLeadStart, MIDDLE, OUTPUT_LEAD_END, MIDDLE, scheme);
     }

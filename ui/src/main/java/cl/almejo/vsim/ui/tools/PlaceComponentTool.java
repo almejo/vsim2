@@ -14,9 +14,7 @@ import cl.almejo.vsim.ui.snap.ContactDots;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 
-import java.awt.Cursor;
 import java.awt.Graphics2D;
-import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +28,7 @@ import java.util.Set;
  * not moved), and the rotate shortcuts or {@link #refreshSnap} redo the ghost from the last raw point. A dot marks each point where
  * the ghost would touch a net of the circuit ({@link ContactDots}), before the lines.
  */
-public final class PlaceComponentTool implements Tool {
+public final class PlaceComponentTool extends PlacingTool {
 
     private static final ElementId PREVIEW_ID = new ElementId("preview");
 
@@ -58,11 +56,6 @@ public final class PlaceComponentTool implements Tool {
 
     public Rotation rotation() {
         return rotation;
-    }
-
-    @Override
-    public boolean placesFromPalette() {
-        return true;
     }
 
     @Override
@@ -104,27 +97,12 @@ public final class PlaceComponentTool implements Tool {
     }
 
     @Override
-    public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
-        mouseMoved(context, event);
-    }
-
-    @Override
-    public void mousePressed(ToolContext context, CanvasMouseEvent event) {
-        if (event.button() == CanvasMouseEvent.SECONDARY) {
-            context.useDefaultTool();
-            return;
-        }
-        if (event.button() != CanvasMouseEvent.PRIMARY) {
-            return;
-        }
+    protected void place(ToolContext context, CanvasMouseEvent event) {
         if (!event.snapped().equals(rawHover)) {
             rawHover = event.snapped();
             snapHover(context);
         }
         ComponentPlacement.place(context, type, presetParameters, hover, rotation);
-        if (!event.shiftDown()) {
-            context.useDefaultTool();
-        }
     }
 
     @Override
@@ -139,15 +117,6 @@ public final class PlaceComponentTool implements Tool {
         }
         context.repaint();
         return true;
-    }
-
-    @Override
-    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode == KeyEvent.VK_ESCAPE) {
-            context.useDefaultTool();
-            return true;
-        }
-        return false;
     }
 
     @Override
@@ -174,10 +143,5 @@ public final class PlaceComponentTool implements Tool {
         }
         return contactCache.contacts(context.openDocument().document(), context.openDocument().registry(),
                 List.of(ghost(context)), 0, 0, Set.of());
-    }
-
-    @Override
-    public Cursor cursor() {
-        return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 }
