@@ -24,6 +24,7 @@ import cl.almejo.vsim.ui.canvas.WheelNavigation;
 import cl.almejo.vsim.ui.inline.InlineHost;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.problems.ProblemText;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
 
 import javax.swing.JComponent;
@@ -432,8 +433,9 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     /**
-     * The problems this tab shows (its Propiedades, F8): the machine's own, then the ones of the running copy entered
-     * through (an input or the clock in Z): the same rows Problemas lists for them.
+     * The problems this tab shows (its Propiedades, F8): the machine's own and the ones of the running copy entered
+     * through (an input or the clock in Z): the same rows Problemas lists for them, in its order
+     * ({@link ProblemText#ordered}: errors first, then warnings), so both lists read alike (fix round 4).
      */
     public List<MachineProblem> problems() {
         Optional<StateMachine> machine = machine();
@@ -445,7 +447,7 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
                 problems.add(MachineProblem.of(definitionId, Optional.empty(), finding)));
         openDocument.contextPath().ifPresent(path -> runtimeFindings(path).forEach(finding ->
                 problems.add(MachineProblem.of(definitionId, Optional.of(path), finding))));
-        return List.copyOf(problems);
+        return ProblemText.ordered(List.copyOf(problems)).stream().map(MachineProblem.class::cast).toList();
     }
 
     /** What the running copy at {@code path} reports, from the circuit's latest snapshot of its current netlist. */

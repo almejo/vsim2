@@ -337,7 +337,8 @@ class MachineProblemsOnDiagramTest {
         assertThat(lines).hasSize(4);
         assertThat(lines.getFirst()).as("an error says so in words").startsWith("\u2716 ");
         assertThat(lines).anySatisfy(line -> assertThat(line).startsWith("\u26A0 ").contains("no se alcanza"));
-        assertThat(lines.getLast()).as("the running copy's own").contains("CLK sin 0 ni 1");
+        // in the Problems panel's order (fix round 4): the running copy's own is among them, not always last
+        assertThat(lines).as("the running copy's own").anySatisfy(line -> assertThat(line).contains("CLK sin 0 ni 1"));
         assertThat(links).hasSize(4);
         int unreachable = lines.indexOf(lines.stream().filter(line -> line.contains("no se alcanza")).findFirst()
                 .orElseThrow());
