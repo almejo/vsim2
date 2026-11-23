@@ -116,6 +116,7 @@ public final class ProbeResolver {
     public static boolean watchesRemoved(ProbeTarget target, Set<ElementId> removedIds, CircuitDocument document) {
         ElementId watched = switch (target) {
             case ProbeTarget.PinTarget pin -> pin.componentId();
+            case ProbeTarget.MachineStateTarget machine -> machine.componentId();
             case ProbeTarget.WireTarget wire -> wire.wireId();
         };
         return removedIds.contains(watched) && document.element(watched).isPresent();
@@ -124,6 +125,8 @@ public final class ProbeResolver {
     private static Optional<Net> netOfTarget(ProbeTarget target, Netlist netlist) {
         return switch (target) {
             case ProbeTarget.PinTarget pin -> netlist.netForPin(new PinRef(pin.componentId(), pin.pinIndex()));
+            // The state of a deleted machine piece has no net that survives it: its channel goes with the piece.
+            case ProbeTarget.MachineStateTarget machine -> Optional.empty();
             case ProbeTarget.WireTarget wire -> netlist.netForWire(wire.wireId());
         };
     }

@@ -149,15 +149,21 @@ class MachineStateProbesTest {
     }
 
     @Test
-    void aDeletedPieceLeavesItsRowsWithoutAConnection() {
+    void aDeletedPieceTakesItsStateAndOutputRowsAlongAndUndoBringsThemBack() {
         actions.addMachineStatesAndOutputs(piece);
         panel.probesChanged();
+        List<String> namesBefore = List.copyOf(panel.names().values());
+        List<Probe> probesBefore = openDocument.document().probes();
+        assertThat(probesBefore).hasSize(2);
 
-        openDocument.execute(new RemoveElementsCommand(List.of(piece)));
+        openDocument.execute(new RemoveElementsCommand(List.of(piece), openDocument.registry()));
 
-        assertThat(panel.names().values()).containsExactly("(sin conexión)", "(sin conexión)");
+        assertThat(openDocument.document().probes()).isEmpty();
+        assertThat(panel.names().values()).isEmpty();
         openDocument.history().undo();
-        assertThat(panel.names().values()).doesNotContain("(sin conexión)");
+        assertThat(openDocument.document().probes()).isEqualTo(probesBefore);
+        assertThat(panel.names().values()).containsExactlyElementsOf(namesBefore)
+                .doesNotContain("(sin conexión)");
     }
 
     @Test

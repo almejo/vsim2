@@ -101,6 +101,7 @@ class RemoveElementsProbesTest {
                     + ".pin" + pin.pinIndex() + " on " + netlist.netForPin(new PinRef(pin.componentId(),
                     pin.pinIndex())).orElseThrow().pins().size() + " pins";
             case ProbeTarget.WireTarget wireTarget -> "wire " + wireTarget.wireId().value();
+            case ProbeTarget.MachineStateTarget machine -> "state " + machine.componentId().value();
         };
 
         history.execute(new RemoveElementsCommand(List.of(driver.id()), registry, naming));
