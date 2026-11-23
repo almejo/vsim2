@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.sheets;
 
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.UIManager;
@@ -33,7 +34,7 @@ final class SheetText {
     static Font font(Component pane) {
         Font label = UIManager.getFont("Label.font");
         Font base = label != null ? label : pane.getFont();
-        return base.deriveFont(base.getSize2D() * SIZE_FACTOR);
+        return FontFloor.scaled(base, SIZE_FACTOR);
     }
 
     /** The box {@code text} takes on {@code pane} with its top-left corner at ({@code x}, {@code y}). */

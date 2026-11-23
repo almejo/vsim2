@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.CardLook;
@@ -255,7 +256,7 @@ final class TipCard extends JComponent {
 
     private static Font smallFont() {
         Font font = textFont();
-        return font.deriveFont(font.getSize2D() - SMALL_SHRINK);
+        return FontFloor.smaller(font, SMALL_SHRINK);
     }
 
     // --- what tests read ---

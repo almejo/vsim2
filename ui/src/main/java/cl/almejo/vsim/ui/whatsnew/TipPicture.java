@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -311,7 +312,7 @@ final class TipPicture extends JComponent {
 
     private static Font captionFont() {
         Font font = keyFont();
-        return font.deriveFont(font.getSize2D() - 2);
+        return FontFloor.smaller(font, 2f);
     }
 
     /** The text's colour of the theme: the names on the keycaps, readable in light and dark. */

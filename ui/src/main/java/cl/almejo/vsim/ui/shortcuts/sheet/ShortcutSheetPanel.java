@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.shortcuts.sheet;
 
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.CardLook;
@@ -188,7 +189,7 @@ final class ShortcutSheetPanel extends JPanel {
         JLabel heading = new ThemedLabel(ReadableColors::mutedText, group.title().toUpperCase(Locale.ROOT));
         Font font = heading.getFont();
         heading.setFont(font.deriveFont(Map.of(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD,
-                TextAttribute.SIZE, font.getSize2D() * HEADING_SCALE, TextAttribute.TRACKING, HEADING_TRACKING)));
+                TextAttribute.SIZE, FontFloor.size(font, font.getSize2D() * HEADING_SCALE), TextAttribute.TRACKING, HEADING_TRACKING)));
         panel.add(heading, "span 2, gapbottom 6, align left");
         for (SheetSelection.Row row : group.rows()) {
             panel.add(new KeycapsLabel(row.keys()));
@@ -410,7 +411,7 @@ final class ShortcutSheetPanel extends JPanel {
     /** The interface's text font at {@link #ROW_SCALE}, read when the card is built (each time it opens). */
     private static Font rowFont() {
         Font font = UIManager.getFont("Label.font");
-        return font.deriveFont(font.getSize2D() * ROW_SCALE);
+        return FontFloor.scaled(font, ROW_SCALE);
     }
 
     /** The keys of a shortcut as keycaps ({@link Keycaps}), in the theme's text colour read at paint time. */

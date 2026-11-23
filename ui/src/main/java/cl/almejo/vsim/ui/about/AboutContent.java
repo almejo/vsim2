@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.about;
 
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
@@ -79,7 +80,7 @@ final class AboutContent extends JPanel {
         addRow(Messages.text("about.label.history"), new JLabel(Messages.text("about.value.history")));
         JLabel credits = new MutedLabel(Messages.format("about.credits", String.join(", ", CREDITS)) + " "
                 + Messages.text("about.credits.fonts"));
-        credits.setFont(credits.getFont().deriveFont(credits.getFont().getSize2D() * SMALL_SCALE));
+        credits.setFont(FontFloor.scaled(credits.getFont(), SMALL_SCALE));
         card.add(creditsText(credits), "span 2, gaptop 12");
     }
 

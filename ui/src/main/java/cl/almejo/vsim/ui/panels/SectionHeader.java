@@ -57,7 +57,7 @@ final class SectionHeader extends JComponent {
         if (base == null) {
             base = getFont();
         }
-        return base.deriveFont(Font.BOLD, base.getSize2D() * FONT_FACTOR);
+        return FontFloor.scaled(base, Font.BOLD, FONT_FACTOR);
     }
 
     private String shownText() {

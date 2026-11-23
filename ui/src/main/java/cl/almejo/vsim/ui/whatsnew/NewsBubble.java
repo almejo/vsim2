@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.i18n.Messages;
 import com.formdev.flatlaf.util.UIScale;
 
@@ -89,7 +90,7 @@ final class NewsBubble extends JComponent {
 
     private static Font smallFont() {
         Font font = textFont();
-        return font.deriveFont(font.getSize2D() - SMALL_SHRINK);
+        return FontFloor.smaller(font, SMALL_SHRINK);
     }
 
     /** How tall the bubble is at {@code width}, everything wrapped. */

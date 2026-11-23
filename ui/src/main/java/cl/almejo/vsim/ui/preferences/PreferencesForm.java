@@ -338,7 +338,7 @@ public final class PreferencesForm {
     }
 
     /**
-     * The interface's size («Tamaño de la interfaz», 100 % to 200 %), its font («Predeterminada» = the look and feel's
+     * The interface's size («Tamaño de la interfaz», 75 % to 200 %), its font («Predeterminada» = the look and feel's
      * own, then the installed families; a stored family not installed here is listed under its own name) and its size
      * in «Modo presentación» («Sin cambio» or a size). Stored at once; the theme manager applies them live.
      */

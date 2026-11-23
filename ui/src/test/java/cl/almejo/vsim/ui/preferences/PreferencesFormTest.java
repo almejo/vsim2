@@ -365,7 +365,7 @@ class PreferencesFormTest {
         JComboBox<PreferencesForm.Choice<Optional<String>>> font = form.interfaceFontChoice();
         JComboBox<PreferencesForm.Choice<Integer>> presentation = form.presentationZoomChoice();
 
-        assertThat(labels(zoom)).containsExactly("100 %", "125 %", "150 %", "175 %", "200 %");
+        assertThat(labels(zoom)).containsExactly("75 %", "100 %", "125 %", "150 %", "175 %", "200 %");
         assertThat(((PreferencesForm.Choice<?>) zoom.getSelectedItem()).value()).isEqualTo(100);
         assertThat(font.getItemAt(0).label()).isEqualTo("Predeterminada");
         assertThat(font.getSelectedIndex()).isZero();

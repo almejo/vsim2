@@ -978,7 +978,7 @@ public final class AppPreferences {
     // --- Interface zoom and font (Preferencias, Aspecto, Ventana) ---
 
     /** The sizes «Tamaño de la interfaz» offers, in percent of the look and feel's own size. */
-    public static final List<Integer> INTERFACE_ZOOMS = List.of(100, 125, 150, 175, 200);
+    public static final List<Integer> INTERFACE_ZOOMS = List.of(75, 100, 125, 150, 175, 200);
     /** «En modo presentación: Sin cambio»: presentation mode keeps the interface's size. */
     public static final int PRESENTATION_ZOOM_UNCHANGED = 0;
     /** What presentation mode raises the interface to until the user chooses (the projector in the back row). */

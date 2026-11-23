@@ -71,6 +71,18 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theInterfaceSizesStartAt75AndTheDefaultIs100() {
+        assertThat(AppPreferences.INTERFACE_ZOOMS).containsExactly(75, 100, 125, 150, 175, 200);
+        AppPreferences preferences = AppPreferences.inMemory();
+        assertThat(preferences.interfaceZoom()).isEqualTo(100);
+        preferences.setInterfaceZoom(75);
+        assertThat(preferences.interfaceZoom()).isEqualTo(75);
+        assertThat(preferences.presentationInterfaceZoom()).isEqualTo(150);
+        preferences.setPresentationInterfaceZoom(125);
+        assertThat(preferences.presentationInterfaceZoom()).isEqualTo(125);
+    }
+
+    @Test
     void theLeftColumnWidthRoundTripsAndGarbageReadsAsEmpty() {
         AppPreferences preferences = AppPreferences.inMemory();
         assertThat(preferences.leftColumnWidth()).isEmpty();
