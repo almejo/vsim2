@@ -56,6 +56,7 @@ import java.util.function.Consumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -112,6 +113,8 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
     private transient Optional<ColorSwatches<Optional<StateColor>>> stateColor = Optional.empty();
     /** Opens the inline editor on a note's text (its id). */
     private final transient Consumer<String> editNote;
+    /** The name of the key that deletes on the diagram now («Supr» unless Atajos de teclado changed it). */
+    private final transient Supplier<String> deleteKey;
     /** What each field of the rows shown would say now; run after a change that does not rebuild them. */
     private final transient List<Runnable> refreshers = new ArrayList<>();
     /** The fields' applies of what was typed and not applied yet, run before the rows change for another selection. */
@@ -139,15 +142,18 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
      * The rows of {@code canvas}'s machine; a problem's «Ver» calls {@code reveal}. {@code library} is «Mis
      * componentes»: its names are taken for the machine's, and a machine in it is renamed there too. A pin edit says
      * on {@code notices} (the status line) whose wires came loose; a pin's uses blink when {@code animations} says so.
-     * A note's «Editar texto» calls {@code editNote} with its id.
+     * A note's «Editar texto» calls {@code editNote} with its id. The hints of a note and of a text name the key that
+     * deletes on the diagram, {@code deleteKey}, read when they are shown (it follows Atajos de teclado).
      */
     MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library,
-                         Consumer<String> notices, BooleanSupplier animations, Consumer<String> editNote) {
+                         Consumer<String> notices, BooleanSupplier animations, Consumer<String> editNote,
+                         Supplier<String> deleteKey) {
         super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60lp::]"));
         this.notices = Objects.requireNonNull(notices, "notices");
         this.animations = Objects.requireNonNull(animations, "animations");
         this.canvas = Objects.requireNonNull(canvas, "canvas");
         this.editNote = Objects.requireNonNull(editNote, "editNote");
+        this.deleteKey = Objects.requireNonNull(deleteKey, "deleteKey");
         this.library = Objects.requireNonNull(library, "library");
         this.reveal = Objects.requireNonNull(reveal, "reveal");
         this.selection = canvas.selection();
@@ -548,7 +554,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         JButton edit = new JButton(Messages.text("machine.properties.editNoteText"));
         edit.addActionListener(event -> editNote.accept(noteId));
         add(edit, "span 2, left");
-        add(hint(Messages.text("machine.properties.noteHint")), WIDE);
+        add(hint(Messages.format("machine.properties.noteHint", deleteKey.get())), WIDE);
         noteColor = Optional.of(color);
         editNoteText = Optional.of(edit);
     }
@@ -601,7 +607,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         addRow(Messages.text("properties.text"), area);
         textArea = Optional.of(area);
         addTextStyleRows(List.of(textId));
-        add(hint(Messages.text("machine.properties.textHint")), WIDE);
+        add(hint(Messages.format("machine.properties.textHint", deleteKey.get())), WIDE);
     }
 
     /**

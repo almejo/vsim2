@@ -48,9 +48,4 @@ public record MachineTransition(String id, String fromId, String toId, String co
     public MachineTransition withLoopSide(Optional<LoopSide> side) {
         return new MachineTransition(id, fromId, toId, condition, outputs, side);
     }
-
-    public MachineTransition withEnds(String newFromId, String newToId) {
-        return new MachineTransition(id, Objects.requireNonNull(newFromId), Objects.requireNonNull(newToId),
-                condition, outputs);
-    }
 }

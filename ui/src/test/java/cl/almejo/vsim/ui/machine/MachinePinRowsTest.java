@@ -238,7 +238,9 @@ class MachinePinRowsTest {
         assertThat(inputs.usesText("x")).isEqualTo("en 4 flechas");
         assertThat(inputs.removeButton("b")).isPresent();
         assertThat(inputs.removeButton("x")).as("a used pin cannot be removed").isEmpty();
-        assertThat(inputs.usesLink("x").orElseThrow().getToolTipText()).contains("x se usa en 4 flechas");
+        assertThat(inputs.usesLink("x").orElseThrow().getToolTipText()).contains("x se usa en 4 flechas")
+                .as("a tooltip, with the term of the list and no word that only fits a plural")
+                .doesNotEndWith(".").contains("«en ninguna flecha»").doesNotContain("verlas", "sin usar");
         assertThat(inputs.counterText()).isEqualTo("2 de 16");
 
         inputs.removeButton("b").orElseThrow().doClick();

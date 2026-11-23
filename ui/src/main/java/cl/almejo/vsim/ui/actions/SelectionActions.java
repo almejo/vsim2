@@ -179,11 +179,8 @@ public final class SelectionActions {
         Optional<CircuitFragment> fragment = fragmentOf(json.get());
         if (fragment.isEmpty()) {
             if (MachineFragmentFormat.isMachineFragment(json.get())) {
-                pasteMachineNotes(json.get());
+                pasteMachineNotes(json.get(), mousePoint);
             }
-            return;
-        }
-        if (fragment.isEmpty()) {
             return;
         }
         activePane.get().announceIncomingFragment(fragment.get());
@@ -204,9 +201,9 @@ public final class SelectionActions {
 
     /**
      * A machine's copied selection: only its notes and free texts float here, as circuit notes and texts; the rest is
-     * said to be left out.
+     * said to be left out. They float at {@code mousePoint} when there is one, like a circuit's fragment.
      */
-    private void pasteMachineNotes(String json) {
+    private void pasteMachineNotes(String json, Optional<GridPoint> mousePoint) {
         Optional<StateMachine> piece = machineNotesOf(json);
         if (piece.isEmpty()) {
             notices.accept(Messages.text("machine.paste.notInACircuit"));
@@ -217,7 +214,7 @@ public final class SelectionActions {
         if (!piece.get().states().isEmpty()) {
             notices.accept(Messages.text("machine.paste.onlyNotesInCircuit"));
         }
-        startFloating(notes, positionWithoutMouse(json));
+        startFloating(notes, mousePoint.orElseGet(() -> positionWithoutMouse(json)));
     }
 
     /** A machine's copy that has notes or free texts, the part of it a circuit takes; empty for anything else. */

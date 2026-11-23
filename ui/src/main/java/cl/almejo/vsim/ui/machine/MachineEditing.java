@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.labels.TextTool;
 import cl.almejo.vsim.ui.sticky.StickyNoteTool;
 import cl.almejo.vsim.ui.tools.PanTool;
@@ -68,7 +69,8 @@ final class MachineEditing {
         MachineInspectorRows rows = new MachineInspectorRows(canvas,
                 finding -> canvas.reveal(finding, Animations.enabled(view.services().preferences())),
                 MachineLibrary.of(view), view::showNotice,
-                () -> Animations.enabled(view.services().preferences()), inline::editNote);
+                () -> Animations.enabled(view.services().preferences()), inline::editNote,
+                () -> deleteKeyName(view.services().preferences()));
         List<Runnable> undo = new ArrayList<>();
         canvas.setAnimations(() -> Animations.enabled(view.services().preferences()));
         undo.add(Animations.onChange(view.services().preferences(), canvas::animationsChanged));
@@ -217,6 +219,11 @@ final class MachineEditing {
             unbind.run();
             keys.remove(ALIAS_KEY);
         };
+    }
+
+    /** The name of the key «Borrar» has now («Supr» by default), or Retroceso's when the user left it without one. */
+    private static String deleteKeyName(AppPreferences preferences) {
+        return KeyNames.describe(new KeyBindings(preferences).strokeFor(DELETE_SHORTCUT_ID).orElse(ALIAS_KEY));
     }
 
     /** The machine's items right after «Borrar» in Editar, after a separator; returns their removal. */

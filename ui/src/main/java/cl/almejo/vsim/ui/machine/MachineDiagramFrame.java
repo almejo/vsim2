@@ -53,11 +53,6 @@ final class MachineDiagramFrame extends JPanel {
         };
     }
 
-    /** Whether the test mode's bar and border show. */
-    boolean showsTestMode() {
-        return bar.isPresent();
-    }
-
     /** The border of the test mode: its colour asked of the scheme each time it is painted. */
     private final class TestModeBorder extends AbstractBorder {
 

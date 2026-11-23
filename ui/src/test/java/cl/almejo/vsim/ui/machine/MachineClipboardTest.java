@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
@@ -385,6 +386,21 @@ class MachineClipboardTest {
         assertThat(floating.labels().getFirst().style()).isEqualTo(boxed);
         assertThat(floating.components()).isEmpty();
         assertThat(circuit.statusBar().text()).contains(Messages.text("machine.paste.onlyNotesInCircuit"));
+    }
+
+    /** Final review finding 8: right-click ▸ Pegar floats a machine's notes at the mouse, as a circuit's paste. */
+    @Test
+    void aMachinesNotesPastedAtTheMouseFloatThere() {
+        stickNote("Detecta dos 1");
+        mode.selection().set(Set.of(), Set.of(), Set.of("n1"));
+        perform(view.selectionActions().copy());
+        EditorView circuit = shown(new EditorView(document, services, NO_WINDOW));
+        GridPoint mouse = new GridPoint(37, 23);
+
+        circuit.selectionActions().pasteAt(Optional.of(mouse));
+
+        assertThat(((cl.almejo.vsim.ui.tools.FloatingSelectionTool) circuit.canvas().tool()).position())
+                .isEqualTo(mouse);
     }
 
     @Test

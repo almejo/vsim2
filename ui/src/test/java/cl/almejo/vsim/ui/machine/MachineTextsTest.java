@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFormat;
@@ -16,6 +17,7 @@ import cl.almejo.vsim.core.io.MachineFragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -30,6 +32,9 @@ import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.NoteTextArea;
+import cl.almejo.vsim.ui.shortcuts.KeyBindings;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
@@ -40,8 +45,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.JToggleButton;
+import javax.swing.KeyStroke;
 import java.awt.Graphics2D;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -474,5 +481,41 @@ class MachineTextsTest {
             }
         }
         return false;
+    }
+
+    private List<String> hintTexts() {
+        List<String> found = new ArrayList<>();
+        collectTextAreas(mode.inspectorRows(), found);
+        return found;
+    }
+
+    private static void collectTextAreas(java.awt.Container container, List<String> found) {
+        for (java.awt.Component component : container.getComponents()) {
+            if (component instanceof javax.swing.JTextArea area && !(component instanceof NoteTextArea)) {
+                found.add(area.getText());
+            }
+            if (component instanceof java.awt.Container inner) {
+                collectTextAreas(inner, found);
+            }
+        }
+    }
+
+    /** Final review finding 6: the hints of a note and a text name the key «Borrar» has now, not «Supr». */
+    @Test
+    void theHintsOfANoteAndATextNameTheKeyOfBorrar() {
+        writeOne("Hola");
+        canvas.edit(current -> current.withNotes(List.of(new MachineNote("n1", new DiagramPoint(300, 150),
+                MachineNote.DEFAULT_WIDTH, MachineNote.DEFAULT_HEIGHT, StickyColor.YELLOW, "nota"))));
+        KeyStroke rebound = KeyStroke.getKeyStroke(KeyEvent.VK_K,
+                InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK);
+        new KeyBindings(preferences).assign("edit.delete", rebound);
+        String keyName = KeyNames.describe(rebound);
+
+        mode.selection().selectText("t1");
+        assertThat(hintTexts()).anySatisfy(hint -> assertThat(hint).contains(keyName + " lo borra"))
+                .noneSatisfy(hint -> assertThat(hint).contains("Supr"));
+        mode.selection().selectNote("n1");
+        assertThat(hintTexts()).anySatisfy(hint -> assertThat(hint).contains(keyName + " la borra"))
+                .noneSatisfy(hint -> assertThat(hint).contains("Supr"));
     }
 }

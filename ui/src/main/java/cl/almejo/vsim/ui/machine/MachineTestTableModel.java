@@ -194,11 +194,6 @@ final class MachineTestTableModel {
         return rows;
     }
 
-    /** The rows a click or a key can change, in order. */
-    List<Row> editableRows() {
-        return rows.stream().filter(row -> row.kind().editable()).toList();
-    }
-
     int columnCount() {
         return test().columns().size();
     }
