@@ -341,9 +341,24 @@ class EditorAutomationHostPlacesTest {
                         Map.of(), "")), false), Optional.empty()))
                 .isInstanceOfSatisfying(AutomationException.class, refusal -> {
                     assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
-                    assertThat(refusal.getMessage()).contains(Messages.format("machine.refused.circuitEdit"));
+                    assertThat(refusal.getMessage()).contains(Messages.format("machine.refused.circuitEdit"))
+                            .contains("cannot edit state machines yet");
                 });
         assertThat(onEditor(() -> circuit.document().definition(machine.id()).orElseThrow())).isSameAs(machine);
+    }
+
+    @Test
+    void listPlacesSaysWhichPlaceIsAStateMachine() throws Exception {
+        ComponentDefinition machine = MachineDefinitions.create("maquina-ia", "Máquina 1");
+        onEditor(() -> {
+            circuit.execute(new PutDefinitionsCommand(List.of(machine)));
+            return null;
+        });
+
+        List<PlaceSummary> places = api.listPlaces(id);
+
+        assertThat(places).filteredOn(PlaceSummary::stateMachine).extracting(PlaceSummary::definition)
+                .containsExactly(machine.id());
     }
 
     @Test
