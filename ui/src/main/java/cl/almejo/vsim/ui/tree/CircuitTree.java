@@ -21,6 +21,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.machine.MachineMode;
+import cl.almejo.vsim.ui.machine.MachinePaletteIcons;
 import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.search.SearchField;
@@ -653,8 +654,12 @@ public final class CircuitTree extends JPanel {
     private Icon icon(CircuitTreeNode node) {
         Optional<CircuitTreeNode.MachineRow> machineRow = node.machineRow();
         if (machineRow.isPresent()) {
-            return machineRow.get().kind() == CircuitTreeNode.MachineRow.Kind.STATE
-                    ? new StateDot(machineRow.get().color(), machineRow.get().initial(), appearance) : null;
+            CircuitTreeNode.MachineRow row = machineRow.get();
+            return switch (row.kind()) {
+                case STATE -> new StateDot(row.color(), row.initial(), appearance);
+                case NOTES -> MachinePaletteIcons.of(MachinePaletteIcons.Kind.NOTE, appearance::scheme, ICON_SIZE);
+                case NOTE -> row.noteColor().map(color -> (Icon) new NoteSwatch(color, appearance)).orElse(null);
+            };
         }
         Optional<ComponentType> type = node.type();
         if (type.isEmpty()) {

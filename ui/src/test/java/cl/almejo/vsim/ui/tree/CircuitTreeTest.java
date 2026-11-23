@@ -514,6 +514,17 @@ class CircuitTreeTest {
     }
 
     @Test
+    void theNotesGroupHasTheNoteIconAndEachNoteASwatchInItsColour() {
+        machineWithStates();
+        CircuitTree tree = tree();
+
+        assertThat(tree.iconOf("c1#notas:")).hasValueSatisfying(icon -> assertThat(icon.getIconWidth()).isPositive());
+        assertThat(tree.iconOf("c1#notas:n1")).containsInstanceOf(NoteSwatch.class);
+        NoteSwatch swatch = (NoteSwatch) tree.iconOf("c1#notas:n1").orElseThrow();
+        assertThat(swatch.paper(appearance.scheme())).isEqualTo(appearance.scheme().stickyPaper(StickyColor.YELLOW));
+    }
+
+    @Test
     void theGreyTextOfARowReadsOnTheTreeBackgroundInTheDarkTheme() throws Exception {
         javax.swing.LookAndFeel previous = javax.swing.UIManager.getLookAndFeel();
         try {

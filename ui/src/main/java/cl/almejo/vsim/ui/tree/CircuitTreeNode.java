@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tree;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.machine.StateColor;
 
 import java.util.List;
@@ -28,7 +29,7 @@ public record CircuitTreeNode(String path, String name, Optional<String> kind, S
      * the worst finding the state is in.
      */
     public record MachineRow(Kind kind, String machineId, String elementId, boolean initial,
-                             Optional<StateColor> color, Severity problem) {
+                             Optional<StateColor> color, Severity problem, Optional<StickyColor> noteColor) {
         public enum Kind { STATE, NOTES, NOTE }
 
         public enum Severity { NONE, WARNING, ERROR }
@@ -39,6 +40,13 @@ public record CircuitTreeNode(String path, String name, Optional<String> kind, S
             Objects.requireNonNull(elementId, "elementId");
             Objects.requireNonNull(color, "color");
             Objects.requireNonNull(problem, "problem");
+            Objects.requireNonNull(noteColor, "noteColor");
+        }
+
+        /** A row that is no note: it has no note colour. */
+        public MachineRow(Kind kind, String machineId, String elementId, boolean initial,
+                          Optional<StateColor> color, Severity problem) {
+            this(kind, machineId, elementId, initial, color, problem, Optional.empty());
         }
     }
 

@@ -22,14 +22,14 @@ import java.util.function.Supplier;
  * a theme change shows at once; nothing is cached): a circle for «Estado», an arrow for «Transición», a small yellow
  * sticky note for «Nota» and a letter for «Texto». They are as big as the circuit palette's icons.
  */
-final class MachinePaletteIcons {
+public final class MachinePaletteIcons {
 
     /** The circuit palette's icon size, before UI scaling. */
     static final int SIZE = 24;
     private static final double DRAWING_UNITS = 24;
 
     /** What an icon draws. */
-    enum Kind {
+    public enum Kind {
         STATE, TRANSITION, NOTE, TEXT
     }
 
@@ -38,21 +38,26 @@ final class MachinePaletteIcons {
 
     /** The icon of {@code kind}, in the colours {@code scheme} gives at each paint. */
     static Icon of(Kind kind, Supplier<ColorScheme> scheme) {
-        Objects.requireNonNull(kind, "kind");
-        Objects.requireNonNull(scheme, "scheme");
-        return new DrawnIcon(kind, scheme);
+        return of(kind, scheme, SIZE);
     }
 
-    private record DrawnIcon(Kind kind, Supplier<ColorScheme> scheme) implements Icon {
+    /** The icon of {@code kind} {@code size} pixels wide before UI scaling (the circuit tree's rows are smaller). */
+    public static Icon of(Kind kind, Supplier<ColorScheme> scheme, int size) {
+        Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(scheme, "scheme");
+        return new DrawnIcon(kind, scheme, size);
+    }
+
+    private record DrawnIcon(Kind kind, Supplier<ColorScheme> scheme, int size) implements Icon {
 
         @Override
         public int getIconWidth() {
-            return UIScale.scale(SIZE);
+            return UIScale.scale(size);
         }
 
         @Override
         public int getIconHeight() {
-            return UIScale.scale(SIZE);
+            return UIScale.scale(size);
         }
 
         @Override
