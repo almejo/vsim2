@@ -2,9 +2,9 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.ui.ai.AiColors;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.paint.WordWrap;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
-import javax.swing.Timer;
 import javax.swing.UIManager;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
@@ -41,7 +40,7 @@ final class NarrationCaption {
     /** The widest band, so a line reads as a subtitle and not as a banner. */
     static final int MAXIMUM_WIDTH = 560;
     static final int MAXIMUM_LINES = 2;
-    static final int FADE_MILLISECONDS = 250;
+    static final int FADE_MILLISECONDS = PresentationFade.FADE_MILLISECONDS;
     /** The narrowest band beside the panel before it tries above the panel. */
     private static final int MINIMUM_WIDTH = 200;
     private static final int PADDING_X = 14;
@@ -49,8 +48,6 @@ final class NarrationCaption {
     private static final int LINE_GAP = 2;
     private static final int ARC = 14;
     private static final float BACKGROUND_OPACITY = 0.88f;
-    private static final int TIMER_MILLISECONDS = 33;
-    private static final long FADE_NANOS = TimeUnit.MILLISECONDS.toNanos(FADE_MILLISECONDS);
     private static final String ELLIPSIS = "…";
 
     /** The band in pane pixels and the lines it holds. */
@@ -59,16 +56,9 @@ final class NarrationCaption {
 
     private final Supplier<CircuitCanvas> activePane;
     private final Function<CircuitCanvas, Optional<Rectangle>> covered;
-    private final BooleanSupplier animate;
     private final BooleanSupplier showing;
-    private final Runnable repaint;
-    private final LongSupplier nanoClock;
-    private final Timer timer;
+    private final PresentationFade fade;
     private String text;
-    private long shownAt;
-    /** When the line started fading out; {@code -1} while it is not leaving. */
-    private long leavingSince = -1;
-    private boolean disposed;
 
     /**
      * @param activePane the pane the subtitle shows in
@@ -86,96 +76,36 @@ final class NarrationCaption {
                      BooleanSupplier animate, BooleanSupplier showing, Runnable repaint, LongSupplier nanoClock) {
         this.activePane = Objects.requireNonNull(activePane, "activePane");
         this.covered = Objects.requireNonNull(covered, "covered");
-        this.animate = Objects.requireNonNull(animate, "animate");
         this.showing = Objects.requireNonNull(showing, "showing");
-        this.repaint = Objects.requireNonNull(repaint, "repaint");
-        this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
-        this.timer = new Timer(TIMER_MILLISECONDS, event -> tick());
+        this.fade = new PresentationFade(animate, repaint, nanoClock, () -> text = null);
     }
 
     /** Shows {@code line}, replacing the one there was in place (a new one fades in). */
     void show(String line) {
-        if (disposed) {
+        if (fade.disposed()) {
             return;
         }
-        boolean replacing = text != null && leavingSince < 0;
         text = Objects.requireNonNull(line, "line");
-        leavingSince = -1;
-        if (!replacing || !animate.getAsBoolean()) {
-            shownAt = animate.getAsBoolean() ? nanoClock.getAsLong() : Long.MIN_VALUE;
-        }
-        startFadingIfNeeded();
-        repaint.run();
+        fade.show();
     }
 
     /** Takes the line away (fading out unless animations are off). */
     void clear() {
-        if (text == null || leavingSince >= 0) {
-            return;
-        }
-        if (animate.getAsBoolean() && !disposed) {
-            leavingSince = nanoClock.getAsLong();
-            startFadingIfNeeded();
-        } else {
-            drop();
-        }
-        repaint.run();
+        fade.clear();
     }
 
-    private void drop() {
-        text = null;
-        leavingSince = -1;
-        timer.stop();
-    }
-
-    private void startFadingIfNeeded() {
-        if ((alpha() < 1.0 || leavingSince >= 0) && !timer.isRunning()) {
-            timer.start();
-        }
-    }
-
-    /**
-     * One fade step: repaints, drops a line that faded out, stops the timer when nothing fades. With animations turned
-     * off meanwhile, the fade ends at once in its final state (shown whole, or gone).
-     */
+    /** One fade step (see {@link PresentationFade#tick()}): a line that faded out is dropped. */
     void tick() {
-        long now = nanoClock.getAsLong();
-        if (!animate.getAsBoolean()) {
-            endFade();
-        } else if (leavingSince >= 0 && now - leavingSince >= FADE_NANOS) {
-            drop();
-        } else if (leavingSince < 0 && alpha() >= 1.0) {
-            timer.stop();
-        }
-        repaint.run();
-    }
-
-    private void endFade() {
-        if (leavingSince >= 0) {
-            drop();
-        } else {
-            shownAt = Long.MIN_VALUE;
-            timer.stop();
-        }
+        fade.tick();
     }
 
     /** The subtitle's opacity now, 0 to 1. */
     double alpha() {
-        if (text == null) {
-            return 0;
-        }
-        long now = nanoClock.getAsLong();
-        if (leavingSince >= 0) {
-            return Math.max(0, 1 - (now - leavingSince) / (double) FADE_NANOS);
-        }
-        if (shownAt == Long.MIN_VALUE) {
-            return 1;
-        }
-        return Math.min(1, Math.max(0, (now - shownAt) / (double) FADE_NANOS));
+        return fade.alpha();
     }
 
     boolean isTimerRunning() {
-        return timer.isRunning();
+        return fade.isTimerRunning();
     }
 
     /** The line shown (also while it fades out). */
@@ -184,8 +114,7 @@ final class NarrationCaption {
     }
 
     void dispose() {
-        disposed = true;
-        drop();
+        fade.dispose();
     }
 
     // Placement
@@ -276,22 +205,8 @@ final class NarrationCaption {
      * one ends in «…» when the line does not fit (as does a word wider than the band).
      */
     static List<String> wrap(String line, FontMetrics metrics, int width) {
-        List<String> lines = new ArrayList<>();
-        String current = "";
-        for (String word : line.strip().split("\\s+")) {
-            String candidate = current.isEmpty() ? word : current + " " + word;
-            if (metrics.stringWidth(candidate) <= width) {
-                current = candidate;
-            } else if (current.isEmpty()) {
-                lines.add(word); // wider than the band: cut below
-            } else {
-                lines.add(current);
-                current = word;
-            }
-        }
-        if (!current.isEmpty()) {
-            lines.add(current);
-        }
+        // a word wider than the band stays whole on its line here, and is cut below
+        List<String> lines = WordWrap.lines(line.strip().split("\\s+"), metrics, width);
         boolean cut = lines.size() > MAXIMUM_LINES;
         List<String> kept = new ArrayList<>(lines.subList(0, Math.min(MAXIMUM_LINES, lines.size())));
         for (int index = 0; index < kept.size(); index++) {

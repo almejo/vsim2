@@ -4,9 +4,9 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.ui.ai.AiColors;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.WordWrap;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
-import javax.swing.Timer;
 import javax.swing.UIManager;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
@@ -67,9 +66,8 @@ final class StepCallout {
     static final int GAP = 18;
     /** Pixels the box keeps from the pane's edges. */
     static final int PANE_PADDING = 8;
-    static final int FADE_MILLISECONDS = 250;
-    static final int TIMER_MILLISECONDS = 33;
-    private static final long FADE_NANOS = TimeUnit.MILLISECONDS.toNanos(FADE_MILLISECONDS);
+    static final int FADE_MILLISECONDS = PresentationFade.FADE_MILLISECONDS;
+    static final int TIMER_MILLISECONDS = PresentationFade.TIMER_MILLISECONDS;
     private static final int INSIDE_PADDING = 8;
     private static final int ACCENT_WIDTH = 3;
     private static final int LINE_GAP = 3;
@@ -81,16 +79,9 @@ final class StepCallout {
     private final Supplier<ColorScheme> scheme;
     private final Supplier<CircuitCanvas> activePane;
     private final Function<CircuitCanvas, Optional<Rectangle>> covered;
-    private final BooleanSupplier animate;
-    private final Runnable repaint;
-    private final LongSupplier nanoClock;
-    private final Timer timer;
+    private final PresentationFade fade;
     private Content content;
     private Bounds target;
-    private long shownAt;
-    /** When the callout started fading out; {@code -1} while it is not leaving. */
-    private long leavingSince = -1;
-    private boolean disposed;
 
     /**
      * @param activePane where a callout with nowhere to point shows
@@ -109,100 +100,44 @@ final class StepCallout {
         this.scheme = Objects.requireNonNull(scheme, "scheme");
         this.activePane = Objects.requireNonNull(activePane, "activePane");
         this.covered = Objects.requireNonNull(covered, "covered");
-        this.animate = Objects.requireNonNull(animate, "animate");
-        this.repaint = Objects.requireNonNull(repaint, "repaint");
-        this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
-        this.timer = new Timer(TIMER_MILLISECONDS, event -> tick());
+        this.fade = new PresentationFade(animate, repaint, nanoClock, this::forget);
     }
 
-    /** Shows {@code shown} pointing at {@code pointedAt} (grid units), replacing the callout there was. */
+    /**
+     * Shows {@code shown} pointing at {@code pointedAt} (grid units), replacing the callout there was: the next step's
+     * callout replaces a visible one in place; a new one fades in.
+     */
     void show(Content shown, Optional<Bounds> pointedAt) {
-        if (disposed) {
+        if (fade.disposed()) {
             return;
         }
-        boolean replacing = content != null && leavingSince < 0;
         content = Objects.requireNonNull(shown, "shown");
         target = pointedAt.orElse(null);
-        leavingSince = -1;
-        if (!replacing || !animate.getAsBoolean()) {
-            // the next step's callout replaces a visible one in place; a new one fades in
-            shownAt = animate.getAsBoolean() ? nanoClock.getAsLong() : Long.MIN_VALUE;
-        }
-        startFadingIfNeeded();
-        repaint.run();
+        fade.show();
     }
 
     /** Takes the callout away (fading out unless animations are off). */
     void clear() {
-        if (content == null || leavingSince >= 0) {
-            return;
-        }
-        if (animate.getAsBoolean() && !disposed) {
-            leavingSince = nanoClock.getAsLong();
-            startFadingIfNeeded();
-        } else {
-            drop();
-        }
-        repaint.run();
+        fade.clear();
     }
 
-    private void drop() {
+    private void forget() {
         content = null;
         target = null;
-        leavingSince = -1;
-        timer.stop();
     }
 
-    private void startFadingIfNeeded() {
-        if (alpha() < 1.0 || leavingSince >= 0) {
-            if (!timer.isRunning()) {
-                timer.start();
-            }
-        }
-    }
-
-    /**
-     * One fade step: repaints, and drops the callout once it has faded out; stops the timer when nothing fades. With
-     * animations turned off meanwhile, the fade ends at once in its final state (shown whole, or gone).
-     */
+    /** One fade step (see {@link PresentationFade#tick()}): a callout that faded out is dropped. */
     void tick() {
-        long now = nanoClock.getAsLong();
-        if (!animate.getAsBoolean()) {
-            endFade();
-        } else if (leavingSince >= 0 && now - leavingSince >= FADE_NANOS) {
-            drop();
-        } else if (leavingSince < 0 && alpha() >= 1.0) {
-            timer.stop();
-        }
-        repaint.run();
-    }
-
-    private void endFade() {
-        if (leavingSince >= 0) {
-            drop();
-        } else {
-            shownAt = Long.MIN_VALUE;
-            timer.stop();
-        }
+        fade.tick();
     }
 
     /** The callout's opacity now, 0 to 1. */
     double alpha() {
-        if (content == null) {
-            return 0;
-        }
-        long now = nanoClock.getAsLong();
-        if (leavingSince >= 0) {
-            return Math.max(0, 1 - (now - leavingSince) / (double) FADE_NANOS);
-        }
-        if (shownAt == Long.MIN_VALUE) {
-            return 1;
-        }
-        return Math.min(1, Math.max(0, (now - shownAt) / (double) FADE_NANOS));
+        return fade.alpha();
     }
 
     boolean isTimerRunning() {
-        return timer.isRunning();
+        return fade.isTimerRunning();
     }
 
     /** What the callout says, while it shows (also while it fades out). */
@@ -216,8 +151,7 @@ final class StepCallout {
     }
 
     void dispose() {
-        disposed = true;
-        drop();
+        fade.dispose();
     }
 
     // Colours, read from the theme at each paint: never cached.
@@ -486,20 +420,6 @@ final class StepCallout {
 
     /** {@code text} broken at spaces into lines at most {@link #MAXIMUM_TEXT_WIDTH} wide (a longer word stays whole). */
     private static List<String> wrap(String text, FontMetrics metrics) {
-        List<String> lines = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String word : text.strip().split("\\s+")) {
-            String candidate = current.isEmpty() ? word : current + " " + word;
-            if (!current.isEmpty() && metrics.stringWidth(candidate) > MAXIMUM_TEXT_WIDTH) {
-                lines.add(current.toString());
-                current = new StringBuilder(word);
-            } else {
-                current = new StringBuilder(candidate);
-            }
-        }
-        if (!current.isEmpty()) {
-            lines.add(current.toString());
-        }
-        return lines;
+        return WordWrap.lines(text.strip().split("\\s+"), metrics, MAXIMUM_TEXT_WIDTH);
     }
 }

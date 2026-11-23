@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
+import cl.almejo.vsim.ui.paint.WordWrap;
 
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
@@ -18,7 +19,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -271,22 +271,9 @@ public final class CanvasNotice extends JComponent {
         setSize(widest + 2 * PADDING_X, lines.size() * metrics.getHeight() + 2 * PADDING_Y);
     }
 
+    /** {@code text} cut at each single space (runs of spaces are kept) into lines at most {@code available} wide. */
     private static List<String> wrap(String text, FontMetrics metrics, int available) {
-        List<String> wrapped = new ArrayList<>();
-        StringBuilder line = new StringBuilder();
-        for (String word : text.split(" ")) {
-            String candidate = line.isEmpty() ? word : line + " " + word;
-            if (!line.isEmpty() && metrics.stringWidth(candidate) > available) {
-                wrapped.add(line.toString());
-                line = new StringBuilder(word);
-            } else {
-                line = new StringBuilder(candidate);
-            }
-        }
-        if (!line.isEmpty()) {
-            wrapped.add(line.toString());
-        }
-        return List.copyOf(wrapped);
+        return List.copyOf(WordWrap.lines(text.split(" "), metrics, available));
     }
 
     /** The lines the text shows in (one for a chip). */
