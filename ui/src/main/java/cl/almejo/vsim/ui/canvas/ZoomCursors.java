@@ -1,17 +1,13 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.ui.icons.DrawnCursors;
+
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
-import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.HeadlessException;
-import java.awt.Point;
-import java.awt.RenderingHints;
-import java.awt.Toolkit;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
 /**
@@ -27,10 +23,11 @@ public final class ZoomCursors {
     static final int HOTSPOT = 12;
     /** The radius of the lens's ring, in pixels of a 32-pixel cursor. */
     static final int LENS_RADIUS = 8;
-    private static final int DESIGN_SIZE = 32;
     private static final Color RING = new Color(0x1C1F24);
     private static final Color OUTLINE = Color.WHITE;
     private static final Color LENS = new Color(255, 255, 255, 215);
+    /** The arm of the lens's «+» and «−», in pixels of a 32-pixel cursor. */
+    private static final double SIGN_ARM = 4.5;
 
     private static Cursor zoomIn;
     private static Cursor zoomOut;
@@ -55,59 +52,34 @@ public final class ZoomCursors {
     }
 
     private static Cursor create(boolean zoomsOut) {
-        try {
-            Toolkit toolkit = Toolkit.getDefaultToolkit();
-            Dimension best = toolkit.getBestCursorSize(DESIGN_SIZE, DESIGN_SIZE);
-            if (best == null || best.width <= 0 || best.height <= 0) {
-                return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
-            }
-            int size = Math.min(best.width, best.height);
-            int hotspot = Math.round(HOTSPOT * size / (float) DESIGN_SIZE);
-            return toolkit.createCustomCursor(image(size, zoomsOut), new Point(hotspot, hotspot),
-                    zoomsOut ? "vsim-zoom-out" : "vsim-zoom-in");
-        } catch (HeadlessException | IndexOutOfBoundsException exception) {
-            return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
-        }
+        return DrawnCursors.create(zoomsOut ? "vsim-zoom-out" : "vsim-zoom-in", size -> image(size, zoomsOut),
+                DrawnCursors.scaledHotspot(HOTSPOT), Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
     }
 
     /** The cursor's picture, {@code size} pixels square: the lens top left, the handle towards the bottom right. */
     static BufferedImage image(int size, boolean zoomsOut) {
-        BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = image.createGraphics();
-        try {
-            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-            graphics.scale(size / (double) DESIGN_SIZE, size / (double) DESIGN_SIZE);
-            double centre = HOTSPOT;
-            double radius = LENS_RADIUS;
-            Ellipse2D.Double lens = new Ellipse2D.Double(centre - radius, centre - radius, 2 * radius, 2 * radius);
-            double handleStart = centre + radius * Math.sqrt(0.5);
-            Line2D.Double handle = new Line2D.Double(handleStart, handleStart, 28.5, 28.5);
+        return DrawnCursors.picture(size, graphics -> paint(graphics, zoomsOut));
+    }
 
-            graphics.setColor(OUTLINE);
-            graphics.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            graphics.draw(handle);
-            graphics.setStroke(new BasicStroke(4.5f));
-            graphics.draw(lens);
-            graphics.setColor(LENS);
-            graphics.fill(lens);
-            graphics.setColor(RING);
-            graphics.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            graphics.draw(handle);
-            graphics.setStroke(new BasicStroke(2.5f));
-            graphics.draw(lens);
+    private static void paint(Graphics2D graphics, boolean zoomsOut) {
+        double centre = HOTSPOT;
+        double radius = LENS_RADIUS;
+        Ellipse2D.Double lens = new Ellipse2D.Double(centre - radius, centre - radius, 2 * radius, 2 * radius);
+        double handleStart = centre + radius * Math.sqrt(0.5);
+        Line2D.Double handle = new Line2D.Double(handleStart, handleStart, 28.5, 28.5);
 
-            double armLength = 4.5;
-            double armThickness = 2;
-            graphics.fill(new Rectangle2D.Double(centre - armLength, centre - armThickness / 2, 2 * armLength,
-                    armThickness));
-            if (!zoomsOut) {
-                graphics.fill(new Rectangle2D.Double(centre - armThickness / 2, centre - armLength, armThickness,
-                        2 * armLength));
-            }
-        } finally {
-            graphics.dispose();
-        }
-        return image;
+        graphics.setColor(OUTLINE);
+        graphics.setStroke(new BasicStroke(6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        graphics.draw(handle);
+        graphics.setStroke(new BasicStroke(4.5f));
+        graphics.draw(lens);
+        graphics.setColor(LENS);
+        graphics.fill(lens);
+        graphics.setColor(RING);
+        graphics.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        graphics.draw(handle);
+        graphics.setStroke(new BasicStroke(2.5f));
+        graphics.draw(lens);
+        DrawnCursors.paintSign(graphics, centre, centre, SIGN_ARM, zoomsOut);
     }
 }
