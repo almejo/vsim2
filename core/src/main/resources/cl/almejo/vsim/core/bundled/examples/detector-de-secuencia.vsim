@@ -1,6 +1,6 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.8",
+  "savedWith" : "0.9",
   "formatVersion" : 7,
   "kind" : "circuit",
   "name" : "Detector de secuencia",

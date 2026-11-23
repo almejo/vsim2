@@ -9,6 +9,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar
 
+## Versión 0.9 — 2026-11-23
+
+Máquinas de estado: se dibujan con sus estados, flechas y salidas, son una pieza del circuito que simula sola y se
+prueban con su tabla en el modo prueba. Menús y Preferencias reordenados, la interfaz de 75 % a 200 % con la paleta a
+la medida, lupa, resaltar la red al pasar el puntero, Ctrl+T y Ctrl+Mayús+T para abrir y reabrir pestañas, y una
+larga cacería de bugs.
+
 ### Agregado
 
 - Interfaz al 75 %: «Tamaño de la interfaz» (Preferencias ▸ Aspecto ▸ Ventana) suma 75 %, para pantallas chicas o para que quepa más circuito; ahora va de 75 % a 200 %. Con menos de 100 % solo se achican las letras; las letras derivadas más chicas (hoja de atajos, créditos, consejos) no bajan entonces de 9 px. «En modo presentación» sigue ofreciendo solo tamaños mayores que 100 %.
