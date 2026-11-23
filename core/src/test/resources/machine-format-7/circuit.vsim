@@ -1,0 +1,417 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.8",
+  "formatVersion" : 7,
+  "kind" : "circuit",
+  "name" : "",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "subcircuit:maquina-1",
+    "x" : 10,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : { }
+  }, {
+    "id" : "c2",
+    "type" : "subcircuit:maquina-1-copia",
+    "x" : 40,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : { }
+  } ],
+  "wires" : [ ],
+  "labels" : [ ],
+  "definitions" : [ {
+    "id" : "maquina-1",
+    "name" : "Máquina 1",
+    "description" : "",
+    "width" : 12,
+    "height" : 8,
+    "pinout" : [ {
+      "name" : "in",
+      "x" : 0,
+      "y" : 2,
+      "direction" : "INPUT",
+      "width" : 2,
+      "source" : "machine-input-bus"
+    }, {
+      "name" : "RST",
+      "x" : 0,
+      "y" : 4,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-reset"
+    }, {
+      "name" : "CLK",
+      "x" : 0,
+      "y" : 6,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-clock"
+    }, {
+      "name" : "out",
+      "x" : 12,
+      "y" : 2,
+      "direction" : "OUTPUT",
+      "width" : 2,
+      "source" : "machine-output-bus"
+    } ],
+    "components" : [ {
+      "id" : "machine-input-bus",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "in",
+      "parameters" : {
+        "value" : "0",
+        "width" : 2
+      }
+    }, {
+      "id" : "machine-reset",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 4,
+      "rotation" : 0,
+      "label" : "RST",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-clock",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 8,
+      "rotation" : 0,
+      "label" : "CLK",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-output-bus",
+      "type" : "output-pin",
+      "x" : 10,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "out",
+      "parameters" : {
+        "width" : 2
+      }
+    } ],
+    "wires" : [ ],
+    "labels" : [ ],
+    "revision" : 1,
+    "machine" : {
+      "states" : [ {
+        "id" : "s0",
+        "name" : "S0",
+        "x" : 0.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 0
+        } ]
+      }, {
+        "id" : "s1",
+        "name" : "S1",
+        "x" : 100.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 0
+        } ],
+        "color" : "violet"
+      }, {
+        "id" : "s2",
+        "name" : "S2",
+        "x" : 200.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 1
+        } ]
+      } ],
+      "transitions" : [ {
+        "id" : "t0",
+        "from" : "s0",
+        "to" : "s0",
+        "condition" : "x'",
+        "loopSide" : "bottom"
+      }, {
+        "id" : "t1",
+        "from" : "s0",
+        "to" : "s1",
+        "condition" : "x",
+        "outputs" : [ {
+          "output" : "W",
+          "value" : 1
+        } ]
+      }, {
+        "id" : "t2",
+        "from" : "s1",
+        "to" : "s2",
+        "condition" : "x"
+      }, {
+        "id" : "t3",
+        "from" : "s1",
+        "to" : "s0",
+        "condition" : ""
+      }, {
+        "id" : "t4",
+        "from" : "s2",
+        "to" : "s2",
+        "condition" : "x"
+      }, {
+        "id" : "t5",
+        "from" : "s2",
+        "to" : "s0",
+        "condition" : "x'"
+      }, {
+        "id" : "t6",
+        "from" : "s2",
+        "to" : "s2",
+        "condition" : "x y",
+        "outputs" : [ {
+          "output" : "W",
+          "value" : 0
+        } ],
+        "loopSide" : "top"
+      } ],
+      "initialState" : "s0",
+      "inputs" : [ "x", "y" ],
+      "outputs" : [ "Z", "W" ],
+      "inputsAsBus" : true,
+      "outputsAsBus" : true,
+      "edge" : "rising",
+      "tests" : [ {
+        "id" : "p1",
+        "name" : "dos unos",
+        "columns" : 4,
+        "inputs" : {
+          "x" : "0110"
+        },
+        "expected" : {
+          "Z" : "---1"
+        }
+      }, {
+        "id" : "p2",
+        "name" : "vacía",
+        "columns" : 2
+      } ],
+      "notes" : [ {
+        "id" : "n1",
+        "x" : -30.5,
+        "y" : 140.0,
+        "width" : 200.0,
+        "height" : 90.0,
+        "color" : "green",
+        "text" : "S2 enciende Z"
+      } ],
+      "texts" : [ {
+        "id" : "t1",
+        "x" : 12.5,
+        "y" : -40.0,
+        "text" : "una\nnota"
+      } ]
+    }
+  }, {
+    "id" : "maquina-1-copia",
+    "name" : "Máquina 1 copia",
+    "description" : "",
+    "width" : 12,
+    "height" : 8,
+    "pinout" : [ {
+      "name" : "in",
+      "x" : 0,
+      "y" : 2,
+      "direction" : "INPUT",
+      "width" : 2,
+      "source" : "machine-input-bus"
+    }, {
+      "name" : "RST",
+      "x" : 0,
+      "y" : 4,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-reset"
+    }, {
+      "name" : "CLK",
+      "x" : 0,
+      "y" : 6,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-clock"
+    }, {
+      "name" : "out",
+      "x" : 12,
+      "y" : 2,
+      "direction" : "OUTPUT",
+      "width" : 2,
+      "source" : "machine-output-bus"
+    } ],
+    "components" : [ {
+      "id" : "machine-input-bus",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "in",
+      "parameters" : {
+        "value" : "0",
+        "width" : 2
+      }
+    }, {
+      "id" : "machine-reset",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 4,
+      "rotation" : 0,
+      "label" : "RST",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-clock",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 8,
+      "rotation" : 0,
+      "label" : "CLK",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-output-bus",
+      "type" : "output-pin",
+      "x" : 10,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "out",
+      "parameters" : {
+        "width" : 2
+      }
+    } ],
+    "wires" : [ ],
+    "labels" : [ ],
+    "revision" : 1,
+    "machine" : {
+      "states" : [ {
+        "id" : "s0",
+        "name" : "S0",
+        "x" : 0.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 0
+        } ]
+      }, {
+        "id" : "s1",
+        "name" : "S1",
+        "x" : 100.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 0
+        } ],
+        "color" : "violet"
+      }, {
+        "id" : "s2",
+        "name" : "S2",
+        "x" : 200.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 1
+        } ]
+      } ],
+      "transitions" : [ {
+        "id" : "t0",
+        "from" : "s0",
+        "to" : "s0",
+        "condition" : "x'",
+        "loopSide" : "bottom"
+      }, {
+        "id" : "t1",
+        "from" : "s0",
+        "to" : "s1",
+        "condition" : "x",
+        "outputs" : [ {
+          "output" : "W",
+          "value" : 1
+        } ]
+      }, {
+        "id" : "t2",
+        "from" : "s1",
+        "to" : "s2",
+        "condition" : "x"
+      }, {
+        "id" : "t3",
+        "from" : "s1",
+        "to" : "s0",
+        "condition" : ""
+      }, {
+        "id" : "t4",
+        "from" : "s2",
+        "to" : "s2",
+        "condition" : "x"
+      }, {
+        "id" : "t5",
+        "from" : "s2",
+        "to" : "s0",
+        "condition" : "x'"
+      }, {
+        "id" : "t6",
+        "from" : "s2",
+        "to" : "s2",
+        "condition" : "x y",
+        "outputs" : [ {
+          "output" : "W",
+          "value" : 0
+        } ],
+        "loopSide" : "top"
+      } ],
+      "initialState" : "s0",
+      "inputs" : [ "x", "y" ],
+      "outputs" : [ "Z", "W" ],
+      "inputsAsBus" : true,
+      "outputsAsBus" : true,
+      "edge" : "rising",
+      "tests" : [ {
+        "id" : "p1",
+        "name" : "dos unos",
+        "columns" : 4,
+        "inputs" : {
+          "x" : "0110"
+        },
+        "expected" : {
+          "Z" : "---1"
+        }
+      }, {
+        "id" : "p2",
+        "name" : "vacía",
+        "columns" : 2
+      } ],
+      "notes" : [ {
+        "id" : "n1",
+        "x" : -30.5,
+        "y" : 140.0,
+        "width" : 200.0,
+        "height" : 90.0,
+        "color" : "green",
+        "text" : "S2 enciende Z"
+      } ],
+      "texts" : [ {
+        "id" : "t1",
+        "x" : 12.5,
+        "y" : -40.0,
+        "text" : "una\nnota"
+      } ]
+    }
+  } ]
+}

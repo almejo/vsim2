@@ -73,6 +73,11 @@ public final class CircuitFormat {
      * the diagram's {@code notes}; and (hito 4) a machine test's {@code id}, {@code columns} and its {@code inputs} and
      * {@code expected} values, one string per pin id ({@link MachineTestEntries}; an entry with only {@code name}, the
      * earlier placeholder, reads as one empty column).
+     * <p>
+     * Format 7 is frozen as of release 0.9 ({@code MachineFormatFrozenTest} and its files in
+     * {@code machine-format-7}). Later milestones may only add optional fields: a field that is absent means what it
+     * means today, and no existing field changes its meaning. Recovery-only fields ({@code testDrafts}, see
+     * {@link RecoveryTestDrafts}) never go into a normal save.
      */
     public static final int FORMAT_VERSION = 7;
     static final String KIND_CIRCUIT = "circuit";
