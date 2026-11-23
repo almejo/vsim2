@@ -69,7 +69,7 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         ComponentDefinition previous = document.definition(definitionId).orElseThrow(() ->
                 new IllegalStateException("the document has no definition " + definitionId));
         placeName = previous.name();
-        requireMachineEditInsideAMachine(previous);
+        requireAllowedInside(previous, bodyCommand);
         if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
             applyToTheDefinition(document, definitionEdit);
             return;
@@ -103,12 +103,15 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
      * body is generated from the diagram, so a part or wire added there (a paste, a dropped file, the AI through a
      * place opened without the machine's tab) would be dropped by the next diagram edit or load, and a changed pin
      * would no longer match the machine's inputs and outputs. Here, and not in the tab, so every place refuses it.
+     * Public so a caller that only checks an edit (the AI's validate-only call) refuses exactly what applying it would.
+     *
+     * @throws InsideEditRefusedException with {@link #MACHINE_REFUSAL}, before anything changed
      */
-    private void requireMachineEditInsideAMachine(ComponentDefinition previous) {
-        if (!previous.isMachine()) {
+    public static void requireAllowedInside(ComponentDefinition definition, Command bodyCommand) {
+        if (!definition.isMachine()) {
             return;
         }
-        if (bodyCommand instanceof EditMachineCommand machineEdit && machineEdit.definitionId().equals(definitionId)) {
+        if (bodyCommand instanceof EditMachineCommand machineEdit && machineEdit.definitionId().equals(definition.id())) {
             return;
         }
         throw new InsideEditRefusedException(MACHINE_REFUSAL, List.of());

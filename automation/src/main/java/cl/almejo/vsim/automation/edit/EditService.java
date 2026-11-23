@@ -211,8 +211,13 @@ public final class EditService {
                     + unexpected.getClass().getSimpleName() + "). Nothing was changed; read the circuit and try "
                     + "another way");
         }
-        return new PreparedEdit(request, task, circuit.version(), planned, content, changesOf(content),
-                circuit.document(), circuit.registry(), pieceWrite);
+        PreparedEdit prepared = new PreparedEdit(request, task, circuit.version(), planned, content,
+                changesOf(content), circuit.document(), circuit.registry(), pieceWrite);
+        if (pieceWrite.isEmpty() && !prepared.changesNothing()) {
+            // what commit would execute: a place that never takes it refuses now, so validate-only says so too
+            circuit.requireAccepts(content);
+        }
+        return prepared;
     }
 
     /**

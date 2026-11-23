@@ -37,6 +37,15 @@ public interface EditableCircuit {
     }
 
     /**
+     * Refuses, changing nothing, a {@code command} that {@link #execute} would refuse before it changed anything (an
+     * edit of a state machine's body, which only its own tab draws), with the same {@link
+     * cl.almejo.vsim.automation.AutomationException}: a validate-only call answers what the real one would. Accepts
+     * everything by default.
+     */
+    default void requireAccepts(Command command) {
+    }
+
+    /**
      * The circuit itself when this is a place inside a component (the document that keeps each piece's own memory
      * contents, spec §6.6b); empty otherwise, and for editors that have no pieces.
      */

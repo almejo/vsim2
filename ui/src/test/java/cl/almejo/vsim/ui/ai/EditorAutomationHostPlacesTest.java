@@ -347,6 +347,29 @@ class EditorAutomationHostPlacesTest {
         assertThat(onEditor(() -> circuit.document().definition(machine.id()).orElseThrow())).isSameAs(machine);
     }
 
+    /** A validate-only call answers what the real call would: the same refusal, with its reason (final hand test). */
+    @Test
+    void aValidateOnlyEditOfAMachinesBodyIsRefusedLikeTheRealOne() throws Exception {
+        ComponentDefinition machine = MachineDefinitions.create("maquina-ia", "Máquina 1");
+        onEditor(() -> {
+            circuit.execute(new PutDefinitionsCommand(List.of(machine)));
+            return null;
+        });
+        DocumentId inMachine = id.in(new PlaceRef(machine.id(), Optional.empty()));
+        long version = api.readCircuit(inMachine, ReadFilter.SUMMARY, Optional.empty()).version().value();
+
+        assertThatThrownBy(() -> api.editStep(new EditRequest(inMachine, new DocumentVersion(version), "op-10",
+                Optional.empty(), List.of(new EditOperation.PlacePart(Optional.of("lamp"), "led", 10, 10, Rotation.R0,
+                        Map.of(), "")), true), Optional.empty()))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
+                    assertThat(refusal.recovery()).containsEntry("reason", "machine.refused.circuitEdit");
+                    assertThat(refusal.getMessage()).contains(Messages.format("machine.refused.circuitEdit"))
+                            .contains("cannot edit state machines yet");
+                });
+        assertThat(onEditor(() -> circuit.document().definition(machine.id()).orElseThrow())).isSameAs(machine);
+    }
+
     @Test
     void listPlacesSaysWhichPlaceIsAStateMachine() throws Exception {
         ComponentDefinition machine = MachineDefinitions.create("maquina-ia", "Máquina 1");
