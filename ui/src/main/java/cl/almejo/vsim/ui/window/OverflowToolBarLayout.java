@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import javax.swing.event.PopupMenuEvent;
@@ -12,6 +13,7 @@ import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntSupplier;
 
 /**
  * Lays a toolbar out in one row, always (audit V1: the bar never wraps), from the left, with no glue and no right
@@ -20,15 +22,23 @@ import java.util.List;
  * ({@link ToolbarOverflowMenu}). A hidden component keeps being visible and a child of the bar, with empty bounds, so
  * the lists that read the toolbar (the command palette) still find it and a news bubble sees that its target is not on
  * show. The overflow button is the toolbar's last child and only shows when something is hidden. Separators never end
- * the bar (a trailing one is left without width, with no gap) nor open the popup.
+ * the bar (a trailing one is left without width, with no gap) nor open the popup. A label that names a control
+ * ({@link JLabel#setLabelFor}) leaves the bar with it, never stays alone. {@code gap} (read at each layout, so it
+ * follows the interface size) goes between the components on the bar; the toolbar has none.
  */
 final class OverflowToolBarLayout implements LayoutManager {
 
     private final JButton overflowButton;
+    private final IntSupplier gap;
     private List<Component> hidden = List.of();
 
     OverflowToolBarLayout(JButton overflowButton) {
+        this(overflowButton, () -> 0);
+    }
+
+    OverflowToolBarLayout(JButton overflowButton, IntSupplier gap) {
         this.overflowButton = overflowButton;
+        this.gap = gap;
     }
 
     /** The components left out of the bar by the last layout, in the bar's order (separators and labels included). */
@@ -63,15 +73,15 @@ final class OverflowToolBarLayout implements LayoutManager {
     public Dimension preferredLayoutSize(Container parent) {
         synchronized (parent.getTreeLock()) {
             Insets insets = parent.getInsets();
-            int width = 0;
+            List<Component> shown = new ArrayList<>();
             int height = 0;
             for (Component component : parent.getComponents()) {
                 if (component.isVisible() && component != overflowButton) {
-                    width += component.getPreferredSize().width;
+                    shown.add(component);
                     height = Math.max(height, component.getPreferredSize().height);
                 }
             }
-            return new Dimension(width + insets.left + insets.right, height + insets.top + insets.bottom);
+            return new Dimension(widthOf(shown) + insets.left + insets.right, height + insets.top + insets.bottom);
         }
     }
 
@@ -107,13 +117,16 @@ final class OverflowToolBarLayout implements LayoutManager {
             }
             int overflowWidth = overflowButton.getPreferredSize().width;
             boolean fits = widthOf(left) <= available;
-            int kept = fits ? left.size() : leftThatFits(left, available - overflowWidth);
+            int kept = fits ? left.size() : leftThatFits(left, available - overflowWidth - gap.getAsInt());
             hidden = List.copyOf(left.subList(kept, left.size()));
             int shown = kept;
             while (shown > 0 && left.get(shown - 1) instanceof JToolBar.Separator) {
                 shown--; // a separator ending the bar would hang there alone
             }
             int next = place(left.subList(0, shown), insets.left, top, height);
+            if (shown > 0 && !fits) {
+                next += gap.getAsInt();
+            }
             for (Component component : left.subList(shown, left.size())) {
                 component.setBounds(next, top, 0, 0);
             }
@@ -122,15 +135,21 @@ final class OverflowToolBarLayout implements LayoutManager {
         }
     }
 
-    /** How many components of {@code left}, from the start, fit in {@code room} (never ending with a separator). */
-    private static int leftThatFits(List<Component> left, int room) {
+    /**
+     * How many components of {@code left}, from the start, fit in {@code room} (never ending with a separator, nor
+     * with a label whose control leaves).
+     */
+    private int leftThatFits(List<Component> left, int room) {
         int kept = 0;
         int used = 0;
-        while (kept < left.size() && used + left.get(kept).getPreferredSize().width <= room) {
-            used += left.get(kept).getPreferredSize().width;
+        while (kept < left.size()
+                && used + (kept > 0 ? gap.getAsInt() : 0) + left.get(kept).getPreferredSize().width <= room) {
+            used += (kept > 0 ? gap.getAsInt() : 0) + left.get(kept).getPreferredSize().width;
             kept++;
         }
-        while (kept > 0 && left.get(kept - 1) instanceof JToolBar.Separator) {
+        while (kept > 0 && (left.get(kept - 1) instanceof JToolBar.Separator
+                || left.get(kept - 1) instanceof JLabel label && label.getLabelFor() != null
+                && left.subList(kept, left.size()).contains(label.getLabelFor()))) {
             kept--;
         }
         return kept;
@@ -148,18 +167,23 @@ final class OverflowToolBarLayout implements LayoutManager {
         }
     }
 
-    private static int widthOf(List<Component> components) {
+    private int widthOf(List<Component> components) {
         int width = 0;
         for (Component component : components) {
             width += component.getPreferredSize().width;
         }
-        return width;
+        return width + Math.max(0, components.size() - 1) * gap.getAsInt();
     }
 
-    /** Puts {@code components} side by side from {@code left}, centred on the bar; returns where the next would go. */
-    private static int place(List<Component> components, int left, int top, int height) {
+    /**
+     * Puts {@code components} side by side from {@code left}, {@code gap} apart, centred on the bar; returns where the
+     * last one ends.
+     */
+    private int place(List<Component> components, int left, int top, int height) {
         int next = left;
-        for (Component component : components) {
+        for (int index = 0; index < components.size(); index++) {
+            Component component = components.get(index);
+            next += index > 0 ? gap.getAsInt() : 0;
             Dimension size = component.getPreferredSize();
             component.setBounds(next, top + (height - size.height) / 2, size.width, size.height);
             next += size.width;

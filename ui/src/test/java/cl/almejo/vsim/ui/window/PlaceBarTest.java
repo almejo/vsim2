@@ -15,10 +15,21 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import cl.almejo.vsim.ui.theme.FlatLafInstaller;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.window.tabs.GroupColors;
+
+import javax.swing.AbstractButton;
+import javax.swing.JMenuItem;
+import javax.swing.LookAndFeel;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.ToIntFunction;
 
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.REFUSED_INSIDE_TEXT;
@@ -235,5 +246,120 @@ class PlaceBarTest {
         inverterInThreePlaces();
         barOf(INVERTER, Optional.of("c1")).clickSeePiece();
         assertThat(calls).containsExactly("see");
+    }
+
+    // --- fix round 4 (M): the bar's room and its contrast ---
+
+    /** The inverter's bar with a machine's «Probar…» and «Convertir a circuito…», laid out {@code width} wide. */
+    private PlaceBar machineLikeBarAt(ToIntFunction<PlaceBar> width) {
+        inverterInThreePlaces();
+        PlaceBar bar = barOf(INVERTER, Optional.of("c1"));
+        bar.showMachineActions(() -> calls.add("test"));
+        bar.invalidate(); // a bar without a parent: its revalidate() does nothing, so its layout is told here
+        bar.setSize(width.applyAsInt(bar), bar.getPreferredSize().height);
+        layOut(bar);
+        return bar;
+    }
+
+    private PlaceBar machineLikeBarAt(int width) {
+        return machineLikeBarAt(bar -> width);
+    }
+
+    @Test
+    void theBarAsksForLittleRoomSoTheSidePanelsCanWiden() {
+        PlaceBar bar = machineLikeBarAt(1600);
+
+        assertThat(bar.getPreferredSize().width).as("everything side by side").isGreaterThan(900);
+        assertThat(bar.getMinimumSize().width).as("what does not fit goes behind «»»").isLessThan(300);
+    }
+
+    @Test
+    void aWideBarShowsEverythingAndNoOverflowButton() {
+        PlaceBar bar = machineLikeBarAt(laidOut -> laidOut.getPreferredSize().width + 40);
+
+        assertThat(bar.overflowShown()).isFalse();
+        assertThat(bar.overflowTexts()).isEmpty();
+        assertThat(bar.shownActionTexts()).containsSubsequence("Ver la pieza ↗", "Probar…", "Convertir a circuito…",
+                "Agregar a Mis componentes");
+    }
+
+    @Test
+    void aNarrowBarPutsWhatDoesNotFitInItsOverflowMenuInOrderWithTheirReasons() {
+        PlaceBar bar = machineLikeBarAt(560);
+
+        assertThat(bar.overflowShown()).isTrue();
+        assertThat(bar.crumbsShown()).as("the route stays on the bar").isTrue();
+        assertThat(bar.overflowTexts()).containsSubsequence("Probar…", "Convertir a circuito…",
+                "Agregar a Mis componentes");
+        JMenuItem convert = bar.overflowItems().stream()
+                .filter(item -> item.getText().equals("Convertir a circuito…")).findFirst().orElseThrow();
+        assertThat(convert.isEnabled()).isFalse();
+        assertThat(convert.getToolTipText()).isEqualTo(Messages.text("machine.comesLater"));
+        JMenuItem test = bar.overflowItems().stream().filter(item -> item.getText().equals("Probar…"))
+                .findFirst().orElseThrow();
+
+        test.doClick(0);
+
+        assertThat(calls).containsExactly("test");
+    }
+
+    @Test
+    void theValuesChoiceKeepsItsCaptionInTheOverflowMenu() {
+        PlaceBar bar = machineLikeBarAt(200);
+
+        assertThat(bar.overflowTexts()).anyMatch(text -> text.startsWith("Valores de: "));
+        assertThat(bar.shownActionTexts()).doesNotContain("Valores de");
+    }
+
+    @Test
+    void aVeryNarrowBarKeepsTheRouteAndCutsIt() {
+        PlaceBar bar = machineLikeBarAt(120);
+
+        assertThat(bar.crumbsShown()).isTrue();
+        assertThat(bar.overflowShown()).isTrue();
+        assertThat(bar.shownActionTexts()).isEmpty();
+    }
+
+    @Test
+    void theCurrentCrumbAndTheUseChipReadOnTheTintedBarInBothThemesAndEveryGroupColour() throws Exception {
+        inverterInThreePlaces();
+        PlaceBar several = barOf(INVERTER, Optional.of("c1"));
+        document.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.byteBuffer())));
+        place(document, SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), 40, 0, Map.of());
+        PlaceBar one = barOf(ExampleDefinitions.BYTE_BUFFER, Optional.empty());
+        LookAndFeel original = UIManager.getLookAndFeel();
+        try {
+            for (boolean dark : new boolean[]{false, true}) {
+                UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", dark));
+                for (int ordinal = 0; ordinal < 6; ordinal++) {
+                    GroupColors.adopt(document, ordinal);
+                    for (PlaceBar bar : List.of(several, one)) {
+                        SwingUtilities.updateComponentTreeUI(bar);
+                        Color background = bar.getBackground();
+                        String where = (dark ? "dark" : "light") + " group " + ordinal;
+                        assertThat(ReadableColors.contrast(bar.useChipForeground(), background))
+                                .as("«%s» on %s", bar.useChipText(), where).isGreaterThanOrEqualTo(4.5);
+                        java.awt.Component current = bar.currentCrumbComponent();
+                        assertThat(current.isEnabled()).as("the current place is no disabled control").isTrue();
+                        assertThat(ReadableColors.contrast(current.getForeground(), background))
+                                .as("current crumb on %s", where).isGreaterThanOrEqualTo(4.5);
+                    }
+                }
+            }
+        } finally {
+            UIManager.setLookAndFeel(original);
+        }
+    }
+
+    @Test
+    void theCurrentCrumbDoesNothingWhenPressed() {
+        inverterInThreePlaces();
+        PlaceBar bar = barOf(INVERTER, Optional.of("c2/c3"));
+
+        if (bar.currentCrumbComponent() instanceof AbstractButton button) {
+            button.doClick(0);
+        }
+
+        assertThat(calls).isEmpty();
     }
 }

@@ -7,6 +7,9 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.StateMachine;
+import cl.almejo.vsim.core.simulation.MachineProblem;
+import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Application;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -16,6 +19,8 @@ import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.problems.MachineProblemText;
+import cl.almejo.vsim.ui.problems.ProblemText;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -185,6 +190,25 @@ class MachinePropertiesOrderTest {
         assertThat(mode.inspectorRows().problemTips()).hasSize(count).allSatisfy(tip ->
                 assertThat(tip.length()).isGreaterThan(30));
         assertThat(mode.inspectorRows().problemLines()).anyMatch(line -> line.contains("A: falta qué pasa con x = 0"));
+    }
+
+    /**
+     * Fix round 4 (M5): the machine's problems come in the same order in its Propiedades as in the Problems panel
+     * (errors first, then warnings; within each, the panel's stable key), not in the order the checks find them.
+     */
+    @Test
+    void theProblemsComeInTheOrderOfTheProblemsPanel() {
+        StateMachine machine = mode.canvas().machine().orElseThrow();
+        List<Problem> found = new ArrayList<>(mode.canvas().problems());
+        // the panel lists every problem of the circuit through ProblemText.ordered: the same rule, applied here
+        List<String> panel = ProblemText.ordered(found).stream().map(MachineProblem.class::cast)
+                .map(problem -> MachineProblemText.sentence(problem.finding(), machine)).toList();
+        List<String> canvas = mode.canvas().problems().stream()
+                .map(problem -> MachineProblemText.sentence(problem.finding(), machine)).toList();
+
+        assertThat(panel).hasSizeGreaterThan(2);
+        assertThat(canvas).as("F8 and the tab").containsExactlyElementsOf(panel);
+        assertThat(mode.inspectorRows().problemTips()).as("Propiedades").containsExactlyElementsOf(panel);
     }
 
     @Test

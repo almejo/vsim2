@@ -14,15 +14,20 @@ import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.tabs.GroupColors;
+import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.Font;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -34,7 +39,9 @@ import java.util.Optional;
  * context as clickable crumbs, «Valores de» (every instance path that reaches the definition, plus «Sin valores»),
  * how many places use it, «Ver la pieza», a machine's «Probar…» and «Convertir a circuito…», the
  * library button, and the explanation of an edit refused inside, which
- * has no other place. It follows its place's changes and the library's; {@link #dispose()}
+ * has no other place. One row that never wraps nor holds the side panels back: what follows the route leaves from the
+ * right into a «»» menu, in order, as the toolbar's ({@link OverflowToolBarLayout}); the route is cut last, with «…».
+ * It follows its place's changes and the library's; {@link #dispose()}
  * takes both listeners away. Colours are read when it paints or its look changes, never kept. EDT only.
  */
 public final class PlaceBar extends JPanel {
@@ -68,7 +75,28 @@ public final class PlaceBar extends JPanel {
     private final ComponentLibrary library;
     private final Callbacks callbacks;
     private final Runnable refresher = this::refresh;
+    /** The name of the «»» that opens what does not fit the bar (what tests look for). */
+    public static final String OVERFLOW_NAME = "placeBar.overflow";
+    /** The space between the bar's controls, at 100 %. */
+    private static final int GAP = 14;
+
     private final JPanel crumbPanel = new JPanel(new MigLayout("insets 0, gapx 2"));
+    /** The chevron of the button that opens what does not fit the bar, as the toolbar's. */
+    private final JButton overflowButton = new JButton("»");
+    private final OverflowToolBarLayout actionsLayout = new OverflowToolBarLayout(overflowButton,
+            () -> UIScale.scale(GAP));
+    /** Everything after the route, one row; what does not fit goes behind {@link #overflowButton}, in order. */
+    private final JPanel actions = new JPanel(actionsLayout) {
+        @Override
+        public Dimension getMinimumSize() {
+            Insets insets = getInsets();
+            Dimension button = overflowButton.getPreferredSize();
+            return new Dimension(button.width + insets.left + insets.right,
+                    Math.max(button.height, getPreferredSize().height));
+        }
+    };
+    /** The current place's name: not a control (it goes nowhere), so it reads as plain bold text. */
+    private final JLabel currentCrumb = new CutLabel();
     private final JLabel valuesLabel = new JLabel(Messages.text("place.valuesOf"));
     private final JComboBox<String> valuesCombo = new JComboBox<>();
     private final JLabel useChip = new JLabel();
@@ -90,27 +118,40 @@ public final class PlaceBar extends JPanel {
     private final Runnable removeRefusalListener;
 
     public PlaceBar(OpenDocument place, ComponentLibrary library, Callbacks callbacks) {
-        super(new MigLayout("insets 4 12 4 12, gapx 14, fillx", "[][][][][][][]push"));
+        // the route shrinks last: what follows it goes behind «»» first (fix round 4)
+        super(new MigLayout("insets 4 12 4 12, gapx 14, fillx, hidemode 3",
+                "[shrinkprio 50][grow, fill, shrinkprio 200]"));
         this.place = place;
         this.library = library;
         this.callbacks = callbacks;
         refusalTimer.setRepeats(false);
         refusalLabel.setName(REFUSAL_NAME);
         refusalLabel.setVisible(false);
-        add(crumbPanel);
-        add(valuesLabel, "split 2, gapx 14 4");
-        add(valuesCombo);
-        add(useChip);
-        add(seePiece);
-        add(machineTestButton, "hidemode 3");
-        add(machineConvertButton, "hidemode 3");
-        add(libraryButton);
+        crumbPanel.setOpaque(false);
+        actions.setOpaque(false);
+        overflowButton.setName(OVERFLOW_NAME);
+        overflowButton.setToolTipText(Messages.text("place.more"));
+        overflowButton.getAccessibleContext().setAccessibleName(Messages.text("place.more"));
+        overflowButton.putClientProperty("JButton.buttonType", "toolBarButton");
+        overflowButton.addActionListener(action -> actionsLayout.showMenu());
+        valuesLabel.setLabelFor(valuesCombo);
+        useChip.putClientProperty(ToolbarOverflowMenu.SHOWN_IN_MENU, true);
+        add(crumbPanel, "wmin 0");
+        add(actions);
+        actions.add(valuesLabel);
+        actions.add(valuesCombo);
+        actions.add(useChip);
+        actions.add(seePiece);
+        actions.add(machineTestButton);
+        actions.add(machineConvertButton);
+        actions.add(libraryButton);
+        actions.add(overflowButton); // always the last child
         machineTestButton.setVisible(false);
         machineConvertButton.setVisible(false);
         machineConvertButton.setEnabled(false);
         machineConvertButton.setToolTipText(Messages.text("machine.comesLater"));
         machineTestButton.setToolTipText(Messages.text("machine.palette.testHint"));
-        add(refusalLabel, "newline, span");
+        add(refusalLabel, "newline, span, wmin 0");
         valuesCombo.addActionListener(action -> {
             if (!updating && valuesCombo.getSelectedIndex() >= 0) {
                 chooseValuesItem(valuesCombo.getSelectedIndex());
@@ -175,21 +216,17 @@ public final class PlaceBar extends JPanel {
         Color group = GroupColors.colorOf(place.parent().orElse(place));
         if (panel != null) {
             setBackground(mix(panel, group, TINT));
-            crumbPanel.setBackground(getBackground());
         }
-        useChip.setForeground(uses.size() > 1 ? warningColor() : mutedColor());
-        refusalLabel.setForeground(warningColor());
+        // checked against the tinted bar itself, not the panel: the grey of «Se usa en 1 lugar» was 3.85:1 in dark
+        Color bar = getBackground();
+        useChip.setForeground(ReadableColors.readableOn(uses.size() > 1 ? ReadableColors.warningText()
+                : ReadableColors.mutedText(), bar));
+        refusalLabel.setForeground(ReadableColors.readableOn(ReadableColors.warningText(), bar));
         refusalLabel.setFont(useChip.getFont().deriveFont(Font.BOLD));
-    }
-
-    /** Amber, readable on the light or the dark chrome: the use chip with several uses and a refused edit. */
-    private static Color warningColor() {
-        return new Color(GroupColors.chromeIsDark() ? 0xF5C16C : 0x8A5300);
-    }
-
-    private static Color mutedColor() {
-        Color muted = ReadableColors.mutedText();
-        return muted;
+        Color text = UIManager.getColor("Label.foreground");
+        if (text != null) {
+            currentCrumb.setForeground(ReadableColors.readableOn(text, bar));
+        }
     }
 
     private static Color mix(Color base, Color tint, float amount) {
@@ -226,24 +263,58 @@ public final class PlaceBar extends JPanel {
         if (steps.isEmpty()) {
             steps = List.of(place.definitionName());
         }
-        for (String step : steps) {
-            crumbTexts.add(step);
-            addCrumb("⬚ " + step, crumbTexts.size() - 1);
+        for (int index = 0; index < steps.size() - 1; index++) {
+            crumbTexts.add(steps.get(index));
+            addCrumb("⬚ " + steps.get(index), crumbTexts.size() - 1);
         }
-        JButton current = crumbButtons.getLast();
-        current.setEnabled(false);
-        current.setFont(current.getFont().deriveFont(java.awt.Font.BOLD));
+        crumbTexts.add(steps.getLast());
+        crumbPanel.add(new JLabel("›"));
+        currentCrumb.setText("⬚ " + steps.getLast());
+        currentCrumb.setFont(UIManager.getFont("Label.font").deriveFont(Font.BOLD));
+        // the earlier crumbs are cut first, the current place last; «›» never
+        StringBuilder columns = new StringBuilder();
+        for (int index = 0; index < crumbTexts.size(); index++) {
+            columns.append(index > 0 ? "[shrinkprio 0]" : "")
+                    .append(index < crumbTexts.size() - 1 ? "[shrinkprio 200]" : "[shrinkprio 100]");
+        }
+        ((MigLayout) crumbPanel.getLayout()).setColumnConstraints(columns.toString());
+        crumbPanel.add(currentCrumb, "wmin 0, gapleft 6lp");
     }
 
     private void addCrumb(String text, int index) {
         if (index > 0) {
             crumbPanel.add(new JLabel("›"));
         }
-        JButton crumb = new JButton(text);
+        JButton crumb = new CutButton(text);
         crumb.putClientProperty("JButton.buttonType", "borderless");
         crumb.addActionListener(action -> clickCrumb(index));
         crumbButtons.add(crumb);
-        crumbPanel.add(crumb);
+        crumbPanel.add(crumb, "wmin 0");
+    }
+
+    /** A label whose tooltip is its whole text while the bar cuts it with «…». */
+    private static final class CutLabel extends JLabel {
+        CutLabel() {
+            setToolTipText(""); // registers it: the text comes from getToolTipText()
+        }
+
+        @Override
+        public String getToolTipText() {
+            return getWidth() < getPreferredSize().width ? getText() : null;
+        }
+    }
+
+    /** A crumb whose tooltip is its whole text while the bar cuts it with «…». */
+    private static final class CutButton extends JButton {
+        CutButton(String text) {
+            super(text);
+            setToolTipText("");
+        }
+
+        @Override
+        public String getToolTipText() {
+            return getWidth() < getPreferredSize().width ? getText() : null;
+        }
     }
 
     private void refreshValues(OpenDocument parent) {
@@ -463,5 +534,54 @@ public final class PlaceBar extends JPanel {
 
     Optional<String> refusalText() {
         return refusalLabel.isVisible() ? Optional.of(refusalLabel.getText()) : Optional.empty();
+    }
+
+    /** Whether the «»» shows (something did not fit). */
+    boolean overflowShown() {
+        return overflowButton.isVisible() && overflowButton.getWidth() > 0;
+    }
+
+    /** The items the «»» opens now, in order (a submenu for «Valores de»). */
+    List<JMenuItem> overflowItems() {
+        List<JMenuItem> items = new ArrayList<>();
+        for (java.awt.Component child : actionsLayout.overflowMenu().getComponents()) {
+            if (child instanceof JMenuItem item) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    List<String> overflowTexts() {
+        return overflowItems().stream().map(JMenuItem::getText).toList();
+    }
+
+    /** The texts of the controls after the route that are on the bar now (not behind «»»). */
+    List<String> shownActionTexts() {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component component : actions.getComponents()) {
+            if (component != overflowButton && component.isVisible() && component.getWidth() > 0
+                    && component.getX() + component.getWidth() <= actions.getWidth()) {
+                if (component instanceof AbstractButton button) {
+                    texts.add(button.getText());
+                } else if (component instanceof JLabel label) {
+                    texts.add(label.getText());
+                }
+            }
+        }
+        return texts;
+    }
+
+    /** Whether the route is on the bar, even cut. */
+    boolean crumbsShown() {
+        return crumbPanel.getWidth() > 0 && currentCrumb.getWidth() > 0;
+    }
+
+    Color useChipForeground() {
+        return useChip.getForeground();
+    }
+
+    java.awt.Component currentCrumbComponent() {
+        return currentCrumb;
     }
 }

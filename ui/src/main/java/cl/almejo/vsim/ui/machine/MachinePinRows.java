@@ -18,7 +18,9 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.window.InstanceNames;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import java.io.Serial;
 import java.util.ArrayList;
@@ -97,6 +99,16 @@ final class MachinePinRows extends JPanel {
         add(inputs, WIDE + ", gaptop 4lp");
         add(outputs, WIDE + ", gaptop 8lp");
         edgeBox.setToolTipText(Messages.text("machine.pins.edge.tooltip"));
+        // closed, the box says only «Bajada» or «Subida»: «Bajada (como los flip-flops)» did not fit Propiedades at
+        // 150 % and 200 % (fix round 4); the open list keeps the whole sentence
+        edgeBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                                   boolean selected, boolean focused) {
+                return super.getListCellRendererComponent(list, index < 0 ? closedText(value) : value, index,
+                        selected, focused);
+            }
+        });
         edgeBox.addActionListener(event -> {
             if (!settingEdge) {
                 String edge = edgeBox.getSelectedIndex() == RISING_INDEX ? StateMachine.EDGE_RISING
@@ -105,6 +117,12 @@ final class MachinePinRows extends JPanel {
             }
         });
         refresh();
+    }
+
+    /** What the closed «Flanco» box says for the item {@code value}: «Bajada» for «Bajada (como los flip-flops)». */
+    static String closedText(Object value) {
+        return Messages.text("machine.piece.edge.falling").equals(value)
+                ? Messages.text("machine.pins.edge.falling.short") : String.valueOf(value);
     }
 
     /** One side's list. */

@@ -143,4 +143,35 @@ class MachineTestTableLayoutTest {
         }
         assertThat(MachineTestCellPainter.TINT_ALPHA).as("the tint stays 18 %").isEqualTo(46);
     }
+
+    /**
+     * Fix round 4 (M4): in a 760 px dock the verdict line is whole (it is the useful part); the grey hint beside it
+     * gives way first, cut with «…», and both say their whole text in their tooltip.
+     */
+    @Test
+    void theVerdictLineIsWholeInANarrowDockAndTheHintGivesWayFirst() throws Exception {
+        for (double scale : new double[]{1, 1.5}) {
+            javax.swing.LookAndFeel previous = UIManager.getLookAndFeel();
+            try {
+                System.setProperty("flatlaf.uiScale", String.valueOf(scale));
+                UIManager.setLookAndFeel(new FlatLightLaf());
+                MachineTestTable table = new MachineTestTable(new FakeTestSession(MachineFixtures.detector()),
+                        () -> ColorSchemes.LIGHT);
+                javax.swing.SwingUtilities.updateComponentTreeUI(table);
+                table.setSize((int) (760 * scale), (int) (330 * scale));
+                UiTestSupport.layOut(table);
+                javax.swing.JLabel summary = table.summary();
+                javax.swing.JLabel hint = table.hint();
+
+                assertThat(summary.getWidth()).as("«%s» whole at %s x", summary.getText(), scale)
+                        .isGreaterThanOrEqualTo(summary.getPreferredSize().width);
+                assertThat(hint.getWidth()).as("the hint is cut first").isLessThan(hint.getPreferredSize().width);
+                assertThat(summary.getToolTipText()).isEqualTo(summary.getText());
+                assertThat(hint.getToolTipText()).isEqualTo(hint.getText());
+            } finally {
+                System.clearProperty("flatlaf.uiScale");
+                UIManager.setLookAndFeel(previous);
+            }
+        }
+    }
 }

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.toolbar.SplitButton;
 
 import javax.swing.AbstractButton;
@@ -16,7 +18,9 @@ import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import javax.swing.UIManager;
 import javax.swing.event.ChangeListener;
+import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +29,15 @@ import java.util.List;
  * The popup behind the toolbar's «»» button (audit V1): the controls that did not fit the bar, in its order.
  * A button becomes a menu item with its icon and text (its tooltip when it has no text; a toggle, a check item);
  * a {@link SplitButton} a submenu with its main action and its modes; a speed selector a submenu with its choices.
- * Labels and other components are left out. Enabled state and selection follow the button while the popup exists
- * ({@link #create} listens, and lets go when the popup closes).
+ * Labels and other components are left out, except a label marked {@link #SHOWN_IN_MENU} (a line of information, like
+ * the place bar's «Se usa en 3 lugares»), shown as a line of text, and a label that names a selector
+ * ({@link JLabel#setLabelFor}), whose text titles the selector's submenu («Valores de: …»). Enabled state and selection
+ * follow the button while the popup exists ({@link #create} listens, and lets go when the popup closes).
  */
 final class ToolbarOverflowMenu {
+
+    /** Client property: a label with it set to {@code true} shows in the popup as a line of text. */
+    static final String SHOWN_IN_MENU = "overflowMenu.shownInMenu";
 
     private ToolbarOverflowMenu() {
     }
@@ -37,12 +46,24 @@ final class ToolbarOverflowMenu {
         JPopupMenu menu = new JPopupMenu();
         List<Runnable> detachers = new ArrayList<>();
         boolean separatorPending = false;
+        String caption = "";
         for (Component component : hidden) {
             if (component instanceof JToolBar.Separator) {
                 separatorPending = menu.getComponentCount() > 0;
                 continue;
             }
-            JMenuItem item = itemFor(component, detachers);
+            if (component instanceof JLabel label && label.isVisible()
+                    && Boolean.TRUE.equals(label.getClientProperty(SHOWN_IN_MENU))) {
+                menu.add(lineOf(label, menu));
+                continue;
+            }
+            if (component instanceof JLabel label && label.getLabelFor() != null && label.getText() != null) {
+                caption = label.getText();
+                continue;
+            }
+            JMenuItem item = component instanceof JComboBox<?> combo && !caption.isBlank() && combo.isVisible()
+                    ? submenuOf(combo, caption) : itemFor(component, detachers);
+            caption = "";
             if (item == null) {
                 continue;
             }
@@ -66,6 +87,32 @@ final class ToolbarOverflowMenu {
             case JComboBox<?> combo -> submenuOf(combo);
             default -> null;
         };
+    }
+
+    /**
+     * A copy of {@code label}'s text in its colour (made readable on the popup's background), lined up with the items'
+     * texts: an item that is never highlighted and does nothing, since it is information, not a control.
+     */
+    private static JMenuItem lineOf(JLabel label, JPopupMenu menu) {
+        JMenuItem line = new JMenuItem(label.getText()) {
+            @Override
+            public void menuSelectionChanged(boolean selected) {
+                // never armed: hovering it does not light it as if it did something
+            }
+        };
+        line.setToolTipText(label.getToolTipText());
+        Color themeBackground = UIManager.getColor("PopupMenu.background");
+        Color background = themeBackground != null ? themeBackground : menu.getBackground();
+        line.setForeground(ReadableColors.readableOn(label.getForeground(), background));
+        line.setFocusable(false);
+        return line;
+    }
+
+    /** {@link #submenuOf(JComboBox)} titled «{@code caption}: {@code the chosen item}». */
+    private static JMenuItem submenuOf(JComboBox<?> combo, String caption) {
+        JMenuItem submenu = submenuOf(combo);
+        submenu.setText(Messages.format("overflow.labelledChoice", caption, submenu.getText()));
+        return submenu;
     }
 
     private static JMenuItem itemOf(AbstractButton button, List<Runnable> detachers) {

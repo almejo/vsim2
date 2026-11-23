@@ -60,7 +60,7 @@ de circuito no la tienen.
 - **Ruta**: `▤ circuito › ⬚ Ram › ⬚ Selector · copia 2`. Cada paso es la pieza con el mismo nombre que tiene en el
   [árbol del circuito](#árbol-del-circuito) (su etiqueta, o su tipo, numerado si hay varias iguales sin etiqueta; las de un componente propio, como copias). Un
   clic en el circuito trae su pestaña; un clic en un paso entra a ese componente con la ruta anterior como valores. El
-  último paso es donde estás y no hace nada.
+  último paso es donde estás: va en negrita, con el color del texto (no gris, porque no está apagado) y no hace nada.
 - **Valores de**: lista todas las piezas por las que se llega a este componente, como «Inversor · copia 2 en Doble inversor»
   o, si está puesto en el circuito mismo, «Inversor en lrv32im» (con el nombre del circuito). Elegir una cambia los
   valores que se ven y la ruta.
@@ -76,6 +76,13 @@ de circuito no la tienen.
   (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
   la de Mis componentes y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe
   en Mis componentes por sí solo.
+- **Lo que no cabe**: la barra nunca hace dos filas ni impide ensanchar los paneles de los lados. Si la ventana es
+  angosta (o la interfaz está al 150 % o 200 %), lo que no cabe sale por la derecha, en orden, y aparece el botón «»»,
+  como en la barra de herramientas: abre un menú con lo que salió, en el mismo orden («Valores de: …» como un submenú
+  con sus piezas, «Se usa en N lugares» como una línea de texto, y los botones con su estado y su razón cuando están
+  apagados). La ruta es lo último que se acorta: si tampoco cabe, sus pasos se cortan con «…», primero los anteriores
+  y al final el lugar donde estás, y al pasar el mouse se lee el nombre entero. «Se usa en N lugares» y el aviso en
+  ámbar se leen bien sobre el color del grupo, en el tema claro y en el oscuro.
 - **Un cambio que no se hizo**: si un cambio adentro no se puede hacer, no cambia nada y la barra lo dice en ámbar
   durante unos segundos; la barra de estado también lo dice.
 

@@ -107,6 +107,28 @@ public final class ReadableColors {
         return (lighter + 0.05) / (darker + 0.05);
     }
 
+    /**
+     * {@code text} itself when it reads on {@code background} (at least {@link #MINIMUM_TEXT_CONTRAST}:1), else
+     * {@code text} moved step by step towards black or white (whichever stands out more on {@code background}) until it
+     * does: the grey or the amber of a line painted on a tinted bar, not on the panel. Read each time, never cached.
+     */
+    public static Color readableOn(Color text, Color background) {
+        if (contrast(text, background) >= MINIMUM_TEXT_CONTRAST) {
+            return text;
+        }
+        Color extreme = contrast(Color.BLACK, background) >= contrast(Color.WHITE, background) ? Color.BLACK
+                : Color.WHITE;
+        for (int step = 1; step <= 20; step++) {
+            double share = step / 20.0;
+            Color candidate = new Color(mix(extreme.getRed(), text.getRed(), share),
+                    mix(extreme.getGreen(), text.getGreen(), share), mix(extreme.getBlue(), text.getBlue(), share));
+            if (contrast(candidate, background) >= MINIMUM_TEXT_CONTRAST) {
+                return candidate;
+            }
+        }
+        return extreme;
+    }
+
     /** {@code color} as it shows painted over the opaque {@code background} (a translucent colour mixes with it). */
     public static Color over(Color color, Color background) {
         double share = color.getAlpha() / 255.0;
