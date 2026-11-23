@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.whatsnew;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
@@ -32,7 +33,6 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +62,7 @@ final class TipShowing {
     private final TipOfTheDayExtension.Seams seams;
     private final AppPreferences preferences;
     private final KeyEventDispatcher keyHook = this::keyEvent;
-    private final List<Runnable> whileOpen = new ArrayList<>();
+    private final Teardown whileOpen = new Teardown();
     private final Map<String, Optional<TipPicture.Slot>> slots = new HashMap<>();
     private TipCard card;
     private JLayeredPane layers;
@@ -216,11 +216,7 @@ final class TipShowing {
         if (!isOpen()) {
             return;
         }
-        List<Runnable> undo = new ArrayList<>(whileOpen);
-        whileOpen.clear();
-        for (int index = undo.size() - 1; index >= 0; index--) {
-            undo.get(index).run();
-        }
+        whileOpen.run();
         card = null;
     }
 

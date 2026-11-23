@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
@@ -62,7 +63,7 @@ final class BubbleTour {
     private final BubbleTours.Seams seams;
     private final AppPreferences preferences;
     private final KeyEventDispatcher keyHook = this::keyEvent;
-    private final List<Runnable> whileOpen = new ArrayList<>();
+    private final Teardown whileOpen = new Teardown();
     private final Runnable targetsChanged = this::targetsChanged;
     private NewsBubble bubble;
     private TourOverlay overlay;
@@ -173,11 +174,7 @@ final class BubbleTour {
         stopFollowingTheTarget.run();
         stopFollowingTheTarget = () -> {
         };
-        List<Runnable> undo = new ArrayList<>(whileOpen);
-        whileOpen.clear();
-        for (int index = undo.size() - 1; index >= 0; index--) {
-            undo.get(index).run();
-        }
+        whileOpen.run();
         overlay = null;
         bubble = null;
     }

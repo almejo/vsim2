@@ -18,14 +18,7 @@ record RulerColors(Color background, Color tick, Color border) {
         Color foreground = ThemeColors.ui("Label.foreground", Color.BLACK);
         Color tick = ThemeColors.ui("Label.disabledForeground", Color.GRAY);
         Color border = ThemeColors.ui("Component.borderColor", ThemeColors.ui("Separator.foreground", Color.LIGHT_GRAY));
-        return new RulerColors(hovered ? mix(background, foreground, HOVER_SHADE) : background, tick, border);
+        return new RulerColors(hovered ? ThemeColors.mix(background, foreground, HOVER_SHADE) : background, tick, border);
     }
 
-
-    private static Color mix(Color from, Color toward, double amount) {
-        return new Color(
-                (int) Math.round(from.getRed() + (toward.getRed() - from.getRed()) * amount),
-                (int) Math.round(from.getGreen() + (toward.getGreen() - from.getGreen()) * amount),
-                (int) Math.round(from.getBlue() + (toward.getBlue() - from.getBlue()) * amount));
-    }
 }

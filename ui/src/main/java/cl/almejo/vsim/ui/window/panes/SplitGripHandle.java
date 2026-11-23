@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.edges.EdgeGesture;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -34,9 +35,8 @@ final class SplitGripHandle implements EdgeHandle {
     static final int PRIORITY = 40;
     private static final int LENGTH = 20;
     private static final int DEPTH = 8;
-    private static final int DOTS = 3;
+    /** Smaller than the divider's dots (3 pixels). */
     private static final int DOT_SIZE = 2;
-    private static final int DOT_GAP = 2;
     private static final double HOVER_SHADE = 0.12;
     /** How strong the tab is at rest: faint, it is always there but never in the way. */
     private static final int RESTING_ALPHA = 150;
@@ -106,27 +106,16 @@ final class SplitGripHandle implements EdgeHandle {
         Color background = ThemeColors.ui("SplitPane.background", ThemeColors.ui("Panel.background",
                 Color.LIGHT_GRAY));
         Color foreground = ThemeColors.ui("Label.foreground", Color.BLACK);
-        Color fill = hovered ? mix(background, foreground, HOVER_SHADE) : background;
-        screenGraphics.setColor(hovered ? fill : withAlpha(fill, RESTING_ALPHA));
+        Color fill = hovered ? ThemeColors.mix(background, foreground, HOVER_SHADE) : background;
+        screenGraphics.setColor(hovered ? fill : PainterSupport.withAlpha(fill, RESTING_ALPHA));
         screenGraphics.fill(tab);
         Color border = ThemeColors.ui("Component.borderColor", Color.GRAY);
-        screenGraphics.setColor(hovered ? border : withAlpha(border, RESTING_ALPHA));
+        screenGraphics.setColor(hovered ? border : PainterSupport.withAlpha(border, RESTING_ALPHA));
         screenGraphics.drawRect(tab.x, tab.y, tab.width - 1, tab.height - 1);
         screenGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         Color grip = ThemeColors.ui("SplitPaneDivider.gripColor", Color.GRAY);
-        screenGraphics.setColor(hovered ? grip : withAlpha(grip, RESTING_ALPHA));
-        boolean wide = tab.width > tab.height;
-        int length = DOTS * DOT_SIZE + (DOTS - 1) * DOT_GAP;
-        int start = (wide ? tab.x + (tab.width - length) / 2 : tab.y + (tab.height - length) / 2);
-        int middle = wide ? tab.y + (tab.height - DOT_SIZE) / 2 : tab.x + (tab.width - DOT_SIZE) / 2;
-        for (int dot = 0; dot < DOTS; dot++) {
-            int along = start + dot * (DOT_SIZE + DOT_GAP);
-            if (wide) {
-                screenGraphics.fillOval(along, middle, DOT_SIZE, DOT_SIZE);
-            } else {
-                screenGraphics.fillOval(middle, along, DOT_SIZE, DOT_SIZE);
-            }
-        }
+        screenGraphics.setColor(hovered ? grip : PainterSupport.withAlpha(grip, RESTING_ALPHA));
+        PaneDivider.paintGripDots(screenGraphics, tab, tab.width > tab.height, DOT_SIZE);
     }
 
     @Override
@@ -173,14 +162,4 @@ final class SplitGripHandle implements EdgeHandle {
         }
     }
 
-    private static Color withAlpha(Color color, int alpha) {
-        return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
-    }
-
-    private static Color mix(Color from, Color toward, double amount) {
-        return new Color(
-                (int) Math.round(from.getRed() + (toward.getRed() - from.getRed()) * amount),
-                (int) Math.round(from.getGreen() + (toward.getGreen() - from.getGreen()) * amount),
-                (int) Math.round(from.getBlue() + (toward.getBlue() - from.getBlue()) * amount));
-    }
 }

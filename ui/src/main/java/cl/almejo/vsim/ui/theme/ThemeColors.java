@@ -28,6 +28,14 @@ public final class ThemeColors {
                 ui("List.selectionBackground", FALLBACK_ACCENT)));
     }
 
+    /** {@code from} moved {@code amount} (0 to 1) towards {@code toward}, each channel rounded; opaque. */
+    public static Color mix(Color from, Color toward, double amount) {
+        return new Color(
+                (int) Math.round(from.getRed() + (toward.getRed() - from.getRed()) * amount),
+                (int) Math.round(from.getGreen() + (toward.getGreen() - from.getGreen()) * amount),
+                (int) Math.round(from.getBlue() + (toward.getBlue() - from.getBlue()) * amount));
+    }
+
     /**
      * Paints a 1 px rule in the theme's border colour ({@code owner}'s foreground when there is none) over the
      * rectangle given: the line between a panel and what is next to it.

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.shortcuts.sheet;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ShownAcceleratorItem;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -31,7 +32,6 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -63,7 +63,7 @@ final class ShortcutSheetFeatures {
     private final ShownAcceleratorItem item;
     private final KeyEventDispatcher keyHook = this::keyEvent;
     private final Runnable removeEscapeClaims;
-    private final List<Runnable> whileOpen = new ArrayList<>();
+    private final Teardown whileOpen = new Teardown();
     private final List<SheetSelection.Item> selection = SheetSelection.load();
     private ShortcutSheetPanel panel;
     private final HeldKey heldKey = new HeldKey();
@@ -306,11 +306,7 @@ final class ShortcutSheetFeatures {
             return;
         }
         panel = null;
-        List<Runnable> undo = new ArrayList<>(whileOpen);
-        whileOpen.clear();
-        for (int index = undo.size() - 1; index >= 0; index--) {
-            undo.get(index).run();
-        }
+        whileOpen.run();
         if (!disposed && canvasHadTheKeyboard) {
             view.keyboardFocus().request(view.canvas());
         }

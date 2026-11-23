@@ -85,16 +85,23 @@ public final class PaneDivider extends JComponent {
         graphics.fill(bar);
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.setColor(ThemeColors.ui("SplitPaneDivider.gripColor", Color.GRAY));
-        int length = GRIP_DOTS * GRIP_DOT_SIZE + (GRIP_DOTS - 1) * GRIP_GAP;
-        boolean across = orientation == Orientation.HORIZONTAL;
-        int start = (across ? bar.x : bar.y) + ((across ? bar.width : bar.height) - length) / 2;
-        int middle = (across ? bar.y : bar.x) + ((across ? bar.height : bar.width) - GRIP_DOT_SIZE) / 2;
+        paintGripDots(graphics, bar, orientation == Orientation.HORIZONTAL, GRIP_DOT_SIZE);
+    }
+
+    /**
+     * The grip's three dots in the middle of {@code area}, in a row along x when {@code alongX} and in a column
+     * otherwise, {@code dotSize} pixels each, in the current colour.
+     */
+    static void paintGripDots(Graphics2D graphics, Rectangle area, boolean alongX, int dotSize) {
+        int length = GRIP_DOTS * dotSize + (GRIP_DOTS - 1) * GRIP_GAP;
+        int start = (alongX ? area.x : area.y) + ((alongX ? area.width : area.height) - length) / 2;
+        int middle = (alongX ? area.y : area.x) + ((alongX ? area.height : area.width) - dotSize) / 2;
         for (int dot = 0; dot < GRIP_DOTS; dot++) {
-            int along = start + dot * (GRIP_DOT_SIZE + GRIP_GAP);
-            if (across) {
-                graphics.fillOval(along, middle, GRIP_DOT_SIZE, GRIP_DOT_SIZE);
+            int along = start + dot * (dotSize + GRIP_GAP);
+            if (alongX) {
+                graphics.fillOval(along, middle, dotSize, dotSize);
             } else {
-                graphics.fillOval(middle, along, GRIP_DOT_SIZE, GRIP_DOT_SIZE);
+                graphics.fillOval(middle, along, dotSize, dotSize);
             }
         }
     }

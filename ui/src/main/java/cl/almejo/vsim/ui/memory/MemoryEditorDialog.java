@@ -21,6 +21,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.MemoryLights;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
 import cl.almejo.vsim.ui.search.FindIcons;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -59,8 +60,6 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -1113,15 +1112,7 @@ public final class MemoryEditorDialog {
 
     /** Shows the editor in a modal dialog over {@code parent}'s window, at {@code address} when given. */
     public void show(java.awt.Component parent, OptionalLong address) {
-        JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent),
-                title(), Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent event) {
-                cancel();
-            }
-        });
+        JDialog dialog = ModalDialogs.over(parent, title(), Dialog.ModalityType.APPLICATION_MODAL, this::cancel);
         dialog.setContentPane(content);
         bindTo(dialog.getRootPane());
         closer = () -> {
