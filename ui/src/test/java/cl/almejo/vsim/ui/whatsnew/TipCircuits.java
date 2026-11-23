@@ -25,6 +25,8 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.wiring.CanvasTextBoxes;
 
@@ -573,8 +575,9 @@ final class TipCircuits {
     }
 
     /**
-     * «Máquinas de estado»: the «Semáforo» example without its sticky note and its «Prueba:» line, so the picture is
-     * only the circuit (a clock, a reset and the machine with three lights).
+     * «Máquinas de estado»: the «Semáforo» example without its sticky note, its title and its «Prueba:» line, so the
+     * picture is only the circuit (a clock, a reset and the machine with three lights), with neutral names like the
+     * other tips (RST, CLK, R, A, V; the machine «FSM», its states R, V and A) so it reads the same in any language.
      */
     private static CircuitDocument stateMachine() {
         try {
@@ -583,10 +586,22 @@ final class TipCircuits {
                 document.remove(note.id());
             }
             for (TextLabel label : List.copyOf(document.labels())) {
-                if (label.text().startsWith("Prueba: ")) {
-                    document.remove(label.id());
+                document.remove(label.id());
+            }
+            Map<String, String> neutralLabels = Map.of("Reiniciar", "RST", "Reloj", "CLK", "Rojo", "R",
+                    "Amarillo", "A", "Verde", "V");
+            for (Component component : List.copyOf(document.components())) {
+                String neutral = neutralLabels.get(component.label());
+                if (neutral != null) {
+                    document.replace(component.withLabel(neutral));
                 }
             }
+            ComponentDefinition machine = document.definitions().get(0);
+            StateMachine states = machine.machine().orElseThrow();
+            for (MachineState state : states.states()) {
+                states = states.withState(state.id(), unchanged -> unchanged.withName(neutralLabels.get(state.name())));
+            }
+            document.putDefinition(machine.withName("FSM").withMachine(states));
             return document;
         } catch (CircuitFormatException exception) {
             throw new IllegalStateException("the bundled example «semaforo» does not open", exception);

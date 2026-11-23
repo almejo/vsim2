@@ -18,7 +18,7 @@
     "x" : 14,
     "y" : 7,
     "rotation" : 0,
-    "label" : "Reiniciar",
+    "label" : "RST",
     "parameters" : {
       "value" : "0"
     }
@@ -28,7 +28,7 @@
     "x" : 16,
     "y" : 18,
     "rotation" : 0,
-    "label" : "Reloj",
+    "label" : "CLK",
     "parameters" : {
       "time-down" : 1000,
       "time-up" : 1000
@@ -39,7 +39,7 @@
     "x" : 53,
     "y" : 5,
     "rotation" : 0,
-    "label" : "Rojo",
+    "label" : "R",
     "parameters" : {
       "color" : "red"
     }
@@ -49,7 +49,7 @@
     "x" : 53,
     "y" : 11,
     "rotation" : 0,
-    "label" : "Amarillo",
+    "label" : "A",
     "parameters" : {
       "color" : "yellow"
     }
@@ -59,7 +59,7 @@
     "x" : 53,
     "y" : 17,
     "rotation" : 0,
-    "label" : "Verde",
+    "label" : "V",
     "parameters" : {
       "color" : "green"
     }
@@ -143,15 +143,10 @@
     "x2" : 54,
     "y2" : 20
   } ],
-  "labels" : [ {
-    "id" : "l20",
-    "x" : 2,
-    "y" : 0,
-    "text" : "Semáforo"
-  } ],
+  "labels" : [ ],
   "definitions" : [ {
     "id" : "semaforo",
-    "name" : "Semáforo",
+    "name" : "FSM",
     "description" : "",
     "width" : 12,
     "height" : 8,
@@ -246,11 +241,11 @@
     } ],
     "wires" : [ ],
     "labels" : [ ],
-    "revision" : 1,
+    "revision" : 2,
     "machine" : {
       "states" : [ {
         "id" : "rojo",
-        "name" : "Rojo",
+        "name" : "R",
         "x" : 0.0,
         "y" : 0.0,
         "outputs" : [ {
@@ -259,7 +254,7 @@
         } ]
       }, {
         "id" : "verde",
-        "name" : "Verde",
+        "name" : "V",
         "x" : 260.0,
         "y" : 0.0,
         "outputs" : [ {
@@ -268,7 +263,7 @@
         } ]
       }, {
         "id" : "amarillo",
-        "name" : "Amarillo",
+        "name" : "A",
         "x" : 130.0,
         "y" : 200.0,
         "outputs" : [ {
