@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.IntUnionFind;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
@@ -102,7 +103,7 @@ final class ConnectivityChecker {
 
         private final Map<GridPoint, Integer> indexOf = new HashMap<>();
         private final List<GridPoint> points = new ArrayList<>();
-        private final int[] parents;
+        private final IntUnionFind groups;
 
         Grouping(List<Wire> wires) {
             pinsAtPoint.keySet().forEach(this::register);
@@ -110,10 +111,7 @@ final class ConnectivityChecker {
                 register(wire.start());
                 register(wire.end());
             }
-            parents = new int[points.size()];
-            for (int index = 0; index < parents.length; index++) {
-                parents[index] = index;
-            }
+            groups = new IntUnionFind(points.size());
             Map<Integer, TreeMap<Integer, Integer>> rows = new HashMap<>();
             Map<Integer, TreeMap<Integer, Integer>> columns = new HashMap<>();
             for (int index = 0; index < points.size(); index++) {
@@ -128,7 +126,7 @@ final class ConnectivityChecker {
                 int from = wire.isHorizontal() ? wire.start().x() : wire.start().y();
                 int to = wire.isHorizontal() ? wire.end().x() : wire.end().y();
                 for (int index : line.subMap(from, true, to, true).values()) {
-                    union(start, index);
+                    groups.union(start, index);
                 }
             }
         }
@@ -141,7 +139,7 @@ final class ConnectivityChecker {
         }
 
         int rootOf(GridPoint point) {
-            return find(indexOf.get(point));
+            return groups.find(indexOf.get(point));
         }
 
         /** The pins of every net that has pins, by the root of the net. */
@@ -155,26 +153,5 @@ final class ConnectivityChecker {
             return pinsByRoot;
         }
 
-        private int find(int index) {
-            int root = index;
-            while (parents[root] != root) {
-                root = parents[root];
-            }
-            int current = index;
-            while (parents[current] != root) {
-                int next = parents[current];
-                parents[current] = root;
-                current = next;
-            }
-            return root;
-        }
-
-        private void union(int first, int second) {
-            int firstRoot = find(first);
-            int secondRoot = find(second);
-            if (firstRoot != secondRoot) {
-                parents[secondRoot] = firstRoot;
-            }
-        }
     }
 }

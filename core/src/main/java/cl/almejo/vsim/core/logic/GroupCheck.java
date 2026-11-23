@@ -117,18 +117,8 @@ public final class GroupCheck {
 
     /** The prime implicants of the output for the form that cover at least one required cell. */
     static List<Term> primes(TruthTableSpec spec, int output, Form form) {
-        LogicValue wanted = wanted(form);
-        List<Integer> required = new ArrayList<>();
-        List<Integer> optional = new ArrayList<>();
-        for (int row = 0; row < spec.rowCount(); row++) {
-            LogicValue value = spec.value(output, row);
-            if (value == wanted) {
-                required.add(row);
-            } else if (value == LogicValue.DONT_CARE) {
-                optional.add(row);
-            }
-        }
-        return Minimizer.primeImplicants(required, optional, spec.inputCount());
+        Minimizer.Rows rows = Minimizer.rows(spec, output, wanted(form));
+        return Minimizer.primeImplicants(rows.required(), rows.optional(), spec.inputCount());
     }
 
     /** The value a group must cover: 1 in a sum of products, 0 in a product of sums. */

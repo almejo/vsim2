@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.library;
 
+import cl.almejo.vsim.core.Steps;
+
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -91,22 +93,10 @@ public final class ComponentLibrary {
     }
 
     private void fire() {
-        RuntimeException failure = null;
-        for (Runnable listener : listeners) {
-            try {
-                listener.run();
-            } catch (RuntimeException exception) {
-                if (failure == null) {
-                    failure = exception;
-                } else {
-                    failure.addSuppressed(exception);
-                }
-            }
-        }
-        if (failure != null) {
+        Steps.runEach(listeners).ifPresent(failure -> {
             Thread thread = Thread.currentThread();
             Thread.UncaughtExceptionHandler handler = thread.getUncaughtExceptionHandler();
             handler.uncaughtException(thread, failure);
-        }
+        });
     }
 }

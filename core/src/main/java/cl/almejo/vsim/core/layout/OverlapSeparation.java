@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.layout;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.IntUnionFind;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -308,14 +309,11 @@ public final class OverlapSeparation {
     private static final class AxisConstraints {
         private final List<AxisProjection.Constraint> constraints = new ArrayList<>();
         private final Map<Integer, List<Integer>> successors = new HashMap<>();
-        private final int[] parent;
+        private final IntUnionFind components;
         private final List<Integer> touchedSinceLastSolve = new ArrayList<>();
 
         AxisConstraints(int boxCount) {
-            this.parent = new int[boxCount];
-            for (int box = 0; box < parent.length; box++) {
-                parent[box] = box;
-            }
+            this.components = new IntUnionFind(boxCount);
         }
 
         /** Adds the constraint unless the right box already has to stay left of the left one (the pair stays). */
@@ -325,7 +323,8 @@ public final class OverlapSeparation {
             }
             constraints.add(constraint);
             successors.computeIfAbsent(constraint.left(), key -> new ArrayList<>()).add(constraint.right());
-            parent[root(constraint.left())] = root(constraint.right());
+            // the right box's root becomes the joined component's
+            components.union(constraint.right(), constraint.left());
             touchedSinceLastSolve.add(constraint.left());
         }
 
@@ -345,17 +344,7 @@ public final class OverlapSeparation {
         }
 
         private int root(int box) {
-            int root = box;
-            while (parent[root] != root) {
-                root = parent[root];
-            }
-            int walker = box;
-            while (parent[walker] != root) {
-                int next = parent[walker];
-                parent[walker] = root;
-                walker = next;
-            }
-            return root;
+            return components.find(box);
         }
 
         private boolean reaches(int from, int target) {

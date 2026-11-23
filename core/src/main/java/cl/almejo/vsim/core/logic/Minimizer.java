@@ -38,20 +38,30 @@ public final class Minimizer {
         LogicValue grouped = form == Form.SUM_OF_PRODUCTS ? LogicValue.ONE : LogicValue.ZERO;
         List<OutputExpression> outputs = new ArrayList<>();
         for (int output = 0; output < spec.outputCount(); output++) {
-            List<Integer> required = new ArrayList<>();
-            List<Integer> optional = new ArrayList<>();
-            for (int row = 0; row < spec.rowCount(); row++) {
-                LogicValue value = spec.value(output, row);
-                if (value == grouped) {
-                    required.add(row);
-                } else if (value == LogicValue.DONT_CARE) {
-                    optional.add(row);
-                }
-            }
-            List<Term> primes = primeImplicants(required, optional, spec.inputCount());
-            outputs.add(new OutputExpression(output, cover(primes, required)));
+            Rows rows = rows(spec, output, grouped);
+            List<Term> primes = primeImplicants(rows.required(), rows.optional(), spec.inputCount());
+            outputs.add(new OutputExpression(output, cover(primes, rows.required())));
         }
         return new Minimization(spec, form, outputs);
+    }
+
+    /** The rows of one output a group must cover and the don't cares it may take in. */
+    record Rows(List<Integer> required, List<Integer> optional) {
+    }
+
+    /** The rows where {@code output} is {@code wanted} (required) or a don't care (optional), in row order. */
+    static Rows rows(TruthTableSpec spec, int output, LogicValue wanted) {
+        List<Integer> required = new ArrayList<>();
+        List<Integer> optional = new ArrayList<>();
+        for (int row = 0; row < spec.rowCount(); row++) {
+            LogicValue value = spec.value(output, row);
+            if (value == wanted) {
+                required.add(row);
+            } else if (value == LogicValue.DONT_CARE) {
+                optional.add(row);
+            }
+        }
+        return new Rows(required, optional);
     }
 
     /**

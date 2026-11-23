@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.Steps;
+
 import cl.almejo.vsim.core.command.CreateMachineCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.component.ElementBounds;
@@ -872,20 +874,9 @@ public final class EditorView extends JPanel implements CanvasHost {
         steps.add(keyboardCapture::dispose);
         steps.add(this::undoPaneInstallations);
         steps.add(canvasPanes::dispose);
-        RuntimeException failure = null;
-        for (Runnable step : steps) {
-            try {
-                step.run();
-            } catch (RuntimeException exception) {
-                if (failure == null) {
-                    failure = exception;
-                } else {
-                    failure.addSuppressed(exception);
-                }
-            }
-        }
-        if (failure != null) {
-            throw failure;
+        Optional<RuntimeException> failure = Steps.runEach(steps);
+        if (failure.isPresent()) {
+            throw failure.get();
         }
     }
 

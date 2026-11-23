@@ -8,12 +8,9 @@ import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.snap.PointResolution;
 import cl.almejo.vsim.ui.tools.WireRouting.Segment;
 
-import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
-import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -237,12 +234,7 @@ final class ContinuousWirePath {
 
     /** The guides the start and the pointer's end lie on because they snapped to them. */
     List<Guide> snappedGuides() {
-        if (currentGuides.isEmpty()) {
-            return startGuides;
-        }
-        List<Guide> guides = new ArrayList<>(startGuides);
-        currentGuides.stream().filter(guide -> !guides.contains(guide)).forEach(guides::add);
-        return List.copyOf(guides);
+        return WireDrawing.bothEndsGuides(startGuides, currentGuides);
     }
 
     /**
@@ -260,19 +252,9 @@ final class ContinuousWirePath {
     }
 
     private void paintSegmentBeingDrawn(Graphics2D graphics, ToolContext context) {
-        double unit = GridPoint.PIXELS_PER_UNIT;
-        Composite previous = graphics.getComposite();
-        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, DRAWN_SEGMENT_ALPHA));
-        try {
-            graphics.setStroke(startWidth > 1 ? DASHED_BUS : DASHED_WIRE);
-            graphics.setColor(context.scheme().preview());
-            for (Segment segment : WireRouting.route(lastCorner(), current, horizontalFirstTo(current))) {
-                graphics.draw(new Line2D.Double(segment.start().x() * unit, segment.start().y() * unit,
-                        segment.end().x() * unit, segment.end().y() * unit));
-            }
-        } finally {
-            graphics.setComposite(previous);
-        }
+        WireDrawing.paintTranslucent(graphics, context,
+                WireRouting.route(lastCorner(), current, horizontalFirstTo(current)),
+                startWidth > 1 ? DASHED_BUS : DASHED_WIRE, DRAWN_SEGMENT_ALPHA);
     }
 
     /** A ring, in the scheme's preview colour, where the segment being drawn ends: the path is still open there. */

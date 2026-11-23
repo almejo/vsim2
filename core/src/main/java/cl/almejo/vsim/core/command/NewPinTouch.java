@@ -45,20 +45,7 @@ public final class NewPinTouch {
 
     private static boolean touchesSomething(CircuitDocument document, ComponentTypeRegistry registry,
                                             Component owner, GridPoint point) {
-        if (document.wires().stream().anyMatch(wire -> wire.contains(point))) {
-            return true;
-        }
-        for (Component other : document.components()) {
-            if (other.id().equals(owner.id())) {
-                continue;
-            }
-            ComponentType type = registry.typeOf(other);
-            for (int index = 0; index < type.pinCount(); index++) {
-                if (type.pinLocation(other, index).equals(point)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return document.wires().stream().anyMatch(wire -> wire.contains(point))
+                || PieceUpdatePlanner.anotherPinAt(document, registry, owner, point);
     }
 }

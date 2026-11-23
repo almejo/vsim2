@@ -17,6 +17,7 @@ import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Composite;
 import java.awt.Graphics2D;
+import java.awt.Stroke;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -89,6 +90,11 @@ public final class WireDrawing {
 
     /** The guides the start and the end lie on because they snapped to them. */
     public List<Guide> snappedGuides() {
+        return bothEndsGuides(startGuides, currentGuides);
+    }
+
+    /** The guides of the start, then those of the end the start does not lie on already. */
+    static List<Guide> bothEndsGuides(List<Guide> startGuides, List<Guide> currentGuides) {
         if (currentGuides.isEmpty()) {
             return startGuides;
         }
@@ -171,11 +177,17 @@ public final class WireDrawing {
     }
 
     private static void paintBusPreview(Graphics2D graphics, ToolContext context, List<Segment> segments) {
+        paintTranslucent(graphics, context, segments, BUS_PREVIEW, PREVIEW_ALPHA);
+    }
+
+    /** {@code segments} in the scheme's preview colour with {@code stroke}, at {@code alpha} opacity. */
+    static void paintTranslucent(Graphics2D graphics, ToolContext context, List<Segment> segments, Stroke stroke,
+                                 float alpha) {
         double unit = GridPoint.PIXELS_PER_UNIT;
         Composite previous = graphics.getComposite();
-        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, PREVIEW_ALPHA));
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
         try {
-            graphics.setStroke(BUS_PREVIEW);
+            graphics.setStroke(stroke);
             graphics.setColor(context.scheme().preview());
             for (Segment segment : segments) {
                 graphics.draw(new Line2D.Double(segment.start().x() * unit, segment.start().y() * unit,

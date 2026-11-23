@@ -289,8 +289,8 @@ final class PieceUpdatePlanner {
     }
 
     /** True when a pin of a component other than {@code piece} is at {@code point}: the wire stays connected. */
-    private static boolean anotherPinAt(CircuitDocument document, ComponentTypeRegistry registry, Component piece,
-                                        GridPoint point) {
+    static boolean anotherPinAt(CircuitDocument document, ComponentTypeRegistry registry, Component piece,
+                                GridPoint point) {
         for (Component component : document.components()) {
             if (component.id().equals(piece.id())) {
                 continue;
