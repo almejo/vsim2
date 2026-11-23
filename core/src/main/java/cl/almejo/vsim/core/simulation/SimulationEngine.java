@@ -149,7 +149,7 @@ public final class SimulationEngine {
      * {@link #setProbes}, which would rebind twice). The channels are bound even when the circuit is rejected.
      */
     public void update(FlatCircuit circuit, Map<String, String> channels) {
-        recorder.setChannels(channels);
+        recorder.setChannels(channels, nets.values(), now());
         int before = waveformRebinds;
         try {
             update(circuit);
@@ -831,11 +831,15 @@ public final class SimulationEngine {
 
     /**
      * Binds waveform channels: channel id → net id (a top-level id, an alias or a nested id; an empty or unknown id
-     * records a gap). Channels left out are dropped with their history; the others keep it, even when their net id
-     * changed (spec §3.3). Every channel is sampled now.
+     * records a gap). The others keep their history, even when their net id changed (spec §3.3). A channel left out
+     * is parked with its history, a gap from now on, and gets it back when a channel with its id is bound again (the
+     * undo of a deletion or of a removed signal); only the most recently parked are kept
+     * ({@code WaveformRecorder.MAXIMUM_PARKED_CHANNELS} channels, {@code MAXIMUM_PARKED_EVENTS} events in all), and
+     * «Limpiar trazas» and a restart forget them. Every channel
+     * is sampled now.
      */
     public void setProbes(Map<String, String> channels) {
-        recorder.setChannels(channels);
+        recorder.setChannels(channels, nets.values(), now());
         rebind();
     }
 

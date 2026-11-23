@@ -68,7 +68,7 @@ public final class StickyNoteEdits {
             return;
         }
         if (openDocument.document().stickyNote(id).isPresent()) {
-            openDocument.execute(new RemoveElementsCommand(List.of(id)));
+            openDocument.execute(new RemoveElementsCommand(List.of(id), openDocument.registry()));
         }
     }
 }

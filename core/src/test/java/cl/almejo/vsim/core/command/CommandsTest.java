@@ -68,7 +68,8 @@ class CommandsTest {
 
     @Test
     void removeElementsIgnoresMissingIds() {
-        RemoveElementsCommand command = new RemoveElementsCommand(List.of(gate.id(), wire.id(), new ElementId("c999")));
+        RemoveElementsCommand command = new RemoveElementsCommand(List.of(gate.id(), wire.id(), new ElementId("c999")),
+                StandardComponentTypes.registry());
         assertApplyAndRevertRestore(command);
         command.apply(document);
         assertThat(document.elements()).containsExactly(label);
@@ -226,7 +227,8 @@ class CommandsTest {
         document.add(second);
         CircuitFormat format = new CircuitFormat(StandardComponentTypes.registry());
         String before = format.write(document);
-        RemoveElementsCommand command = new RemoveElementsCommand(List.of(wire.id(), gate.id(), label.id()));
+        RemoveElementsCommand command = new RemoveElementsCommand(List.of(wire.id(), gate.id(), label.id()),
+                StandardComponentTypes.registry());
         command.apply(document);
         command.revert(document);
         assertThat(document.wires()).containsExactly(wire, later);

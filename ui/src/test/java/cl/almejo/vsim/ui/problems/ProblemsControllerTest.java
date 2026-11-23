@@ -451,7 +451,7 @@ class ProblemsControllerTest {
         String expected = "Interruptor 3 → 1 · Interruptor 4 → 0";
 
         // Without the template instance the two sides are separate nets: the memo is rebuilt as "nothing merged".
-        openDocument.execute(new RemoveElementsCommand(List.of(circuit.instance().id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(circuit.instance().id()), openDocument.registry()));
         String rightNetId = openDocument.netlist().netForWire(circuit.rightAcross().id()).orElseThrow().id().value();
         view.problems().showSnapshot(shortCircuitSnapshot(circuit, rightNetId, 2));
         assertThat(view.canvas().getToolTipText(hoverAt(152, 160))).isEqualTo(expected);

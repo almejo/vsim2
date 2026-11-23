@@ -235,13 +235,13 @@ class FindFeaturesTest {
         type("U");
         press(KeyEvent.VK_ENTER, 0); // on U2
         press(KeyEvent.VK_ESCAPE, 0);
-        openDocument.execute(new RemoveElementsCommand(List.of(second.id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(second.id()), openDocument.registry()));
 
         perform(features.findNextAction());
         assertThat(currentIds()).containsExactly(first.id());
 
         press(KeyEvent.VK_ESCAPE, 0);
-        openDocument.execute(new RemoveElementsCommand(List.of(first.id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(first.id()), openDocument.registry()));
         labeled(StandardComponentTypes.BUFFER, 60, 0, "U4");
         perform(features.findPreviousAction());
         assertThat(features.current().orElseThrow().matchedText()).isEqualTo("U4");
@@ -456,7 +456,7 @@ class FindFeaturesTest {
         perform(features.findNextAction());
         assertThat(currentIds()).containsExactly(b.id());
 
-        openDocument.execute(new RemoveElementsCommand(List.of(b.id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(b.id()), openDocument.registry()));
         assertThat(features.bar().counterText()).isEqualTo("2 de 2");
         assertThat(currentIds()).containsExactly(c.id()); // the next one in order
         assertThat(features.overlay().highlighted()).containsExactlyInAnyOrder(a.id(), c.id());
@@ -470,7 +470,7 @@ class FindFeaturesTest {
         assertThat(currentIds()).containsExactly(c.id());
         assertThat(features.hits().get(0).elementId()).isEqualTo(d.id());
 
-        openDocument.execute(new RemoveElementsCommand(List.of(c.id(), d.id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(c.id(), d.id()), openDocument.registry()));
         assertThat(features.bar().counterText()).isEqualTo("Sin resultados");
         assertThat(features.current()).isEmpty();
         assertThat(features.overlay().highlighted()).isEmpty();

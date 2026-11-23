@@ -192,7 +192,7 @@ class TerminalOutputRecorderTest {
         recorder.approve(folder.resolve("otra.txt"));
         assertThat(terminals.isRequested(terminal.id().value())).isTrue();
 
-        document.execute(new RemoveElementsCommand(List.of(terminal.id())));
+        document.execute(new RemoveElementsCommand(List.of(terminal.id()), document.registry()));
         assertThat(terminals.isRequested(terminal.id().value())).isFalse();
         recorder.dispose();
         recorder = null;

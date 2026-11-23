@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -12,6 +13,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -184,6 +187,21 @@ class TemplateEditingTest {
         assertThat(document.components()).containsExactlyInAnyOrderElementsOf(componentsBefore);
         assertThat(document.wires()).containsExactlyInAnyOrderElementsOf(wiresBefore);
         waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ZERO));
+    }
+
+    @Test
+    void disassemblingKeepsTheSignalOnTheInstancesOutputOnTheWireThatSurvives() {
+        Wired wired = wiredInverter("1");
+        Probe output = new Probe("p1", new ProbeTarget.PinTarget(wired.instance().id(), 1), "salida");
+        fixture.openDocument.execute(new SetProbesCommand(List.of(), List.of(output), "command.addProbes"));
+        fixture.select(wired.instance());
+
+        click(contribute(wired.instance()), "Desarmar");
+
+        assertThat(document.probes()).as("the LED's pin is what survives of the output net")
+                .containsExactly(output.withTarget(new ProbeTarget.PinTarget(wired.led().id(), 0)));
+        fixture.openDocument.history().undo();
+        assertThat(document.probes()).containsExactly(output);
     }
 
     @Test

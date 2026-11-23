@@ -280,7 +280,7 @@ class EditInsideCommandTest {
                         new GridPoint(2, 2))), List.of())));
         document.add(new Component(new ElementId("c40"), SubcircuitTypes.typeIdOf("parent"), new GridPoint(10, 40),
                 Rotation.R0, Map.of(), ""));
-        EditInsideCommand inside = inside(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        EditInsideCommand inside = inside(new RemoveElementsCommand(List.of(new ElementId("c1")), registry));
 
         history.execute(inside);
 

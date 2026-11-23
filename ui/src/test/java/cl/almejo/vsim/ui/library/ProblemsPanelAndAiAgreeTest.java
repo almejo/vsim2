@@ -153,7 +153,7 @@ class ProblemsPanelAndAiAgreeTest {
         body.execute(new AddElementsCommand(List.of(openDocument.registry().require(InterfacePins.INPUT_PIN)
                 .newComponent(body.document().newComponentId(), new GridPoint(0, 10), Rotation.R0, Map.of(),
                         "b"))));
-        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1"))));
+        body.execute(new RemoveElementsCommand(List.of(new ElementId("c1")), body.registry()));
     }
 
     /** A double inverter placed while the library has an inverter with its output moved: it cannot be updated. */

@@ -124,7 +124,7 @@ class StickyNotesPanelTest {
         openDocument.execute(new ChangeStickyNoteCommand(note, edited));
         assertThat(texts(panel)).containsExactly("bye");
 
-        openDocument.execute(new RemoveElementsCommand(List.of(edited.id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(edited.id()), openDocument.registry()));
         assertThat(panel.rows()).isEmpty();
         assertThat(panel.showsHint()).isTrue();
         assertThat(view.inspector().badge(InspectorPanel.NOTES)).isEmpty();

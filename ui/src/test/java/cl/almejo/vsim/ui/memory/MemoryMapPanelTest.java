@@ -100,7 +100,7 @@ class MemoryMapPanelTest {
         Component ram = ram("256");
         panel.follow(Set.of(ram.id()));
 
-        document.execute(new RemoveElementsCommand(List.of(ram.id())));
+        document.execute(new RemoveElementsCommand(List.of(ram.id()), document.registry()));
         panel.documentChanged();
 
         assertThat(panel.showsEmptyState()).isTrue();

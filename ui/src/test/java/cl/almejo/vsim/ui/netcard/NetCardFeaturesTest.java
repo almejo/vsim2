@@ -550,7 +550,7 @@ class NetCardFeaturesTest {
         pinTheCard();
         List<ElementId> wires = List.copyOf(pane().shown().orElseThrow().wires());
 
-        openDocument.execute(new RemoveElementsCommand(wires));
+        openDocument.execute(new RemoveElementsCommand(wires, openDocument.registry()));
 
         assertThat(pane().card()).isEmpty();
         assertThat(pane().shown()).isEmpty();
@@ -560,7 +560,7 @@ class NetCardFeaturesTest {
     void deletingTheWireTheCardWasOpenedOnKeepsItOnTheRestOfTheNet() {
         pinTheCard();
 
-        openDocument.execute(new RemoveElementsCommand(List.of(example.andOutput().id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(example.andOutput().id()), openDocument.registry()));
 
         assertThat(pane().card()).isPresent();
         assertThat(pane().shown()).hasValueSatisfying(summary -> {
@@ -585,7 +585,8 @@ class NetCardFeaturesTest {
         showTheCard();
         String before = netOf(openDocument, example.andOutput());
 
-        openDocument.execute(new RemoveElementsCommand(List.of(example.and().id()))); // the net was named by its pin
+        // the net was named by its pin
+        openDocument.execute(new RemoveElementsCommand(List.of(example.and().id()), openDocument.registry()));
         String after = netOf(openDocument, example.andOutput());
 
         assertThat(after).isNotEqualTo(before);

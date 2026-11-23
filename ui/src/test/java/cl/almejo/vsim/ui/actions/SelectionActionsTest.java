@@ -1,19 +1,25 @@
 package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
+import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
+import cl.almejo.vsim.ui.waveform.ProbeNames;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +42,7 @@ import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
+import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SelectionActionsTest {
@@ -84,6 +91,66 @@ class SelectionActionsTest {
         Component gate = gateAt(x, y);
         view.canvas().selection().select(gate.id());
         perform(actions.copy());
+    }
+
+    @Test
+    void cuttingAProbedGateMovesOrRemovesItsSignalsInOneUndoStep() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
+        openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(), new GridPoint(4, 1),
+                new GridPoint(8, 1))));
+        Component gate = gateAt(8, -1);                                                         // (8,1) → (12,1)
+        Probe input = new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 0), "entrada");
+        Probe output = new Probe("p2", new ProbeTarget.PinTarget(gate.id(), 1), "salida");
+        openDocument.execute(new SetProbesCommand(List.of(), List.of(input, output), "command.addProbes"));
+        view.canvas().selection().select(gate.id());
+
+        perform(actions.cut());
+
+        assertThat(openDocument.document().component(gate.id())).isEmpty();
+        assertThat(openDocument.document().probes()).as("the input net survives on the switch and its wire; the output net is gone")
+                .containsExactly(input.withTarget(new ProbeTarget.PinTarget(toggle.id(), 0)));
+        openDocument.history().undo();
+        assertThat(openDocument.document().probes()).containsExactly(input, output);
+        assertThat(openDocument.document().component(gate.id())).isPresent();
+    }
+
+    @Test
+    void cuttingKeepsTheNameAnUnnamedSignalShowedAndItsTraceGoesOnOnTheNewPin() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
+        openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(), new GridPoint(4, 1),
+                new GridPoint(8, 1))));
+        Component gate = gateAt(8, -1);
+        Probe unnamed = new Probe("p1", new ProbeTarget.PinTarget(gate.id(), 0), "");
+        openDocument.execute(new SetProbesCommand(List.of(), List.of(unnamed), "command.addProbes"));
+        String shown = ProbeNames.displayName(unnamed, openDocument.document(), openDocument.netlist(),
+                openDocument.registry());
+        waitUntil(() -> valueNow("p1").equals(Optional.of(Value.ONE)));
+        view.canvas().selection().select(gate.id());
+
+        perform(actions.cut());
+
+        Probe moved = new Probe("p1", new ProbeTarget.PinTarget(toggle.id(), 0), shown);
+        assertThat(openDocument.document().probes()).as("the row keeps the name it showed").containsExactly(moved);
+        assertThat(ProbeNames.defaultName(moved.target(), openDocument.document(), openDocument.netlist(),
+                openDocument.registry())).as("the new pin's own name is another one").isNotEqualTo(shown);
+        assertThat(openDocument.probeNets()).containsKey("p1");
+        long cutAt = openDocument.latestWaveforms().time();
+        waitUntil(() -> openDocument.latestWaveforms().time() > cutAt + 10
+                && valueNow("p1").equals(Optional.of(Value.ONE)));
+
+        openDocument.history().undo();
+        assertThat(openDocument.document().probes()).containsExactly(unnamed);
+        openDocument.history().redo();
+        assertThat(openDocument.document().probes()).containsExactly(moved);
+        long redoneAt = openDocument.latestWaveforms().time();
+        waitUntil(() -> openDocument.latestWaveforms().time() > redoneAt + 10
+                && valueNow("p1").equals(Optional.of(Value.ONE)));
+    }
+
+    /** The value channel {@code probeId} recorded at the latest snapshot's time; empty for a gap or no channel. */
+    private Optional<Value> valueNow(String probeId) {
+        WaveformSnapshot waveforms = openDocument.latestWaveforms();
+        return waveforms.trace(probeId).flatMap(trace -> trace.valueAt(waveforms.time()));
     }
 
     @Test

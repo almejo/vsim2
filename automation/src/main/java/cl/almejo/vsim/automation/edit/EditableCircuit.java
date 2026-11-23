@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.netlist.ProbeNaming;
 
 import java.util.List;
 import java.util.Optional;
@@ -68,5 +69,13 @@ public interface EditableCircuit {
      */
     default TextMeasure textMeasure() {
         return TextMeasure.APPROXIMATE;
+    }
+
+    /**
+     * The name a waveform channel with no name of its own shows (the editor's, in the user's language): when the AI
+     * deletes what it watches and it moves, it keeps this name. {@link ProbeNaming#NONE} by default.
+     */
+    default ProbeNaming probeNaming() {
+        return ProbeNaming.NONE;
     }
 }

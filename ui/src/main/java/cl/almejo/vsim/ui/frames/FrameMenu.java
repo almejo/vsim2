@@ -62,7 +62,7 @@ public final class FrameMenu {
         menu.add(convert);
         menu.add(item(Messages.text("frames.menu.remove"),
                 () -> current(frame).ifPresent(now -> openDocument.execute(
-                        new RemoveElementsCommand(List.of(now.id()))))));
+                        new RemoveElementsCommand(List.of(now.id()), openDocument.registry())))));
     }
 
     private Optional<Frame> current(Frame frame) {

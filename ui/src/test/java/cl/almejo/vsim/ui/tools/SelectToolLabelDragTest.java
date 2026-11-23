@@ -218,7 +218,8 @@ class SelectToolLabelDragTest {
         Component gate = labelled(0, 10, "U1");
         Point2D centre = labelCentre(gate);
         tool.mousePressed(context, TestToolContext.at(centre.getX(), centre.getY()));
-        context.openDocument().execute(new RemoveElementsCommand(List.of(gate.id())));
+        context.openDocument().execute(new RemoveElementsCommand(List.of(gate.id()),
+                context.openDocument().registry()));
         tool.mouseReleased(context, TestToolContext.at(centre.getX(), centre.getY()));
         assertThat(context.selection.isEmpty()).isTrue();
 
@@ -226,7 +227,8 @@ class SelectToolLabelDragTest {
         Point2D againCentre = labelCentre(again);
         tool.mousePressed(context, TestToolContext.at(againCentre.getX(), againCentre.getY()));
         tool.mouseDragged(context, TestToolContext.at(againCentre.getX() + 4, againCentre.getY()));
-        context.openDocument().execute(new RemoveElementsCommand(List.of(again.id())));
+        context.openDocument().execute(new RemoveElementsCommand(List.of(again.id()),
+                context.openDocument().registry()));
         tool.mouseReleased(context, TestToolContext.at(againCentre.getX() + 4, againCentre.getY()));
         assertThat(context.selection.isEmpty()).isTrue();
         assertThat(tool.isIdle()).isTrue();

@@ -37,7 +37,8 @@ class TunnelDisassemblyTest {
 
     private void disassemble(Component instance, Disassembly.Plan plan) {
         new History(circuit.document()).execute(new CompositeCommand("command.disassemble", List.of(
-                new RemoveElementsCommand(List.of(instance.id())), new PasteCommand(plan.body(), plan.offset()))));
+                new RemoveElementsCommand(List.of(instance.id()), circuit.registry()),
+                new PasteCommand(plan.body(), plan.offset()))));
     }
 
     private static Map<String, Integer> tunnelCounts(Map<String, Tunnels.TunnelGroup> groups) {

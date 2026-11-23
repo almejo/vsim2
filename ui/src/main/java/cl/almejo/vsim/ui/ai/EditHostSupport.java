@@ -13,7 +13,9 @@ import cl.almejo.vsim.ui.window.PlaceBar;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.netlist.ProbeNaming;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.waveform.ProbeNames;
 
 import javax.swing.SwingUtilities;
 import java.util.List;
@@ -136,6 +138,12 @@ final class EditHostSupport {
         @Override
         public TextMeasure textMeasure() {
             return LabelTextMeasure.INSTANCE;
+        }
+
+        /** The waveform panel's names, so a channel the AI's deletion moves keeps the name its row showed. */
+        @Override
+        public ProbeNaming probeNaming() {
+            return ProbeNames::defaultName;
         }
     }
 }

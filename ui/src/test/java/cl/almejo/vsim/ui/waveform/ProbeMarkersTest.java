@@ -100,7 +100,7 @@ class ProbeMarkersTest {
                 pin("p4", gate, 7, "no existe"));
         assertThat(markers()).extracting(ProbeMarker::probeIds).containsExactly(List.of("p1"));
 
-        openDocument.execute(new RemoveElementsCommand(List.of(gate.id())));
+        openDocument.execute(new RemoveElementsCommand(List.of(gate.id()), openDocument.registry()));
         assertThat(markers()).isEmpty();
         openDocument.history().undo();
         assertThat(markers()).extracting(ProbeMarker::probeIds).containsExactly(List.of("p1"));

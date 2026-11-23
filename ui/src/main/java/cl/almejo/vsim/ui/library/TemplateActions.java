@@ -45,6 +45,7 @@ import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
+import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -284,7 +285,8 @@ public final class TemplateActions {
             return;
         }
         PasteCommand paste = new PasteCommand(plan.body(), plan.offset());
-        List<Command> steps = new ArrayList<>(List.of(new RemoveElementsCommand(List.of(instance.id())), paste));
+        List<Command> steps = new ArrayList<>(List.of(
+                new RemoveElementsCommand(List.of(instance.id()), registry, ProbeNames::defaultName), paste));
         if (!plan.bridges().isEmpty()) {
             steps.add(new AddElementsCommand(List.copyOf(plan.bridges())));
         }
@@ -505,9 +507,10 @@ public final class TemplateActions {
                 List<DocumentElement> added = new ArrayList<>(List.of(instance));
                 added.addAll(bridging.wires());
                 if (!converted.replacedIds().isEmpty()) {
-                    steps.add(new RemoveElementsCommand(converted.replacedIds()));
+                    steps.add(RemoveElementsCommand.replacedBy(converted.replacedIds(), added, registry,
+                            ProbeNames::defaultName));
                 }
-                frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId))));
+                frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId), registry)));
                 steps.add(new AddElementsCommand(added));
                 if (!bridging.unconnectedPins().isEmpty()) {
                     message = Messages.format("template.pinsUnconnected",

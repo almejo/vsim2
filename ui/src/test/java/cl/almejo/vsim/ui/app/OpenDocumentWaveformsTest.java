@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -8,12 +9,15 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.Trace;
+import cl.almejo.vsim.core.waveform.TraceEvent;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,7 +66,7 @@ class OpenDocumentWaveformsTest {
     }
 
     @Test
-    void aProbeIsResolvedRecordedAndFollowsDeletionAndUndo() {
+    void aProbeIsResolvedRecordedGoesWithItsDeletedNetAndUndoBringsItBackWithItsHistory() {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1), value 1
         Component gate = place(document, StandardComponentTypes.BUFFER, 4, -1, Map.of(StandardComponentTypes.NEGATE, true));       // (4,1) → (8,1)
         Probe probe = addProbe(gate, 1);
@@ -73,13 +77,55 @@ class OpenDocumentWaveformsTest {
 
         document.interact(toggle.id());
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
+        List<TraceEvent> recorded = events(document.latestWaveforms().trace(probe.id()).orElseThrow());
+        assertThat(recorded).extracting(TraceEvent::value).endsWith(Optional.of(Value.ZERO),
+                Optional.of(Value.ONE));
 
-        document.execute(new RemoveElementsCommand(List.of(gate.id())));
+        // nothing of the output net survives: the probe goes in the same undo step
+        document.execute(new RemoveElementsCommand(List.of(gate.id()), document.registry()));
+        assertThat(document.document().probes()).isEmpty();
         assertThat(document.probeNets()).doesNotContainKey(probe.id());
-        waitUntil(() -> currentValue(probe.id()).isEmpty());
-        assertThat(document.latestWaveforms().trace(probe.id())).as("the channel keeps its history").isPresent();
+        waitUntil(() -> document.latestWaveforms().trace(probe.id()).isEmpty());
 
         document.history().undo();
+        assertThat(document.document().probes()).containsExactly(probe);
+        assertThat(document.probeNets()).containsEntry(probe.id(), netId);
+        waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
+        List<TraceEvent> back = events(document.latestWaveforms().trace(probe.id()).orElseThrow());
+        assertThat(back).as("the channel comes back with its recorded events, then the absence as a gap")
+                .startsWith(recorded.toArray(TraceEvent[]::new));
+        assertThat(back.get(recorded.size()).value()).isEmpty();
+        assertThat(back.getLast().value()).as("the gate put back drives 1 again").contains(Value.ONE);
+
+        document.history().redo();
+        assertThat(document.document().probes()).isEmpty();
+        assertThat(document.probeNets()).doesNotContainKey(probe.id());
+        waitUntil(() -> document.latestWaveforms().trace(probe.id()).isEmpty());
+    }
+
+    /** Every event of {@code trace}, in order (a gap has no value). */
+    private static List<TraceEvent> events(Trace trace) {
+        List<TraceEvent> events = new ArrayList<>();
+        for (int index = 0; index < trace.eventCount(); index++) {
+            events.add(new TraceEvent(trace.eventTime(index), trace.eventValue(index)));
+        }
+        return events;
+    }
+
+    @Test
+    void deletingTheGateAProbedNetFeedsMovesTheProbeToWhatSurvives() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
+        document.execute(new AddWireCommand(new Wire(document.document().newWireId(), new GridPoint(4, 1),
+                new GridPoint(8, 1))));
+        Component gate = place(document, StandardComponentTypes.BUFFER, 8, -1,
+                Map.of(StandardComponentTypes.NEGATE, true));   // in (8,1)
+        Probe probe = addProbe(gate, 0);
+        String netId = document.probeNets().get(probe.id());
+
+        document.execute(new RemoveElementsCommand(List.of(gate.id()), document.registry()));
+
+        assertThat(document.document().probes()).containsExactly(
+                probe.withTarget(new ProbeTarget.PinTarget(toggle.id(), 0)));
         assertThat(document.probeNets()).containsEntry(probe.id(), netId);
         waitUntil(() -> currentValue(probe.id()).equals(Optional.of(Value.ONE)));
     }
