@@ -28,7 +28,7 @@ final class MachineLinkButton extends JButton {
             return ReadableColors.mutedText(); // a link with nothing to do reads as quiet text, still at 4.5:1
         }
         Color colour = UIManager.getColor("Component.linkColor");
-        return colour != null ? ReadableColors.readableOn(colour, ReadableColors.panelBackground())
-                : super.getForeground();
+        return colour != null ? ReadableColors.readableOn(colour, ReadableColors.panelBackground(),
+                ReadableColors.COMFORTABLE_TEXT_CONTRAST) : super.getForeground();
     }
 }

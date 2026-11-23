@@ -212,15 +212,17 @@ public final class PlaceBar extends JPanel {
         if (panel != null) {
             setBackground(mix(panel, group, TINT));
         }
-        // checked against the tinted bar itself, not the panel: the grey of «Se usa en 1 lugar» was 3.85:1 in dark
+        // checked against the tinted bar itself, not the panel: the grey of «Se usa en 1 lugar» was 3.85:1 in dark;
+        // aiming at the comfortable contrast, as a colour fitted to exactly 4.5:1 reads under it once anti-aliased
         Color bar = getBackground();
         useChip.setForeground(ReadableColors.readableOn(uses.size() > 1 ? ReadableColors.warningText()
-                : ReadableColors.mutedText(), bar));
-        refusalLabel.setForeground(ReadableColors.readableOn(ReadableColors.warningText(), bar));
+                : ReadableColors.mutedText(), bar, ReadableColors.COMFORTABLE_TEXT_CONTRAST));
+        refusalLabel.setForeground(ReadableColors.readableOn(ReadableColors.warningText(), bar,
+                ReadableColors.COMFORTABLE_TEXT_CONTRAST));
         refusalLabel.setFont(useChip.getFont().deriveFont(Font.BOLD));
         Color text = UIManager.getColor("Label.foreground");
         if (text != null) {
-            currentCrumb.setForeground(ReadableColors.readableOn(text, bar));
+            currentCrumb.setForeground(ReadableColors.readableOn(text, bar, ReadableColors.COMFORTABLE_TEXT_CONTRAST));
         }
     }
 

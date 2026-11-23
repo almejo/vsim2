@@ -42,9 +42,13 @@ final class MachineKindChips {
     private MachineKindChips() {
     }
 
-    /** The text of the pill that is not lit: faded like the outline, but never under the minimum contrast. */
+    /**
+     * The text of the pill that is not lit: faded like the outline, but never under
+     * {@link ReadableColors#COMFORTABLE_TEXT_CONTRAST}:1.
+     */
     static Color unlitText(ColorScheme scheme) {
-        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), UNLIT_MIX), scheme.background());
+        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), UNLIT_MIX), scheme.background(),
+                ReadableColors.COMFORTABLE_TEXT_CONTRAST);
     }
 
     /** The chips' font: the interface's label font, read now, so it follows the interface size and the theme. */

@@ -12,6 +12,13 @@ public final class ReadableColors {
 
     /** WCAG AA's minimum contrast for normal text (1.4.3). */
     public static final double MINIMUM_TEXT_CONTRAST = 4.5;
+    /**
+     * The contrast a small, faded text aims at where it is worked out from other colours (a machine's arrow
+     * conditions, its unlit Moore/Mealy chip, its links, the place bar): clear of {@link #MINIMUM_TEXT_CONTRAST},
+     * because anti-aliased text measures under the ratio of its colour, and a colour fitted to exactly 4.5:1 reads
+     * under it on screen (final hand test of the state machines, 2026-11-23).
+     */
+    public static final double COMFORTABLE_TEXT_CONTRAST = 5.0;
     private static final int READABLE_STEPS = 100;
     private static final Color LIGHT_ERROR_TEXT = new Color(0xC62828);
     private static final Color DARK_ERROR_TEXT = new Color(0xFF8F8F);
@@ -101,7 +108,16 @@ public final class ReadableColors {
      * colour on the way towards black or white (whichever contrasts more) that does. Read at paint time: never cache.
      */
     public static Color readableOn(Color color, Color background) {
-        if (contrast(color, background) >= MINIMUM_TEXT_CONTRAST) {
+        return readableOn(color, background, MINIMUM_TEXT_CONTRAST);
+    }
+
+    /**
+     * {@code color} when it already reads on {@code background} at {@code minimum}:1 (for instance
+     * {@link #COMFORTABLE_TEXT_CONTRAST}); else the nearest colour on the way towards black or white (whichever
+     * contrasts more) that does. Read at paint time: never cache.
+     */
+    public static Color readableOn(Color color, Color background, double minimum) {
+        if (contrast(color, background) >= minimum) {
             return color;
         }
         Color target = contrast(Color.WHITE, background) >= contrast(Color.BLACK, background) ? Color.WHITE : Color.BLACK;
@@ -109,7 +125,7 @@ public final class ReadableColors {
             Color candidate = new Color(mix(target.getRed(), color.getRed(), (double) step / READABLE_STEPS),
                     mix(target.getGreen(), color.getGreen(), (double) step / READABLE_STEPS),
                     mix(target.getBlue(), color.getBlue(), (double) step / READABLE_STEPS));
-            if (contrast(candidate, background) >= MINIMUM_TEXT_CONTRAST) {
+            if (contrast(candidate, background) >= minimum) {
                 return candidate;
             }
         }

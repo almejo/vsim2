@@ -336,11 +336,13 @@ class PlaceBarTest {
                         Color background = bar.getBackground();
                         String where = (dark ? "dark" : "light") + " group " + ordinal;
                         assertThat(ReadableColors.contrast(bar.useChipForeground(), background))
-                                .as("«%s» on %s", bar.useChipText(), where).isGreaterThanOrEqualTo(4.5);
+                                .as("«%s» on %s", bar.useChipText(), where)
+                                .isGreaterThanOrEqualTo(ReadableColors.COMFORTABLE_TEXT_CONTRAST);
                         java.awt.Component current = bar.currentCrumbComponent();
                         assertThat(current.isEnabled()).as("the current place is no disabled control").isTrue();
                         assertThat(ReadableColors.contrast(current.getForeground(), background))
-                                .as("current crumb on %s", where).isGreaterThanOrEqualTo(4.5);
+                                .as("current crumb on %s", where)
+                                .isGreaterThanOrEqualTo(ReadableColors.COMFORTABLE_TEXT_CONTRAST);
                     }
                 }
             }

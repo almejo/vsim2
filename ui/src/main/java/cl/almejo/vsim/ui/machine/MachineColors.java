@@ -55,7 +55,8 @@ public final class MachineColors {
     /** The Moore outputs inside {@code state}: its name's colour a little towards its inside, like {@link #muted}. */
     static Color stateOutputs(ColorScheme scheme, MachineState state) {
         return state.color().map(color -> ReadableColors.readableOn(
-                        mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX), scheme.stateFill(color)))
+                        mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX), scheme.stateFill(color),
+                        ReadableColors.COMFORTABLE_TEXT_CONTRAST))
                 .orElseGet(() -> muted(scheme));
     }
 
@@ -67,9 +68,13 @@ public final class MachineColors {
         return scheme.text();
     }
 
-    /** Arrows, their conditions and the Moore outputs: the text colour a little towards the background. */
+    /**
+     * Arrows, their conditions and the Moore outputs: the text colour a little towards the background, never under
+     * {@link ReadableColors#COMFORTABLE_TEXT_CONTRAST}:1.
+     */
     public static Color muted(ColorScheme scheme) {
-        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), MUTED_MIX), scheme.background());
+        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), MUTED_MIX), scheme.background(),
+                ReadableColors.COMFORTABLE_TEXT_CONTRAST);
     }
 
     /** A condition that cannot be read: the scheme's red (the conflict's). */
