@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -11,7 +10,7 @@ import java.util.OptionalLong;
  * D and every other one is 0; all change {@code delay} after any input. An undefined S drives every output Z; an
  * undefined D drives only the selected output Z ({@link BlockSignals}).
  */
-final class DemuxBehavior implements Behavior {
+final class DemuxBehavior extends CombinationalBehavior {
 
     private static final int DATA = 0;
     private static final int SELECT = 1;
@@ -28,16 +27,7 @@ final class DemuxBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         OptionalLong select = BlockSignals.unsigned(context.input(SELECT));
         if (select.isEmpty()) {
             for (int output = 0; output < outputs; output++) {

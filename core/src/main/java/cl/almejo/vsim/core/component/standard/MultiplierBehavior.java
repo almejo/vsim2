@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -10,7 +9,7 @@ import java.util.OptionalLong;
  * «Multiplicador» of N bits: pins A[N], B[N], P[N], H[N]. The product has 2N bits, read with or without sign; P is its
  * low half and H its high half. Undefined A or B drive P and H all Z ({@link BlockSignals}).
  */
-final class MultiplierBehavior implements Behavior {
+final class MultiplierBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int B = 1;
@@ -27,21 +26,12 @@ final class MultiplierBehavior implements Behavior {
         this.delay = delay;
     }
 
-    @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
     private OptionalLong operand(Value value) {
         return signed ? BlockSignals.signed(value) : BlockSignals.unsigned(value);
     }
 
-    private void evaluate(BehaviorContext context) {
+    @Override
+    protected void evaluate(BehaviorContext context) {
         OptionalLong first = operand(context.input(A));
         OptionalLong second = operand(context.input(B));
         if (first.isEmpty() || second.isEmpty()) {

@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -11,7 +10,7 @@ import java.util.OptionalLong;
  * any input changes. Only the selected input matters: an undefined S, or an undefined selected D, drives Y all Z
  * ({@link BlockSignals}).
  */
-final class MuxBehavior implements Behavior {
+final class MuxBehavior extends CombinationalBehavior {
 
     private final int inputs;
     private final int width;
@@ -24,16 +23,7 @@ final class MuxBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         int output = inputs + 1;
         OptionalLong select = BlockSignals.unsigned(context.input(inputs));
         if (select.isEmpty()) {

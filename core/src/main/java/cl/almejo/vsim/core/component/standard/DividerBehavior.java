@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -12,7 +11,7 @@ import java.util.OptionalLong;
  * gives {@code Q = 0}, {@code R = A} and {@code E = 1}; otherwise E is 0. Undefined A or B drive every output Z
  * ({@link BlockSignals}).
  */
-final class DividerBehavior implements Behavior {
+final class DividerBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int B = 1;
@@ -30,21 +29,12 @@ final class DividerBehavior implements Behavior {
         this.delay = delay;
     }
 
-    @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
     private OptionalLong operand(Value value) {
         return signed ? BlockSignals.signed(value) : BlockSignals.unsigned(value);
     }
 
-    private void evaluate(BehaviorContext context) {
+    @Override
+    protected void evaluate(BehaviorContext context) {
         OptionalLong dividend = operand(context.input(A));
         OptionalLong divisor = operand(context.input(B));
         if (dividend.isEmpty() || divisor.isEmpty()) {

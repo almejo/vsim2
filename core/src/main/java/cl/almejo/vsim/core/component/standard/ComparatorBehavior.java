@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -10,7 +9,7 @@ import java.util.OptionalLong;
  * «Comparador» of N bits: pins A[N], B[N], A&lt;B, A=B, A&gt;B. Exactly one output is 1, {@code delay} after any input;
  * «Con signo» compares in two's complement. A or B undefined drives the three outputs Z ({@link BlockSignals}).
  */
-final class ComparatorBehavior implements Behavior {
+final class ComparatorBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int B = 1;
@@ -27,16 +26,7 @@ final class ComparatorBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         OptionalLong first = read(context.input(A));
         OptionalLong second = read(context.input(B));
         if (first.isEmpty() || second.isEmpty()) {

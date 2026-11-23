@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -12,7 +11,7 @@ import java.util.OptionalLong;
  * EN = 0 every output is 0 (whatever A is). An unconnected EN counts as 1; a conflict on EN, or an undefined A while
  * enabled, drives every output Z ({@link BlockSignals}). The outputs change {@code delay} after any input.
  */
-final class DecoderBehavior implements Behavior {
+final class DecoderBehavior extends CombinationalBehavior {
 
     static final int ADDRESS = 0;
     static final int ENABLE = 1;
@@ -27,16 +26,7 @@ final class DecoderBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         Optional<Boolean> enabled = BlockSignals.control(context.input(ENABLE), true);
         if (enabled.isPresent() && !enabled.get()) {
             driveAll(context, Value.ZERO);

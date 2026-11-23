@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.value.Value;
@@ -19,7 +18,7 @@ import java.util.OptionalLong;
  * everything Z and shows {@code AluState(-1)}; an undefined operand the operation reads (B is not read by NOT A and the
  * shifts) drives everything Z ({@link BlockSignals}).
  */
-final class AluBehavior implements Behavior {
+final class AluBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int B = 1;
@@ -51,21 +50,12 @@ final class AluBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    @Override
     public VisibleState visibleState() {
         return new VisibleState.AluState(operation);
     }
 
-    private void evaluate(BehaviorContext context) {
+    @Override
+    protected void evaluate(BehaviorContext context) {
         OptionalLong code = BlockSignals.unsigned(context.input(OPERATION));
         operation = code.isPresent() ? (int) code.getAsLong() : UNDEFINED_OPERATION;
         Value first = context.input(A);

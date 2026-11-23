@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -15,7 +14,7 @@ import java.util.OptionalLong;
  * where it is moved, and the bits that come in are defined), so a byte read with the rest of the bus floating can be
  * moved into place.
  */
-final class ShifterBehavior implements Behavior {
+final class ShifterBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int AMOUNT = 1;
@@ -32,16 +31,7 @@ final class ShifterBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         Value data = context.input(A);
         OptionalLong amount = BlockSignals.unsigned(context.input(AMOUNT));
         if (data.conflict() || amount.isEmpty()) {

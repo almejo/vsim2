@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 
 import java.util.OptionalLong;
@@ -10,7 +9,7 @@ import java.util.OptionalLong;
  * low bits; the bits of the last group that lie beyond the input, and every bit of a group past the end, are zeros.
  * An undefined input or S drives out all Z. {@code delay} after any input changes.
  */
-final class BitSelectorBehavior implements Behavior {
+final class BitSelectorBehavior extends CombinationalBehavior {
 
     private static final int INPUT = 0;
     private static final int SELECT = 1;
@@ -25,16 +24,7 @@ final class BitSelectorBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         OptionalLong data = BlockSignals.unsigned(context.input(INPUT));
         OptionalLong group = BlockSignals.unsigned(context.input(SELECT));
         if (data.isEmpty() || group.isEmpty()) {

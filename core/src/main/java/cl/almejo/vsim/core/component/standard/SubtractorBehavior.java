@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -12,7 +11,7 @@ import java.util.OptionalLong;
  * unsigned result needed a borrow ({@code A < B + Bin}). An unconnected Bin counts as 0; undefined A or B, or a
  * conflict on Bin, drive D and Bout all Z ({@link BlockSignals}).
  */
-final class SubtractorBehavior implements Behavior {
+final class SubtractorBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int B = 1;
@@ -29,16 +28,7 @@ final class SubtractorBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         OptionalLong first = BlockSignals.unsigned(context.input(A));
         OptionalLong second = BlockSignals.unsigned(context.input(B));
         Optional<Boolean> borrowIn = BlockSignals.control(context.input(BORROW_IN), false);

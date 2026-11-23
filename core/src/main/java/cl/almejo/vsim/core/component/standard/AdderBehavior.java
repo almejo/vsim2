@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.component.standard;
 
-import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
@@ -12,7 +11,7 @@ import java.util.OptionalLong;
  * bit N-1, both {@code delay} after any input changes. An unconnected Cin counts as 0; A or B undefined, or a conflict
  * on Cin, drive S and Cout all Z ({@link BlockSignals}).
  */
-final class AdderBehavior implements Behavior {
+final class AdderBehavior extends CombinationalBehavior {
 
     static final int A = 0;
     static final int B = 1;
@@ -29,16 +28,7 @@ final class AdderBehavior implements Behavior {
     }
 
     @Override
-    public void initialize(BehaviorContext context) {
-        evaluate(context);
-    }
-
-    @Override
-    public void inputChanged(BehaviorContext context, int pinIndex) {
-        evaluate(context);
-    }
-
-    private void evaluate(BehaviorContext context) {
+    protected void evaluate(BehaviorContext context) {
         OptionalLong first = BlockSignals.unsigned(context.input(A));
         OptionalLong second = BlockSignals.unsigned(context.input(B));
         Optional<Boolean> carryIn = BlockSignals.control(context.input(CARRY_IN), false);
