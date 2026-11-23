@@ -160,6 +160,7 @@ final class MachineKindChips {
         }
     }
 
+    // CPD-OFF state-machine code on its own branch: MachineColors has the same mix (ThemeColors.mix after the merge)
     private static Color mix(Color base, Color towards, double amount) {
         return new Color(channel(base.getRed(), towards.getRed(), amount),
                 channel(base.getGreen(), towards.getGreen(), amount),
@@ -169,4 +170,5 @@ final class MachineKindChips {
     private static int channel(int base, int towards, double amount) {
         return (int) Math.round(base + (towards - base) * amount);
     }
+    // CPD-ON
 }

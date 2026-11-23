@@ -892,6 +892,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         return applyWithinLimits(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
     }
 
+    // CPD-OFF state-machine code on its own branch: the twin of applyOutputs above stays until the branch merges
     private boolean applyMealyOutputs(String transitionId, String text) {
         MachineOutputsText.Reading reading = MachineOutputsText.read(text);
         if (reading.problem().isPresent()) {
@@ -901,6 +902,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         }
         return applyWithinLimits(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
     }
+    // CPD-ON
 
     /**
      * {@link #apply} when the machine after it still has pins for every name (16 inputs, 16 outputs); else says why

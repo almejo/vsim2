@@ -68,6 +68,8 @@ public class ShownAcceleratorItem extends JMenuItem {
     /** The same for a tool of Herramientas: one radio item of the tools' group (M4), Zoom showing its Z. */
     public static final class Radio extends JRadioButtonMenuItem {
 
+        // CPD-OFF Swing's own overrides again: a JRadioButtonMenuItem cannot share the JMenuItem subclass above
+
         public Radio(Action action) {
             super(action);
         }
@@ -89,5 +91,6 @@ public class ShownAcceleratorItem extends JMenuItem {
         public boolean processKeyBinding(KeyStroke stroke, KeyEvent event, int condition, boolean pressed) {
             return !onlyShown(getAction()) && super.processKeyBinding(stroke, event, condition, pressed);
         }
+        // CPD-ON
     }
 }

@@ -23,6 +23,7 @@ public abstract class PlacingTool implements Tool {
         mouseMoved(context, event);
     }
 
+    // CPD-OFF PlaceMachineTool (state-machine branch) repeats these; it can extend this class once the branch merges
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
         if (event.button() == CanvasMouseEvent.SECONDARY) {
@@ -51,4 +52,5 @@ public abstract class PlacingTool implements Tool {
     public Cursor cursor() {
         return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
+    // CPD-ON
 }

@@ -178,6 +178,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
      * needs no scrolling of its own hands the mouse wheel to this pane (Swing forwards the wheel from a scroll pane
      * whose bar is hidden).
      */
+    // CPD-OFF the machine inspector (MachineInspectorRows) scrolls the same way; it is on the state-machine branch
     public static JScrollPane inScrollPane(PropertiesPanel panel) {
         JScrollPane scroll = new JScrollPane(panel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -211,6 +212,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         // a short form fills the pane; a tall one keeps its height and scrolls
         return getParent() instanceof JViewport viewport && getPreferredSize().height < viewport.getHeight();
     }
+    // CPD-ON
 
     /**
      * Rows an extension adds under a component's own rows (the memory's «Contenido», its buttons and warnings). They

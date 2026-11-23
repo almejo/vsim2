@@ -412,6 +412,7 @@ final class MachineTestTableGrid extends JComponent {
             return shown(found, getFontMetrics(fontOf(found))).equals(found.label()) ? null : found.label();
         }
 
+        // CPD-OFF state-machine branch: the test table's three headers paint their background alike
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D canvas = (Graphics2D) graphics.create();
@@ -436,6 +437,7 @@ final class MachineTestTableGrid extends JComponent {
                 canvas.dispose();
             }
         }
+        // CPD-ON
     }
 
     /** «flanco», over the names and beside the edge numbers. */
@@ -445,6 +447,7 @@ final class MachineTestTableGrid extends JComponent {
             setOpaque(true);
         }
 
+        // CPD-OFF state-machine branch: the test table's three headers paint their background alike
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D canvas = (Graphics2D) graphics.create();
@@ -465,5 +468,6 @@ final class MachineTestTableGrid extends JComponent {
                 canvas.dispose();
             }
         }
+        // CPD-ON
     }
 }

@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MemoryKind;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -565,12 +566,7 @@ public final class MemoryPainter implements ComponentPainter {
 
     /** The relative luminance of {@code color} (WCAG). */
     private static double luminance(Color color) {
-        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
-    }
-
-    private static double linear(int channel) {
-        double value = channel / 255.0;
-        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+        return ReadableColors.luminance(color);
     }
 
     /** The bordered window under the title bar, between the pin names, as tall as its rows. */
