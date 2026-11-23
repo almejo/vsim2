@@ -6,15 +6,16 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import javax.swing.JSplitPane;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.beans.PropertyChangeListener;
 import java.util.Objects;
 
 /**
  * The width of an editor view's left column (palette and circuit tree). It is stored «at 100 %» of the interface size
  * ({@link AppPreferences#leftColumnWidth()}, default {@value #DEFAULT_WIDTH}) and applied × max(size, 100) / 100, never
  * under the 100 % width, and at most {@value #CAP_PERCENT} % of the split's width when it has one (so it is applied
- * again on the window's first layout and whenever the interface size changes). Only the user's drag stores, as
- * dragged ÷ factor; applying (including the size changes of presentation mode) stores nothing. EDT only.
+ * again on the window's first layout and whenever the interface size changes). Only the user's drag of the divider
+ * ({@link DividerDrags}: mouse or keyboard) stores, as dragged ÷ factor; applying, the layout's own moves (a window
+ * resize) and presentation mode store nothing. Leaving presentation mode gives back the width kept on entering
+ * ({@link #keep()}, {@link #restore}). EDT only.
  */
 final class LeftColumnWidth {
 
@@ -26,10 +27,15 @@ final class LeftColumnWidth {
     private final Appearance appearance;
     private final LeftColumn leftColumn;
     private final Runnable zoomListener;
-    private final PropertyChangeListener dragListener;
+    private final DividerDrags drags;
     private final ComponentAdapter resizeListener;
-    private boolean applying;
     private boolean laidOut;
+    /** A width to give back when the interface size goes back to its own (after presentation mode), or null. */
+    private Kept pendingRestore;
+
+    /** The column's width in pixels at the interface size {@code zoomPercent}. */
+    record Kept(int pixels, int zoomPercent) {
+    }
 
     /** Applies the width now and keeps applying it; {@link #dispose()} stops. */
     LeftColumnWidth(JSplitPane split, AppPreferences preferences, Appearance appearance,
@@ -39,7 +45,6 @@ final class LeftColumnWidth {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.appearance = Objects.requireNonNull(appearance, "appearance");
         this.zoomListener = this::zoomChanged;
-        this.dragListener = change -> dragged();
         this.resizeListener = new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent event) {
@@ -51,20 +56,47 @@ final class LeftColumnWidth {
         };
         laidOut = split.getWidth() > 0;
         apply();
-        split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dragListener);
+        this.drags = new DividerDrags(split, this::dragged);
         split.addComponentListener(resizeListener);
         appearance.addZoomListener(zoomListener);
     }
 
     private void zoomChanged() {
-        apply();
+        Kept kept = pendingRestore;
+        pendingRestore = null;
+        if (kept != null && kept.zoomPercent() == appearance.interfaceZoom()) {
+            split.setDividerLocation(kept.pixels());
+        } else {
+            apply();
+        }
         leftColumn.applyTreeHeight();
     }
 
     void dispose() {
         appearance.removeZoomListener(zoomListener);
         split.removeComponentListener(resizeListener);
-        split.removePropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dragListener);
+        drags.dispose();
+    }
+
+    /** The column's width now, to give back with {@link #restore} (presentation mode keeps it on entering). */
+    Kept keep() {
+        return new Kept(split.getDividerLocation(), appearance.interfaceZoom());
+    }
+
+    /**
+     * Gives back the width {@code kept}, uncapped, at once when the interface has its size of then, else (presentation
+     * mode puts the view back before the size goes back) as soon as the size changes back; another size applies the
+     * stored width as usual. Stores nothing.
+     */
+    void restore(Kept kept) {
+        Objects.requireNonNull(kept, "kept");
+        if (kept.zoomPercent() == appearance.interfaceZoom()) {
+            pendingRestore = null;
+            split.setDividerLocation(kept.pixels());
+        } else {
+            apply();
+            pendingRestore = kept;
+        }
     }
 
     /** Puts the divider where the stored width and the current interface size say (capped); stores nothing. */
@@ -73,20 +105,12 @@ final class LeftColumnWidth {
         if (split.getWidth() > 0) {
             target = Math.min(target, split.getWidth() * CAP_PERCENT / 100);
         }
-        applying = true;
-        try {
-            split.setDividerLocation(target);
-        } finally {
-            applying = false;
-        }
+        split.setDividerLocation(target);
     }
 
-    private void dragged() {
-        if (applying || split.getWidth() <= 0) {
-            return;
-        }
-        int pixels = split.getDividerLocation();
-        if (pixels > 0) {
+    private void dragged(int pixels) {
+        pendingRestore = null;
+        if (split.getWidth() > 0 && pixels > 0) {
             preferences.setLeftColumnWidth(unscaled(pixels, appearance.interfaceZoom()));
         }
     }

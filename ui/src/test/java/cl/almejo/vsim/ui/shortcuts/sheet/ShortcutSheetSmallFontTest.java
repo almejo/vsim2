@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.shortcuts.sheet;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ class ShortcutSheetSmallFontTest {
     @AfterEach
     void restore() {
         UIManager.put("Label.font", labelFont);
+        FontFloor.useInterfaceZoom(100);
     }
 
     private List<Float> fontSizes(float labelSize) {
@@ -58,7 +60,13 @@ class ShortcutSheetSmallFontTest {
 
     @Test
     void headingsRowsAndKeysStayAtNinePixelsOrMoreWhenTheInterfaceIs75Percent() {
+        FontFloor.useInterfaceZoom(75);
         assertThat(fontSizes(10f)).isNotEmpty().allSatisfy(size -> assertThat(size).isGreaterThanOrEqualTo(9f));
+    }
+
+    @Test
+    void at100PercentEvenASmallSystemFontGivesTheDerivedSizesUnchanged() {
+        assertThat(fontSizes(10f)).contains(10f * 0.8f, 10f * 0.9f);
     }
 
     @Test

@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.CustomColorSchemes;
+import cl.almejo.vsim.ui.panels.FontFloor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,12 +198,15 @@ public final class ThemeManager {
     private void install(boolean dark) {
         InterfaceLook look = InterfaceLook.of(preferences, presenting);
         if (!installed || dark != installedDark || !look.equals(installedLook)) {
+            // the components derive their small fonts again while the look and feel updates them
+            FontFloor.useInterfaceZoom(look.zoomPercent());
             if (installer.install(dark, look)) {
                 installed = true;
                 installedDark = dark;
                 installedLook = look;
             }
         }
+        FontFloor.useInterfaceZoom(installedLook.zoomPercent());
         appearance.setInterfaceZoom(installedLook.zoomPercent());
         appearance.setScheme(schemeFor(preferences.colorScheme(), installedDark, customSchemes::lookup));
     }

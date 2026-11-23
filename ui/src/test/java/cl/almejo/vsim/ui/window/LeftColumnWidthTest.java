@@ -61,8 +61,9 @@ class LeftColumnWidthTest {
         split.doLayout();
     }
 
+    /** The user drags the divider with the mouse to {@code pixels}. */
     private void drag(int pixels) {
-        split.setDividerLocation(pixels);
+        LeftColumnDividersPaintedTest.dragDivider(split, pixels - split.getDividerLocation());
     }
 
     @Test
@@ -144,15 +145,18 @@ class LeftColumnWidthTest {
     }
 
     @Test
-    void restoringAfterPresentationBringsTheUsersWidthBackAndStoresNothing() {
-        preferences.setLeftColumnWidth(260);
+    void aMoveThatIsNotTheUsersDragStoresNothing() {
         open(2000);
-        zoom(150);
-        width.apply();
-        zoom(100);
-        width.apply();
-        assertThat(split.getDividerLocation()).isEqualTo(260);
-        assertThat(preferences.leftColumnWidth()).hasValue(260);
+        split.setDividerLocation(400);
+        split.setDividerLocation(50);
+        assertThat(preferences.leftColumnWidth()).isEmpty();
+    }
+
+    @Test
+    void aPressAndReleaseWithoutMovingStoresNothing() {
+        open(2000);
+        drag(230);
+        assertThat(preferences.leftColumnWidth()).isEmpty();
     }
 
     @Test

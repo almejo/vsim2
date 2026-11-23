@@ -1141,7 +1141,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         if (fullScreenStage != null) {
             throw new IllegalStateException("the view is already laid out for presentation mode");
         }
-        int paletteWidth = split.getDividerLocation();
+        LeftColumnWidth.Kept keptWidth = leftColumnWidth.keep();
+        int paletteWidth = keptWidth.pixels();
         int inspectorDivider = inspectorSplit.getDividerLocation();
         JPanel leftBar = edgeBar(EdgeBars.Edge.LEFT, () -> paletteWidth);
         leftBar.add(leftColumn, BorderLayout.CENTER);
@@ -1175,7 +1176,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
             add(splitAndStrip, BorderLayout.CENTER);
             statusBar.setVisible(true);
-            leftColumnWidth.apply();
+            leftColumnWidth.restore(keptWidth);
             inspectorSplit.setDividerLocation(inspectorDivider);
             revalidate();
             repaint();

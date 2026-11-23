@@ -99,6 +99,30 @@ class AppPreferencesTest {
     }
 
     @Test
+    void garbageStoredTreeHeightsReadAsEmpty() {
+        for (String garbage : new String[] {"nada", "-3", "0", "", "12.5"}) {
+            AppPreferences stored = new AppPreferences(new FixedPreferences(Map.of("ui.circuitTree.split", garbage)));
+            assertThat(stored.circuitTreeSplit()).as(garbage).isEmpty();
+        }
+        AppPreferences stored = new AppPreferences(new FixedPreferences(Map.of("ui.circuitTree.split", "150")));
+        assertThat(stored.circuitTreeSplit()).hasValue(150);
+    }
+
+    @Test
+    void thePresentationSizeIsLargerThan100OrUnchanged() {
+        AppPreferences preferences = AppPreferences.inMemory();
+        for (int refused : new int[] {75, 100}) {
+            assertThatThrownBy(() -> preferences.setPresentationInterfaceZoom(refused)).as("" + refused)
+                    .isInstanceOf(IllegalArgumentException.class);
+            AppPreferences stored = new AppPreferences(new FixedPreferences(
+                    Map.of("interface.presentationZoom", Integer.toString(refused))));
+            assertThat(stored.presentationInterfaceZoom()).as("" + refused).isEqualTo(150);
+        }
+        preferences.setPresentationInterfaceZoom(125);
+        assertThat(preferences.presentationInterfaceZoom()).isEqualTo(125);
+    }
+
+    @Test
     void anUnreadableStoredTextFontSizeFallsBackToTheDefaultAndAMissingFamilyIsKept() {
         AppPreferences stored = new AppPreferences(new FixedPreferences(
                 Map.of("textFontFamily", "Fuente De Otro Computador", "textFontSize", "99")));

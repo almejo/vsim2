@@ -42,9 +42,10 @@ import java.util.function.IntSupplier;
  * accordion. Each panel has a header («Circuito», «Paleta») whose click folds the panel to its header; the other panel
  * takes the space. Alt+1 / Alt+2 (catalog entries {@code view.circuitTree}, {@code view.palette}, rebindable, and Ver ▸
  * «Árbol del circuito» / «Paleta») work like the tool windows of an IDE: a folded panel opens and its tree gets the focus;
- * an open one gets the focus; an open one that has it folds and gives the focus back to the canvas. With both open they share a vertical split whose divider is remembered ({@code ui.circuitTree.split}). The
- * folded state belongs to the window ({@code WindowTabs} keeps the tabs of a window in step and saves it in the
- * session); here it is only shown and told to the fold listeners. EDT only.
+ * an open one gets the focus; an open one that has it folds and gives the focus back to the canvas. With both open they
+ * share a vertical split whose divider, when the user drags it, is remembered at 100 % of the interface size
+ * ({@code ui.circuitTree.split}). The folded state belongs to the window ({@code WindowTabs} keeps the tabs of a window
+ * in step and saves it in the session); here it is only shown and told to the fold listeners. EDT only.
  */
 public final class LeftColumn extends JPanel {
 
@@ -57,8 +58,6 @@ public final class LeftColumn extends JPanel {
 
     private final AppPreferences preferences;
     private final IntSupplier interfaceZoom;
-    /** Set while the column puts the divider where the preferences say, so that it is not taken for a drag. */
-    private boolean applying;
     private final KeyboardFocus focus;
     private final Runnable focusCanvas;
     private final Map<Section, Panel> panels = new EnumMap<>(Section.class);
@@ -66,8 +65,6 @@ public final class LeftColumn extends JPanel {
     private final Set<Section> folded = EnumSet.noneOf(Section.class);
     private final List<Runnable> foldListeners = new CopyOnWriteArrayList<>();
     private final JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-    /** Remembers the divider the user drags (not the one a hidden split gets while it is laid out). */
-    private final PropertyChangeListener rememberDivider;
 
     /**
      * @param interfaceZoom the interface size installed now, in percent (the tree's height scales with it)
@@ -82,12 +79,6 @@ public final class LeftColumn extends JPanel {
         this.interfaceZoom = Objects.requireNonNull(interfaceZoom, "interfaceZoom");
         this.focus = Objects.requireNonNull(focus, "focus");
         this.focusCanvas = Objects.requireNonNull(focusCanvas, "focusCanvas");
-        this.rememberDivider = change -> {
-            if (!applying && (split.isShowing() || split.getHeight() > 0)) {
-                preferences.setCircuitTreeSplit(LeftColumnWidth.unscaled(split.getDividerLocation(),
-                        interfaceZoom.getAsInt()));
-            }
-        };
         toggles.put(Section.CIRCUIT, toggle(Section.CIRCUIT, "action.circuitTree", KeyEvent.VK_1));
         toggles.put(Section.PALETTE, toggle(Section.PALETTE, "action.palette", KeyEvent.VK_2));
         split.setContinuousLayout(true);
@@ -103,12 +94,14 @@ public final class LeftColumn extends JPanel {
      * stores nothing. The view calls it when the interface size changes.
      */
     void applyTreeHeight() {
-        applying = true;
-        try {
-            split.setDividerLocation(LeftColumnWidth.scaled(
-                    preferences.circuitTreeSplit().orElse(DEFAULT_CIRCUIT_HEIGHT), interfaceZoom.getAsInt()));
-        } finally {
-            applying = false;
+        split.setDividerLocation(LeftColumnWidth.scaled(
+                preferences.circuitTreeSplit().orElse(DEFAULT_CIRCUIT_HEIGHT), interfaceZoom.getAsInt()));
+    }
+
+    /** The user dragged the divider between the tree and the palette to {@code pixels}: stored at 100 %. */
+    private void treeDragged(int pixels) {
+        if (split.getHeight() > 0) {
+            preferences.setCircuitTreeSplit(LeftColumnWidth.unscaled(pixels, interfaceZoom.getAsInt()));
         }
     }
 
@@ -160,7 +153,7 @@ public final class LeftColumn extends JPanel {
         Panel circuit = new Panel(title, component, toggles.get(Section.CIRCUIT), () -> flip(Section.CIRCUIT));
         panels.put(Section.CIRCUIT, circuit);
         applyTreeHeight();
-        split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, rememberDivider);
+        DividerDrags drags = new DividerDrags(split, this::treeDragged);
         toggles.values().forEach(action -> action.setEnabled(true));
         layOutPanels();
         boolean[] removed = {false};
@@ -169,7 +162,7 @@ public final class LeftColumn extends JPanel {
                 return;
             }
             removed[0] = true;
-            split.removePropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, rememberDivider);
+            drags.dispose();
             panels.remove(Section.CIRCUIT, circuit);
             circuit.dispose();
             toggles.values().forEach(action -> action.setEnabled(false));

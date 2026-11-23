@@ -1017,18 +1017,28 @@ public final class AppPreferences {
         put(PRESENTATION_INTERFACE_ZOOM, Integer.toString(percent));
     }
 
-    private int storedZoom(String key, int fallback, boolean unchangedAllowed) {
+    private int storedZoom(String key, int fallback, boolean presentation) {
         try {
             int stored = Integer.parseInt(read(key, ""));
-            return INTERFACE_ZOOMS.contains(stored) || (unchangedAllowed && stored == PRESENTATION_ZOOM_UNCHANGED)
-                    ? stored : fallback;
+            return offered(stored, presentation) ? stored : fallback;
         } catch (NumberFormatException exception) {
             return fallback;
         }
     }
 
-    private static void requireOffered(int percent, boolean unchangedAllowed) {
-        if (!INTERFACE_ZOOMS.contains(percent) && !(unchangedAllowed && percent == PRESENTATION_ZOOM_UNCHANGED)) {
+    /**
+     * Whether {@code percent} is an offered interface size; for the presentation size ({@code presentation}) only
+     * sizes larger than 100 % or {@link #PRESENTATION_ZOOM_UNCHANGED}.
+     */
+    private static boolean offered(int percent, boolean presentation) {
+        if (presentation) {
+            return percent == PRESENTATION_ZOOM_UNCHANGED || (percent > 100 && INTERFACE_ZOOMS.contains(percent));
+        }
+        return INTERFACE_ZOOMS.contains(percent);
+    }
+
+    private static void requireOffered(int percent, boolean presentation) {
+        if (!offered(percent, presentation)) {
             throw new IllegalArgumentException("Not an offered interface size: " + percent);
         }
     }

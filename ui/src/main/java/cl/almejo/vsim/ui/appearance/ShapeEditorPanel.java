@@ -23,6 +23,7 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.panels.ColorSwatches;
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.panels.NoteColorSwatches;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.theme.ReadableColors;
@@ -1225,7 +1226,7 @@ public final class ShapeEditorPanel extends JPanel {
         }
 
         private void paintCaption(Graphics2D surface, String caption) {
-            surface.setFont(getFont().deriveFont(getFont().getSize2D() - 2));
+            surface.setFont(FontFloor.smaller(getFont(), 2f));
             surface.setColor(ReadableColors.mutedText());
             FontMetrics metrics = surface.getFontMetrics();
             surface.drawString(caption, 6, (CAPTION_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2);

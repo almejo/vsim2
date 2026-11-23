@@ -163,9 +163,21 @@ class LeftColumnTest {
         layOut(view);
         JSplitPane split = (JSplitPane) SwingUtilities.getAncestorOfClass(JSplitPane.class, tree);
 
-        split.setDividerLocation(123);
+        LeftColumnDividersPaintedTest.dragDivider(split, 123 - split.getDividerLocation());
 
+        assertThat(split.getDividerLocation()).isEqualTo(123);
         assertThat(preferences.circuitTreeSplit()).hasValue(123);
+    }
+
+    @Test
+    void aMoveOfTheTreesDividerThatIsNotTheUsersDragStoresNothing() {
+        JLabel tree = new JLabel("árbol");
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+
+        splitOf(tree).setDividerLocation(90);
+
+        assertThat(preferences.circuitTreeSplit()).isEmpty();
     }
 
     @Test
@@ -191,9 +203,27 @@ class LeftColumnTest {
 
         JSplitPane split = splitOf(tree);
         assertThat(split.getDividerLocation()).isEqualTo(300);
+        appearance.setInterfaceZoom(150);
+        assertThat(split.getDividerLocation()).isEqualTo(225);
         appearance.setInterfaceZoom(75);
         assertThat(split.getDividerLocation()).isEqualTo(150);
-        assertThat(preferences.circuitTreeSplit()).hasValue(150);
+    }
+
+    @Test
+    void changingTheInterfaceSizeStoresNoTreeHeight() {
+        JLabel tree = new JLabel("árbol");
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+        JSplitPane split = splitOf(tree);
+
+        appearance.setInterfaceZoom(200);
+        assertThat(split.getDividerLocation()).isEqualTo(340);
+        appearance.setInterfaceZoom(150);
+        appearance.setInterfaceZoom(75);
+        layOut(view);
+
+        // nothing was stored before, so any store (even of the value at 100 %) would show here
+        assertThat(preferences.circuitTreeSplit()).isEmpty();
     }
 
     @Test
@@ -205,15 +235,10 @@ class LeftColumnTest {
         JSplitPane split = splitOf(tree);
         assertThat(split.getDividerLocation()).isEqualTo(255);
 
-        split.setDividerLocation(300);
+        LeftColumnDividersPaintedTest.dragDivider(split, 300 - split.getDividerLocation());
 
+        assertThat(split.getDividerLocation()).isEqualTo(300);
         assertThat(preferences.circuitTreeSplit()).hasValue(200);
-    }
-
-    @Test
-    void garbageStoredTreeHeightsFallBackToTheDefault() {
-        AppPreferences garbage = AppPreferences.inMemory();
-        assertThat(garbage.circuitTreeSplit()).isEmpty();
     }
 
     private JSplitPane splitOf(Component tree) {
