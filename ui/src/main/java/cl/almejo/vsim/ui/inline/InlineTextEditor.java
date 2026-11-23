@@ -119,7 +119,6 @@ public final class InlineTextEditor {
     private final List<Runnable> whileOpen = new ArrayList<>();
     private InlineEditRequest request;
     private BooleanSupplier stillValid = () -> true;
-    private Optional<String> problem = Optional.empty();
     /** False until the user changes the text: the suggestions are not filtered by the initial text. */
     private boolean edited;
 
@@ -456,7 +455,7 @@ public final class InlineTextEditor {
     /** Runs the validator on the current text and shows what it says. */
     private void check() {
         JTextComponent text = textComponent();
-        problem = request.validator().apply(text.getText());
+        Optional<String> problem = request.validator().apply(text.getText());
         text.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
         areaScroller.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
         problemText.setText(problem.orElse(""));

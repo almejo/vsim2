@@ -56,10 +56,6 @@ public final class PlaceComponentTool implements Tool {
         this.presetParameters = Map.copyOf(presetParameters);
     }
 
-    public ComponentType type() {
-        return type;
-    }
-
     public Rotation rotation() {
         return rotation;
     }

@@ -48,8 +48,6 @@ public final class LedMatrixTypes {
     public static final int MAXIMUM_COLUMNS = Value.MAXIMUM_WIDTH;
     public static final int DEFAULT_SIZE = 8;
 
-    /** The grid units between the left edge (the pins) and the body. */
-    public static final int LEAD_UNITS = 1;
     /**
      * The grid units wider than its LEDs a matrix is: the lead of the pins, plus half a unit of frame on each side of
      * the LEDs.

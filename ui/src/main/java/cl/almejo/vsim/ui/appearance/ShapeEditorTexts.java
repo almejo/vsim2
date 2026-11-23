@@ -137,11 +137,6 @@ final class ShapeEditorTexts {
         return "<html>" + first + "<br>" + second + "</html>";
     }
 
-    /** «Quitar nodo — elige un nodo»: the name of a disabled button and why it is disabled. */
-    static String disabled(String name, String reasonKey) {
-        return Messages.format("shape.disabled", name, Messages.text(reasonKey));
-    }
-
     /** The platform text of the menu modifier with {@code keyCode} («Ctrl+Z», «⌘Z»). */
     static String shortcut(int keyCode) {
         return KeyNames.describe(KeyStroke.getKeyStroke(keyCode, ShortcutCatalog.menuMask()));

@@ -197,11 +197,6 @@ final class WizardColors {
         return ReadableColors.dark();
     }
 
-    /** {@code color} with {@code alpha}. */
-    static Color translucent(Color color, int alpha) {
-        return new Color((color.getRGB() & 0xFFFFFF) | alpha << 24, true);
-    }
-
     /** An opaque mix: {@code share} of {@code top} over {@code bottom} (renderers cannot be translucent). */
     static Color blend(Color top, Color bottom, double share) {
         return new Color(mix(top.getRed(), bottom.getRed(), share), mix(top.getGreen(), bottom.getGreen(), share),

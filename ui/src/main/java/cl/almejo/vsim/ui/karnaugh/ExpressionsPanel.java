@@ -78,7 +78,6 @@ public final class ExpressionsPanel extends JPanel {
 
     final ExpressionsModel model;
     private final Background background;
-    private final AppPreferences preferences;
     private final KarnaughCost cost;
     private final WizardOpener openInWizard;
     private final CreationForm form;
@@ -134,7 +133,6 @@ public final class ExpressionsPanel extends JPanel {
         super(new BorderLayout());
         this.model = new ExpressionsModel(preferences.simplifyExpressions());
         this.background = background;
-        this.preferences = preferences;
         this.cost = cost;
         this.openInWizard = openInWizard;
         this.form = new CreationForm(target);

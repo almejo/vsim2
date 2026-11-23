@@ -2,9 +2,7 @@ package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
-import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
@@ -93,7 +91,7 @@ public final class TerminalOutputRecorder {
     private final Set<String> toldLoss = new HashSet<>();
     /** Files already told as unwritable; touched on the writer's thread only. */
     private final Set<Path> told = ConcurrentHashMap.newKeySet();
-    private final DocumentListener documentListener = this::documentChanged;
+    private final DocumentListener documentListener = (changed, change) -> refresh();
     private final List<Runnable> armingListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private boolean disposed;
 
@@ -134,10 +132,6 @@ public final class TerminalOutputRecorder {
         disposed = true;
         document.document().removeListener(documentListener);
         List.copyOf(recordings.keySet()).forEach(this::stop);
-    }
-
-    private void documentChanged(CircuitDocument changed, DocumentChange change) {
-        refresh();
     }
 
     /** Arms, moves or stops the recordings so they match the parameters of the Terminals on the circuit. */

@@ -97,7 +97,6 @@ public final class PlaceBar extends JPanel {
     };
     /** The current place's name: not a control (it goes nowhere), so it reads as plain bold text. */
     private final JLabel currentCrumb = new CutLabel();
-    private final JLabel valuesLabel = new JLabel(Messages.text("place.valuesOf"));
     private final JComboBox<String> valuesCombo = new JComboBox<>();
     private final JLabel useChip = new JLabel();
     private final JButton seePiece = new JButton(Messages.text("place.seePiece") + " ↗");
@@ -133,6 +132,7 @@ public final class PlaceBar extends JPanel {
         overflowButton.getAccessibleContext().setAccessibleName(Messages.text("place.more"));
         overflowButton.putClientProperty("JButton.buttonType", "toolBarButton");
         overflowButton.addActionListener(action -> actionsLayout.showMenu());
+        JLabel valuesLabel = new JLabel(Messages.text("place.valuesOf"));
         valuesLabel.setLabelFor(valuesCombo);
         useChip.putClientProperty(ToolbarOverflowMenu.SHOWN_IN_MENU, true);
         add(crumbPanel, "wmin 0");

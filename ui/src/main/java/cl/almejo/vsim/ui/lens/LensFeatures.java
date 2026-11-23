@@ -91,7 +91,6 @@ public final class LensFeatures {
     private final LensState<CircuitCanvas> state = new LensState<>();
     private final Action toggle;
     private final Runnable menuRemover;
-    private final JCheckBoxMenuItem menuItem;
     private final KeyEventDispatcher keyHook = this::keyEvent;
     private final Runnable shortcutRemover;
     private final AppPreferences preferences;
@@ -131,7 +130,7 @@ public final class LensFeatures {
         toggle.putValue(Action.SELECTED_KEY, false);
         Icons.install(toggle, LensIcons.LENS);
         this.preferences = view.services().preferences();
-        this.menuItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         menuItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("lens.searchTerms"));
         this.menuRemover = MenuSlots.add(view, MenuSlot.LENS, menuItem);
         this.button = SplitButton.forToggle(ZOOM_PREFERENCE, Messages.text("lens.zoomMenuTitle"), zoomModes(),

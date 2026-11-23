@@ -202,10 +202,6 @@ final class ViewTravel {
         return to;
     }
 
-    ViewState start() {
-        return from;
-    }
-
     /** The view {@code elapsedMilliseconds} after the start; exactly the target from the end on. */
     ViewState at(long elapsedMilliseconds) {
         if (elapsedMilliseconds >= durationMilliseconds) {

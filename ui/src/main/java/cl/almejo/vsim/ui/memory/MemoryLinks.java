@@ -198,10 +198,6 @@ public final class MemoryLinks implements MemoryLinkActions {
 
     // Helpers shared by the memory package
 
-    static String linkOf(Component component) {
-        return MemoryLinkPaths.linkOf(component);
-    }
-
     /**
      * One undo step named {@code descriptionKey} that sets {@code changes} on the parameters {@code component} has
      * when it runs.

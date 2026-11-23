@@ -32,7 +32,6 @@ public final class GridFeatures {
 
     private final EditorView view;
     private final AppPreferences preferences;
-    private final JMenu gridMenu;
     private final Runnable menuRemover;
     private final Map<GridStyle, JRadioButtonMenuItem> items = new EnumMap<>(GridStyle.class);
     private final Map<Integer, JRadioButtonMenuItem> spacingItems = new LinkedHashMap<>();
@@ -45,7 +44,7 @@ public final class GridFeatures {
     public GridFeatures(EditorView view) {
         this.view = view;
         this.preferences = view.services().preferences();
-        this.gridMenu = new JMenu(Messages.text("menu.view.grid"));
+        JMenu gridMenu = new JMenu(Messages.text("menu.view.grid"));
         ButtonGroup group = new ButtonGroup();
         for (GridStyle style : GridStyle.values()) {
             JRadioButtonMenuItem item = new JRadioButtonMenuItem(choose(style));

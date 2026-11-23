@@ -128,7 +128,6 @@ public final class MemoryEditorDialog {
     private long countedVersion = -1;
     private final JButton linkButton;
     private final JButton externalButton;
-    private final JButton unlinkButton;
     private final Timer liveTimer;
     private String link = "";
     private boolean livePending;
@@ -189,7 +188,7 @@ public final class MemoryEditorDialog {
 
         linkButton = toolbarButton("memory.link", "memory.link", this::linkFile);
         externalButton = toolbarButton("memory.external", "memory.external", this::openExternal);
-        unlinkButton = new JButton(Messages.text("memory.unlink"));
+        JButton unlinkButton = new JButton(Messages.text("memory.unlink"));
         unlinkButton.setName("memory.unlink");
         unlinkButton.addActionListener(event -> unlink());
         JButton barExternal = new JButton(Messages.text("memory.external"));

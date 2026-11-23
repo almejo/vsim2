@@ -99,7 +99,6 @@ public final class MemoryMapPanel extends JPanel {
 
     // The memory followed: null when there is none.
     private ElementId followed;
-    private MemoryKind kind;
     private long words;
     private int width;
     private int addressBits;
@@ -295,7 +294,7 @@ public final class MemoryMapPanel extends JPanel {
         Map<String, Object> parameters = document.registry().typeOf(memory)
                 .resolveParameters(memory.parameters());
         long newWords = MemoryTypes.words(parameters);
-        kind = MemoryTypes.kindOf(memory.typeId()).orElseThrow();
+        MemoryKind kind = MemoryTypes.kindOf(memory.typeId()).orElseThrow();
         width = (Integer) parameters.get(MemoryTypes.WIDTH);
         addressBits = MemoryTypes.addressBits(parameters);
         if (newWords != words) {
@@ -365,7 +364,7 @@ public final class MemoryMapPanel extends JPanel {
             frozenNanos = now;
         }
         this.running = running;
-        if (request == null || !frame.request().equals(request) || frame == lastFrame) {
+        if (!frame.request().equals(request) || frame == lastFrame) {
             return false;
         }
         boolean anyTouched = findTouched(frame);
@@ -549,10 +548,6 @@ public final class MemoryMapPanel extends JPanel {
         modeButtons.get(newMode).setSelected(true);
         updateLegend();
         grid.repaint();
-    }
-
-    public Mode mode() {
-        return mode;
     }
 
     private void updateLegend() {

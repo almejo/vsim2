@@ -41,12 +41,7 @@ public final class ComponentFormPanel extends JPanel {
     private final JLabel message = new JLabel(" ");
     private final PinNameTable inputs;
     private final PinNameTable outputs;
-    private final JLabel renameHelp = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
-            + Messages.text("template.pins.renameHelp") + "</body></html>");
-    private final JButton inputUp = new JButton(Messages.text("template.dialog.up"));
     private final JButton inputDown = new JButton(Messages.text("template.dialog.down"));
-    private final JButton outputUp = new JButton(Messages.text("template.dialog.up"));
-    private final JButton outputDown = new JButton(Messages.text("template.dialog.down"));
     private final JCheckBox keepMemoryLinks = new JCheckBox(Messages.text("template.dialog.keepMemoryLinks"));
     private final JCheckBox replace = new JCheckBox(Messages.text("template.dialog.replace"));
     private final JComboBox<ComponentDefinition> target = new JComboBox<>();
@@ -82,9 +77,11 @@ public final class ComponentFormPanel extends JPanel {
         add(new JLabel(Messages.text("template.dialog.outputs")));
         add(new JScrollPane(inputs), "h 80:120");
         add(new JScrollPane(outputs), "h 80:120");
-        add(buttons(inputs, inputUp, inputDown, form::moveInput));
-        add(buttons(outputs, outputUp, outputDown, form::moveOutput));
-        add(renameHelp, "span 2");
+        add(buttons(inputs, new JButton(Messages.text("template.dialog.up")), inputDown, form::moveInput));
+        add(buttons(outputs, new JButton(Messages.text("template.dialog.up")),
+                new JButton(Messages.text("template.dialog.down")), form::moveOutput));
+        add(new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
+                + Messages.text("template.pins.renameHelp") + "</body></html>"), "span 2");
         addNotesAndReplace();
         form.addListener(refresher);
         refresh();

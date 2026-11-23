@@ -30,14 +30,9 @@ public final class ComponentPlacement {
     }
 
     /**
-     * Where a new {@code type} turned by {@code rotation} lands when the pointer is on {@code raw}: the magnet's
-     * answer for its box (the ghost of {@link PlaceComponentTool}, a palette drop).
+     * Where a new {@code type} (with a preset's parameters) turned by {@code rotation} lands when the pointer is on
+     * {@code raw}: the magnet's answer for its box (the ghost of {@link PlaceComponentTool}, a palette drop).
      */
-    public static SnappedPlacement snapped(ToolContext context, ComponentType type, GridPoint raw, Rotation rotation) {
-        return snapped(context, type, Map.of(), raw, rotation);
-    }
-
-    /** Like {@link #snapped(ToolContext, ComponentType, GridPoint, Rotation)} for a part with a preset's parameters. */
     public static SnappedPlacement snapped(ToolContext context, ComponentType type, Map<String, Object> presetParameters,
                                            GridPoint raw, Rotation rotation) {
         Component atOrigin = type.newComponent(PREVIEW_ID, GridPoint.ORIGIN, rotation,

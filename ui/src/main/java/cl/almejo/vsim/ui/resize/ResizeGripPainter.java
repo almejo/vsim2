@@ -49,13 +49,10 @@ final class ResizeGripPainter {
     private ResizeGripPainter() {
     }
 
-    /** The tab of {@code component} (as shown: during a drag, at its new size), at {@code tab} in its own pixels. */
-    static void paintTab(Graphics2D graphics, Component component, Rectangle2D tab, boolean dragging,
-                         ColorScheme scheme) {
-        paintTab(graphics, component, tab, false, dragging, scheme);
-    }
-
-    /** {@link #paintTab(Graphics2D, Component, Rectangle2D, boolean, ColorScheme)}; a corner's tab shows «⤡». */
+    /**
+     * The tab of {@code component} (as shown: during a drag, at its new size), at {@code tab} in its own pixels; a
+     * corner's tab shows «⤡».
+     */
     static void paintTab(Graphics2D graphics, Component component, Rectangle2D tab, boolean corner, boolean dragging,
                          ColorScheme scheme) {
         ComponentDrawing.paintPlaced(graphics, component, local -> {

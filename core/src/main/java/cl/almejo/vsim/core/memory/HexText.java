@@ -19,11 +19,6 @@ final class HexText {
         return LINE_BREAK.split(clean, -1);
     }
 
-    /** The first line of {@code text} (without BOM), or "" when empty. */
-    static String firstLine(String text) {
-        return lines(text)[0];
-    }
-
     /** A word of up to 16 hex digits, {@code _} allowed between digits. */
     static long parseWord(String token, int line) throws MemoryFileProblem {
         String digits = token.replace("_", "");

@@ -344,13 +344,9 @@ final class LayoutItems {
      * True when {@code item} at {@code candidate} makes no new overlap with any other item, each where {@code now}
      * says it is (items missing from it are where they started): it meets the inside of none it did not already meet
      * from where it is now, nor comes closer than the gap to one it was not that close to. A move never makes a new
-     * overlap with a neighbour that may still have to stay.
+     * overlap with a neighbour that may still have to stay. The items in {@code together} (moved by one shift) are
+     * left out.
      */
-    boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
-        return addsNoOverlap(item, candidate, now, Set.of());
-    }
-
-    /** {@link #addsNoOverlap(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by one shift). */
     boolean addsNoOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());
         for (Item other : parts()) {
@@ -374,15 +370,8 @@ final class LayoutItems {
      * An overlap that was already there may stay or shrink but never grow: writing over writing is never a reason to
      * move, but a moved item must not land where its writing, or what it covers, can be read less than before (the
      * final review, 2026-11-06; the user's hand test the same day: the LED «Rs1 = Rs2», aligned, slid its label
-     * further over «Salta», which it already touched).
-     */
-    boolean growsWritingOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now) {
-        return growsWritingOverlap(item, candidate, now, Set.of());
-    }
-
-    /**
-     * {@link #growsWritingOverlap(Item, Bounds, Map)}, leaving out the items in {@code together} (moved by the same
-     * shift).
+     * further over «Salta», which it already touched). The items in {@code together} (moved by the same shift) are
+     * left out.
      */
     boolean growsWritingOverlap(Item item, Bounds candidate, Map<ElementId, Bounds> now, Set<ElementId> together) {
         Bounds from = now.getOrDefault(item.id(), item.bounds());

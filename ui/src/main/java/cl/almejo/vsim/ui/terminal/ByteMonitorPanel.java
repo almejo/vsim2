@@ -43,8 +43,6 @@ final class ByteMonitorPanel extends JPanel {
     private final JLabel count = new JLabel();
     private final CardLayout cards = new CardLayout();
     private final JPanel views = new JPanel(cards);
-    private final JToggleButton listButton = new JToggleButton(Messages.text("terminal.monitor.list"), true);
-    private final JToggleButton dumpButton = new JToggleButton(Messages.text("terminal.monitor.hexDump"));
     private List<Row> rows = List.of();
     private int byteCount;
     private boolean dumpShown;
@@ -52,6 +50,8 @@ final class ByteMonitorPanel extends JPanel {
     ByteMonitorPanel() {
         super(new BorderLayout());
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEADING));
+        JToggleButton listButton = new JToggleButton(Messages.text("terminal.monitor.list"), true);
+        JToggleButton dumpButton = new JToggleButton(Messages.text("terminal.monitor.hexDump"));
         ButtonGroup group = new ButtonGroup();
         group.add(listButton);
         group.add(dumpButton);

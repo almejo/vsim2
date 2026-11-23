@@ -16,7 +16,6 @@ import java.awt.event.ComponentEvent;
  * height so that the bar does not cover the bottom of the view (a plain scroll pane asks for the view's height alone
  * and the bar, when it shows, cuts the view).
  */
-@SuppressWarnings("serial")
 final class WholeHeightScrollPane extends JScrollPane {
 
     private final int tallest;

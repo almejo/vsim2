@@ -9,7 +9,6 @@ import java.awt.Color;
  * A quiet line («Personalizado», the summary's heading, the unused bits), in {@link ReadableColors#mutedText()} read at
  * paint time so a live theme change shows at once.
  */
-@SuppressWarnings("serial")
 final class MutedLabel extends JLabel {
 
     MutedLabel(String text) {

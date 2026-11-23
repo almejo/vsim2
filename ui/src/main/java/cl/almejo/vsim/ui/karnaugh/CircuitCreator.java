@@ -53,17 +53,6 @@ final class CircuitCreator {
             asWritten = asWritten.map(List::copyOf);
         }
 
-        /** The minimized circuit of {@code spec}, or the lines as written. */
-        Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
-                Optional<String> componentName, Optional<List<ExpressionLine>> asWritten) {
-            this(spec, options, destination, componentName, asWritten, Optional.empty());
-        }
-
-        /** The minimized circuit of {@code spec}. */
-        Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
-                Optional<String> componentName) {
-            this(spec, options, destination, componentName, Optional.empty(), Optional.empty());
-        }
     }
 
     /**

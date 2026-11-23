@@ -57,7 +57,6 @@ final class PresentationFeatures {
     private final Executor editorThread;
     private final Action toggle;
     private final List<Runnable> menuRemovers;
-    private final JCheckBoxMenuItem menuItem;
     /** Ver ▸ «Ritmo de Presentar»: the pace and the pause, also before a task (agreed with the user). */
     private final JMenu paceMenu = new JMenu(Messages.text("action.aiPresentPace"));
     private final JRadioButtonMenuItem continuousItem = new JRadioButtonMenuItem(
@@ -66,7 +65,6 @@ final class PresentationFeatures {
             Messages.text("ai.present.stepByStep"));
     private final PauseMenu pauseMenu;
     private final Runnable removeToolbarButton;
-    private final JToggleButton toolbarButton;
     private final Runnable removeShortcut;
     private final PresentationPanel panel;
     private final FloatingPlacement placement;
@@ -115,11 +113,11 @@ final class PresentationFeatures {
                 () -> preferences.setAiPresenting(!preferences.aiPresenting()));
         Icons.install(toggle, PresentationIcons.PRESENT);
 
-        this.menuItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         buildPaceMenu();
         this.menuRemovers = List.of(MenuSlots.add(view, MenuSlot.AI_PRESENT, menuItem),
                 MenuSlots.add(view, MenuSlot.AI_PRESENT, paceMenu));
-        this.toolbarButton = new JToggleButton(toggle);
+        JToggleButton toolbarButton = new JToggleButton(toggle);
         this.removeToolbarButton = view.addToolbarComponent(toolbarButton, ToolbarSlot.RIGHT, 1);
         this.removeShortcut = view.registerShortcutAction(PresentationExtension.SHORTCUT_ID, toggle);
 

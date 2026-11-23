@@ -293,7 +293,6 @@ public final class LeftColumn extends JPanel {
         private final String title;
         private final JComponent body;
         private final Action toggle;
-        private final Runnable headerClicked;
         private final JPanel header = new JPanel(new BorderLayout());
         private final JButton titleButton = new JButton();
         private final JLabel keyLabel = new JLabel();
@@ -305,7 +304,6 @@ public final class LeftColumn extends JPanel {
             this.title = title;
             this.body = body;
             this.toggle = toggle;
-            this.headerClicked = headerClicked;
             titleButton.putClientProperty("JButton.buttonType", "borderless");
             titleButton.setHorizontalAlignment(SwingConstants.LEADING);
             titleButton.setFocusable(true);

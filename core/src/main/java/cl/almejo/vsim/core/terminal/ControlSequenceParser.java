@@ -90,7 +90,6 @@ final class ControlSequenceParser {
     private static final int FIRST_PRINTABLE = 0x20;
     private static final int DELETE = 0x7F;
     private static final int LAST_INTERMEDIATE = 0x2F;
-    private static final int FIRST_FINAL = 0x30;
     private static final int FIRST_CONTROL_SEQUENCE_FINAL = 0x40;
     private static final int LAST_FINAL = 0x7E;
     /** Enough parameters for {@code 38;2;r;g;b;48;2;r;g;b}; more are ignored. */
@@ -185,7 +184,7 @@ final class ControlSequenceParser {
                     return PENDING;
                 }
                 state = State.GROUND;
-                return codePoint >= FIRST_FINAL && codePoint <= LAST_FINAL ? new Escape(codePoint) : PENDING;
+                return codePoint <= LAST_FINAL ? new Escape(codePoint) : PENDING;
             }
         }
     }

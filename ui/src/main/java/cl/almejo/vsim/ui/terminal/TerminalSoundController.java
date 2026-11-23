@@ -2,9 +2,7 @@ package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
-import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -41,7 +39,7 @@ public final class TerminalSoundController {
     private final TerminalSounds sounds;
     private final Consumer<String> flashes;
     private final Map<String, Heard> heard = new HashMap<>();
-    private final DocumentListener documentListener = this::documentChanged;
+    private final DocumentListener documentListener = (changed, change) -> refreshTerminals();
     private List<String> terminalIds = List.of();
 
     public TerminalSoundController(OpenDocument document, TerminalSounds sounds, Consumer<String> flashes) {
@@ -97,10 +95,6 @@ public final class TerminalSoundController {
         if (bell.equals(BELL_FLASH) || bell.equals(BELL_BOTH)) {
             flashes.accept(componentId);
         }
-    }
-
-    private void documentChanged(CircuitDocument changed, DocumentChange change) {
-        refreshTerminals();
     }
 
     private void refreshTerminals() {

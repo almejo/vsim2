@@ -355,11 +355,6 @@ public final class FrameGestures implements SelectToolDelegate {
         return handles;
     }
 
-    /** The frame under the pointer, for tests. */
-    Optional<ElementId> hovered() {
-        return Optional.ofNullable(hovered);
-    }
-
     private void reset() {
         grabbed = null;
         part = null;

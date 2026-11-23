@@ -129,7 +129,7 @@ final class PieceUpdatePlanner {
         List<String> moved = new ArrayList<>();
         for (int index : newPinIndexes(before, replacement)) {
             Component piece = intermediate.component(pieceId).orElseThrow();
-            if (touchesSomething(intermediate, registry, piece, registry.typeOf(piece).pinLocation(piece, index))) {
+            if (touchesSomething(intermediate, registry, registry.typeOf(piece).pinLocation(piece, index))) {
                 moveToAQuietSpot(intermediate, registry, replacement, pieceId, index);
                 moved.add(replacement.pinout().get(index).spec().name());
             }
@@ -155,7 +155,7 @@ final class PieceUpdatePlanner {
             for (GridPoint spot : AppearanceReconciler.freeEdgeSpots(input, size, others)) {
                 Component candidate = piece.withAppearance(Optional.of(withPinAt(shape, size, index, spot)));
                 intermediate.replace(candidate);
-                if (!touchesSomething(intermediate, registry, candidate,
+                if (!touchesSomething(intermediate, registry,
                         registry.typeOf(candidate).pinLocation(candidate, index))) {
                     return;
                 }
@@ -222,7 +222,7 @@ final class PieceUpdatePlanner {
             Component piece = intermediate.component(original.id()).orElseThrow();
             ComponentType type = registry.typeOf(piece);
             for (int index : newPins) {
-                if (touchesSomething(intermediate, registry, piece, type.pinLocation(piece, index))) {
+                if (touchesSomething(intermediate, registry, type.pinLocation(piece, index))) {
                     throw new UnsafeDefinitionUpdateException(replacement.id(), List.of(nameOf(piece) + " · "
                             + replacement.pinout().get(index).spec().name()), "appearance.update.newPinTouches");
                 }
@@ -231,7 +231,7 @@ final class PieceUpdatePlanner {
     }
 
     private static boolean touchesSomething(CircuitDocument document, ComponentTypeRegistry registry,
-                                            Component piece, GridPoint point) {
+                                            GridPoint point) {
         if (document.wires().stream().anyMatch(wire -> wire.contains(point))) {
             return true;
         }

@@ -9,7 +9,6 @@ import java.util.List;
  */
 public final class UnsafeDefinitionUpdateException extends IllegalArgumentException {
     private static final long serialVersionUID = 1L;
-    private final String definitionId;
     private final List<String> containingNames;
     private final String messageKey;
 
@@ -20,7 +19,6 @@ public final class UnsafeDefinitionUpdateException extends IllegalArgumentExcept
     /** Another reason, with {@code containingNames} as the names its message lists. */
     public UnsafeDefinitionUpdateException(String definitionId, List<String> containingNames, String messageKey) {
         super("definition update refused (" + messageKey + "): " + definitionId);
-        this.definitionId = definitionId;
         this.containingNames = List.copyOf(containingNames);
         this.messageKey = messageKey;
     }

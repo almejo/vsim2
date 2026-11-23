@@ -68,10 +68,6 @@ public final class FindHighlightOverlay implements CanvasOverlay {
         return highlighted;
     }
 
-    public Optional<ElementId> current() {
-        return current;
-    }
-
     @Override
     public void paint(Graphics2D graphics, RenderState state) {
         Set<ElementId> shown = highlighted;

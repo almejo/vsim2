@@ -186,11 +186,6 @@ public final class Questions {
         return openEntry(taskId).isPresent();
     }
 
-    /** The question of the task that waits for the user, if any. */
-    public synchronized Optional<Question> openQuestion(String taskId) {
-        return openEntry(taskId).map(entry -> entry.question);
-    }
-
     private void withdrawAll(Predicate<Entry> which) {
         List<Entry> open;
         synchronized (this) {

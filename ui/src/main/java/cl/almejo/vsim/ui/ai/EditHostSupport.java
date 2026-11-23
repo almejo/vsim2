@@ -40,11 +40,6 @@ final class EditHostSupport {
     private final Supplier<List<DefinitionBundle>> library;
     private final EditorQueue queue;
 
-    /** @param circuits the open circuit with an id, or empty when none has it; called on the EDT */
-    EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits) {
-        this(circuits, List::of);
-    }
-
     /** @param library the user's component library, which the AI may place from; called on the EDT */
     EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits,
                     Supplier<List<DefinitionBundle>> library) {

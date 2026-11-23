@@ -27,7 +27,6 @@ final class LedMatrixBehavior implements Behavior {
     private static final int NONE = -1;
 
     private final int rows;
-    private final int columns;
     private final boolean scan;
     private final Value[] shown;
     /** «Barrido»: the row selected now, the data on it since when, and the data it held longest so far. */
@@ -39,7 +38,6 @@ final class LedMatrixBehavior implements Behavior {
 
     LedMatrixBehavior(int rows, int columns, boolean scan) {
         this.rows = rows;
-        this.columns = columns;
         this.scan = scan;
         this.shown = new Value[rows];
         Arrays.fill(shown, scan ? Value.of(columns, 0) : Value.highImpedance(columns));

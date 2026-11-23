@@ -249,11 +249,6 @@ public record ResizeSpec(List<Axis> axes, Optional<VisibilityCondition> conditio
         return first().valueOf(type, parameters);
     }
 
-    /** {@code parameters} with the first axis's parameter set to {@code value}. */
-    public Map<String, Object> parametersWith(Map<String, Object> parameters, int value) {
-        return first().parametersWith(parameters, value);
-    }
-
     /** The part's size along the first axis, in grid units. */
     public int extentOf(ComponentType type, Map<String, Object> parameters) {
         return first().extentOf(type, parameters);

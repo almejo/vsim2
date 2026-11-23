@@ -47,7 +47,6 @@ public final class WaveformFeatures {
     private final Action toggle;
     private final Runnable dockListener;
     private final Runnable menuRemover;
-    private final JCheckBoxMenuItem toggleItem;
     private final Runnable shortcutRemover;
     private final Runnable probeListener;
     private final ProbeMarkerOverlay markers;
@@ -82,7 +81,7 @@ public final class WaveformFeatures {
         this.dockListener = () -> toggle.putValue(Action.SELECTED_KEY, dock.isDockShowing());
         dock.addDockListener(dockListener);
         dockListener.run();
-        this.toggleItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem toggleItem = new JCheckBoxMenuItem(toggle);
         this.menuRemover = MenuSlots.add(view, MenuSlot.WAVEFORMS, toggleItem);
         this.shortcutRemover = view.registerShortcutAction("waveforms.toggle", toggle);
         view.addContextMenuContributor(new WaveformMenuContributor(actions, this::afterAdd));

@@ -43,11 +43,6 @@ final class AiEditCommand implements Command {
         return taskId.filter(task::equals).isPresent();
     }
 
-    /** True when this step belongs to stage {@code stage} of {@code task}. */
-    boolean belongsTo(String task, int stage) {
-        return belongsTo(task) && stageIndex == stage;
-    }
-
     /** The stage of its task it belongs to; {@link #NO_STAGE} for none. */
     int stageIndex() {
         return stageIndex;

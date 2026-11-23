@@ -232,7 +232,7 @@ public final class PresentationService {
             }
         }
         PresentationSettings settings = host.presentationSettings(request.document());
-        Optional<EditReceipt> earlier = edits.replay(circuit, request);
+        Optional<EditReceipt> earlier = edits.replay(request);
         if (earlier.isPresent()) {
             return Decision.retried(new PresentedEdit(earlier.get(),
                     settings.presenting() ? Optional.of(StepStatus.APPLIED) : Optional.empty()));
@@ -444,7 +444,7 @@ public final class PresentationService {
     /** Editor thread: the paced step, planned again on the circuit as it is now (stopped or changed: refused). */
     private PresentedEdit applyPaced(EditableCircuit circuit, EditRequest request, TaskPresentation presentation,
                                      int stageIndex, int stepIndex) {
-        Optional<EditReceipt> earlier = edits.replay(circuit, request);
+        Optional<EditReceipt> earlier = edits.replay(request);
         if (earlier.isPresent()) {
             return new PresentedEdit(earlier.get(), Optional.of(StepStatus.APPLIED));
         }

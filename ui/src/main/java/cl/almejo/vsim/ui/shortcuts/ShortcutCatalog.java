@@ -10,7 +10,6 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
@@ -23,14 +22,7 @@ import java.util.Set;
  */
 public final class ShortcutCatalog {
 
-    /**
-     * Ids whose action does not exist yet (empty now that fronts B and C have arrived; kept for later fronts): they
-     * stay out of the dialog and cannot be bound until the front that adds the action removes its id here.
-     */
-    private static final Set<String> AWAITING_ACTION = Set.of();
-
-    private static final List<ShortcutEntry> ENTRIES = build(menuMask()).stream()
-            .filter(entry -> !AWAITING_ACTION.contains(entry.id())).toList();
+    private static final List<ShortcutEntry> ENTRIES = List.copyOf(build(menuMask()));
 
     private ShortcutCatalog() {
     }

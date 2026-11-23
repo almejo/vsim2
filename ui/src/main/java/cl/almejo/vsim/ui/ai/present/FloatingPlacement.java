@@ -175,10 +175,6 @@ final class FloatingPlacement {
         place();
     }
 
-    Corner corner() {
-        return corner;
-    }
-
     private void rememberNearestCorner(Rectangle area, Rectangle bounds) {
         boolean right = bounds.getCenterX() > area.getCenterX();
         boolean bottom = bounds.getCenterY() > area.getCenterY();

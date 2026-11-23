@@ -118,10 +118,9 @@ public final class LogisimExporter {
         private ExportLayout.Result layOut(String name, boolean main, CircuitDocument circuit,
                                            ComponentTypeRegistry circuitRegistry, Map<ElementId, String> pinLabels) {
             LogisimProject soFar = new LogisimProject(name, Map.of(), definitions, List.of());
-            ExportLayout.Result result = ExportLayout.layOut(new ExportLayout.Request(name, main, circuit,
+            return ExportLayout.layOut(new ExportLayout.Request(name, main, circuit,
                     circuitRegistry, soFar, definitionId -> Optional.ofNullable(exports.get(definitionId)),
                     pinLabels));
-            return result;
         }
 
         /** Logisim tells circuits apart by name: a repeated one gets a number. */

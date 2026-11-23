@@ -650,10 +650,6 @@ public final class AppPreferences {
         return flag(PRINT_INCLUDE_STICKY_NOTES, false);
     }
 
-    public void setPrintIncludeStickyNotes(boolean enabled) {
-        putFlag(PRINT_INCLUDE_STICKY_NOTES, enabled);
-    }
-
     /**
      * The options «Exportar a PDF…» opens with: the remembered paper, orientation, scale and appearance switches, the
      * whole circuit and {@code title}. What to export and the title depend on the circuit and are never remembered;

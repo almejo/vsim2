@@ -1,7 +1,5 @@
 package cl.almejo.vsim.ui.terminal;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -31,7 +29,7 @@ final class TerminalDocument {
     private final TerminalOutputRecorder recorder;
     private final TerminalSoundController sounds;
     private final List<Consumer<String>> noticeListeners = new CopyOnWriteArrayList<>();
-    private final DocumentListener documentListener = this::documentChanged;
+    private final DocumentListener documentListener = (changed, change) -> updateTicker();
     private final Runnable placeListener = this::placeChanged;
     /** The instance whose Terminals a component tab's features read (always empty on the circuit's tab). */
     private Optional<String> shownContext;
@@ -117,10 +115,6 @@ final class TerminalDocument {
         windows.closeAll();
         feeds.askAgain(componentId -> left.ifPresent(path -> document.parent().ifPresent(circuit ->
                 circuit.removeTerminalRequest(InstancePath.child(path, componentId)))));
-    }
-
-    private void documentChanged(CircuitDocument changed, DocumentChange change) {
-        updateTicker();
     }
 
     private void updateTicker() {

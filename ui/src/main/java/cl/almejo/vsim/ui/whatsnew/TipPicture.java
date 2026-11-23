@@ -322,8 +322,7 @@ final class TipPicture extends JComponent {
     }
 
     static Color mutedColour() {
-        Color muted = ReadableColors.mutedText();
-        return muted;
+        return ReadableColors.mutedText();
     }
 
     static Color borderColour() {

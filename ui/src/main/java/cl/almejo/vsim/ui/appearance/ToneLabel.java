@@ -9,7 +9,6 @@ import java.awt.Color;
  * A label of the shape editor whose text colour follows its {@link Tone}, read from the theme at each paint (a
  * {@code setForeground} would keep the old theme's colour after a live change).
  */
-@SuppressWarnings("serial")
 final class ToneLabel extends JLabel {
     /** What a line says: plain text, a hint («ⓘ»), a warning that does not block, or what blocks «Aceptar». */
     enum Tone { PLAIN, INFO, WARNING, BLOCKING }
@@ -19,10 +18,6 @@ final class ToneLabel extends JLabel {
     ToneLabel(Tone tone) {
         this.tone = tone;
         putClientProperty("html.disable", Boolean.TRUE);
-    }
-
-    Tone tone() {
-        return tone;
     }
 
     /** The tone and its icon: a hint gets ⓘ, a warning ⚠, a blocking problem ⛔ (never colour alone). */

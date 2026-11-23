@@ -75,8 +75,6 @@ final class Straightening {
     private final Supplier<LayoutItems> reader;
     private final CircuitTidyProgress progress;
     private final BooleanSupplier cancelled;
-    /** The horizontal pairs, fixed when the stage starts. */
-    private List<Pair> pairs = List.of();
     /** The pairs each component's pins are in. */
     private final Map<ElementId, List<Pair>> pairsByComponent = new HashMap<>();
     /** Where each pin of a pair is now. */
@@ -115,7 +113,7 @@ final class Straightening {
     private Result run() {
         LayoutItems items = reader.get();
         readPins();
-        pairs = horizontalPairs(items);
+        List<Pair> pairs = horizontalPairs(items);
         if (pairs.isEmpty()) {
             return new Result(0, 0);
         }

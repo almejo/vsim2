@@ -256,11 +256,6 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         return bodyCommand;
     }
 
-    /** The working copy this edit was made on. */
-    public CircuitDocument workingCopy() {
-        return workingCopy;
-    }
-
     /** The placed pieces that could not take a new pin where the definition puts it; empty before the first apply. */
     public List<KeptOldShape> keptOldShapes() {
         return writeBack == null ? List.of() : writeBack.keptOldShapes();

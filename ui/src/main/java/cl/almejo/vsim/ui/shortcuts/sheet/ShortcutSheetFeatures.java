@@ -60,7 +60,6 @@ final class ShortcutSheetFeatures {
     private final EditorView view;
     private final ShortcutSheetExtension.Seams seams;
     private final AppPreferences preferences;
-    private final Action toggle;
     private final ShownAcceleratorItem item;
     private final KeyEventDispatcher keyHook = this::keyEvent;
     private final Runnable removeEscapeClaims;
@@ -76,7 +75,7 @@ final class ShortcutSheetFeatures {
         this.view = view;
         this.seams = seams;
         this.preferences = view.services().preferences();
-        this.toggle = Actions.of(Messages.text("action.shortcutSheet"), this::toggle);
+        Action toggle = Actions.of(Messages.text("action.shortcutSheet"), this::toggle);
         toggle.putValue(Actions.SHOWN_ACCELERATOR, QUESTION_MARK);
         this.item = new ShownAcceleratorItem(toggle);
         item.putClientProperty(Actions.SEARCH_TERMS, Messages.text("shortcutSheet.searchTerms"));

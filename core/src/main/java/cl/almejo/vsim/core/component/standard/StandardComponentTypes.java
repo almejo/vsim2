@@ -435,7 +435,7 @@ public final class StandardComponentTypes {
         if (SwitchBehavior.isHighImpedanceText(text)) {
             return width == 1 ? Optional.empty() : Optional.of(new ParameterProblem(VALUE, "switch.noZ", List.of()));
         }
-        boolean negativeAllowed = width > 1 && raw != null && SIGNEDNESS_SIGNED.equals(raw.get(SIGNEDNESS));
+        boolean negativeAllowed = width > 1 && SIGNEDNESS_SIGNED.equals(raw.get(SIGNEDNESS));
         if (!ConstantValue.isValidText(text) || text.startsWith("-") && !negativeAllowed) {
             return Optional.of(new ParameterProblem(VALUE, "constant.invalidValue", List.of()));
         }

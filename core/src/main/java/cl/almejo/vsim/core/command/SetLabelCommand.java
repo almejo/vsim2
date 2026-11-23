@@ -12,7 +12,6 @@ import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 
-import java.util.List;
 
 public final class SetLabelCommand implements Command {
 

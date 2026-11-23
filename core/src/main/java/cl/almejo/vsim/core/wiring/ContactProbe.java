@@ -270,7 +270,8 @@ public final class ContactProbe {
                             newPins.put(pin, point);
                         }
                     }
-                } else if (element instanceof Wire wire) {
+                } else {
+                    Wire wire = (Wire) element; // the guard above lets only a part or a wire through
                     Wire placed = new Wire(placeholder, wire.start(), wire.end()).translate(deltaX, deltaY);
                     wires.add(placed);
                     points.add(placed.start());

@@ -105,14 +105,6 @@ public final class WhatsNewExtension implements EditorExtension {
 
     private static final int FRAME_MILLISECONDS = 16;
 
-    /**
-     * The real thing: this VSim's version and news, the development switch, the window settling after it shows, the
-     * application's AI server, the focus manager, Swing timers and Preferencias ▸ «Animaciones».
-     */
-    public WhatsNewExtension(AiServerService aiServer) {
-        this(aiServer, new StartupHold());
-    }
-
     /** The real thing, its popups kept back while {@code startHold} is held (the start's recovery question). */
     public WhatsNewExtension(AiServerService aiServer, StartupHold startHold) {
         this(new Seams(VsimVersion.current(), NewsFiles::forRunning, StartupNotices.NewsRule.current(),

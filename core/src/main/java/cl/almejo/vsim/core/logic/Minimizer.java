@@ -129,7 +129,6 @@ public final class Minimizer {
     private static final class CoverSearch {
 
         private final List<Term> primes;
-        private final int rowCount;
         /** Per row, the primes covering it, fewest literals first then canonical. */
         private final int[][] primesOfRow;
         /** Per prime, the rows it covers. */
@@ -145,7 +144,7 @@ public final class Minimizer {
 
         CoverSearch(List<Term> primes, List<Integer> rows) {
             this.primes = primes;
-            this.rowCount = rows.size();
+            int rowCount = rows.size();
             Comparator<Integer> branchOrder = Comparator.<Integer>comparingInt(index -> primes.get(index).literalCount())
                     .thenComparingInt(index -> index);
             primesOfRow = new int[rowCount][];

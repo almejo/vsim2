@@ -83,12 +83,6 @@ final class TipCard extends JComponent {
     private static final String NEXT_ARROW = "›";
     private static final Insets SMALL_BUTTON_MARGIN = new Insets(1, 8, 1, 8);
 
-    private final JLabel header = new JLabel(Messages.text("tip.header"), new TipBulbIcon(), JLabel.LEADING) {
-        @Override
-        public Color getForeground() {
-            return TipPicture.mutedColour(); // read at paint time: the theme changes live
-        }
-    };
     private final JButton closeButton = new JButton(Icons.get(CardLook.CLOSE_ICON, CLOSE_ICON_SIZE));
     private final TipPicture picture;
     /** The title wraps like the text, so a long one in any language is never cut. */
@@ -114,6 +108,12 @@ final class TipCard extends JComponent {
                 + (shadow + UIScale.scale(PADDING_Y)) + " " + (shadow + UIScale.scale(PADDING_X)) + " "
                 + (shadow + UIScale.scale(PADDING_Y)) + " " + (shadow + UIScale.scale(PADDING_X)),
                 "[" + inner + "!]"));
+        JLabel header = new JLabel(Messages.text("tip.header"), new TipBulbIcon(), JLabel.LEADING) {
+            @Override
+            public Color getForeground() {
+                return TipPicture.mutedColour(); // read at paint time: the theme changes live
+            }
+        };
         header.setIconTextGap(UIScale.scale(GAP));
         header.setFont(smallFont());
         closeButton.setToolTipText(Messages.text("tip.close"));

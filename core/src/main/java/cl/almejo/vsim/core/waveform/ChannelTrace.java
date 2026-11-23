@@ -47,10 +47,6 @@ public final class ChannelTrace {
         this.maximumChunks = maximumChunks;
     }
 
-    public int width() {
-        return width;
-    }
-
     /** The channel now watches a net of {@code newWidth} bits. */
     public void setWidth(int newWidth) {
         if (newWidth != width) {

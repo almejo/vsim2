@@ -163,10 +163,6 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         return tabs.activeDocument();
     }
 
-    public List<OpenDocument> documents() {
-        return tabs.documents();
-    }
-
     public List<EditorView> viewsOf(OpenDocument document) {
         return tabs.viewsOf(document);
     }

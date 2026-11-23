@@ -71,7 +71,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** Shape-editing gestures and paint; every completed gesture publishes one immutable draft. */
-@SuppressWarnings("serial")
 final class ShapeCanvas extends JPanel {
     static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final String MESSAGE_PREFIX = "shape.";
@@ -161,7 +160,6 @@ final class ShapeCanvas extends JPanel {
     private final InlineTextEditor textEditor = InlineTextEditor.forHost(new ShapeHost());
     Optional<ElementId> hoveredPin = Optional.empty();
     int hoveredText = -1;
-    private int textIndex = -1;
     private boolean fitPending = true;
     private int fittedWidth = -1;
     private int fittedHeight = -1;
@@ -419,7 +417,6 @@ final class ShapeCanvas extends JPanel {
         insertion = Optional.empty();
         // A text being typed was started on an earlier draft: its element may no longer exist (undo, toolbar edit).
         textEditor.cancel();
-        textIndex = -1;
         if (pathIndex < 0 || pathIndex >= current.get().elements().size()
                 || !current.get().selection().contains(pathIndex)
                 || !(current.get().elements().get(pathIndex) instanceof SymbolPath path)
@@ -1237,7 +1234,6 @@ final class ShapeCanvas extends JPanel {
     /** Opens the shared inline editor over the text (or where a new one goes); a blank text on confirm is no text. */
     private void beginText(Point location, int index) {
         SymbolText existing = index >= 0 && current.get().elements().get(index) instanceof SymbolText found ? found : null;
-        textIndex = existing == null ? -1 : index;
         SymbolPoint anchor = existing == null ? point(location) : existing.anchor();
         TextSize size = existing == null ? TextSize.MEDIUM : existing.size();
         Rectangle2D area = existing == null ? newTextArea(anchor, size) : SymbolPainter.textBlock(existing,
@@ -1258,7 +1254,6 @@ final class ShapeCanvas extends JPanel {
         SymbolText existing = requestedIndex >= 0 && requestedIndex < current.get().elements().size()
                 && current.get().elements().get(requestedIndex) instanceof SymbolText found ? found : null;
         int index = existing == null ? -1 : requestedIndex;
-        textIndex = -1;
         boolean followsName = existing != null && existing.text().isEmpty() && entered.isEmpty();
         if (entered.isBlank() && !followsName) {
             // A text left blank is no text: a new one is never added, an old one goes with this same edit.

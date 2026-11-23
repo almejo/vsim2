@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -30,13 +29,12 @@ import java.util.function.Supplier;
  */
 final class StepGhostOverlay {
 
-    private final ComponentTypeRegistry registry;
     private final GhostChangePainter painter;
     private final Runnable repaint;
     private StepPreview shown;
 
     StepGhostOverlay(Supplier<ColorScheme> scheme, ComponentTypeRegistry registry, Runnable repaint) {
-        this.registry = Objects.requireNonNull(registry, "registry");
+        Objects.requireNonNull(registry, "registry");
         this.painter = new GhostChangePainter(scheme, registry);
         this.repaint = Objects.requireNonNull(repaint, "repaint");
     }

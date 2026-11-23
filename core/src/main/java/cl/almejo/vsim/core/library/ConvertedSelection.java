@@ -117,11 +117,6 @@ public final class ConvertedSelection {
         return ids;
     }
 
-    /** The interface pins that came from test parts. */
-    public Set<ElementId> convertedPins() {
-        return convertedPins;
-    }
-
     /** What each test part gives, by the part's id in the user's document (position order). */
     public Map<ElementId, PartPins> parts() {
         return parts;

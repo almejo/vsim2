@@ -138,7 +138,6 @@ public final class TemplateActions {
      * reported, the circuit keeps the component).
      */
     public void createFromSelection() {
-        CircuitDocument document = openDocument.document();
         Set<ElementId> ids = canvas.get().selection().ids();
         if (ids.isEmpty()) {
             return;

@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.frames.FramePainter;

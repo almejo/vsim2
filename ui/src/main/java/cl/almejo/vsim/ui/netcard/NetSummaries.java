@@ -48,19 +48,17 @@ public final class NetSummaries {
     private NetSummaries() {
     }
 
-    /** The summary of the net of {@code wire} with the latest snapshot; empty when the wire or its net is gone. */
-    public static Optional<NetSummary> forWire(OpenDocument document, ElementId wire) {
-        return forWire(document, wire, document.latestSnapshot());
-    }
-
-    /** As {@link #forWire(OpenDocument, ElementId)} with {@code snapshot}; merged nets found by flattening. */
+    /**
+     * The summary of the net of {@code wire} with {@code snapshot}; empty when the wire or its net is gone. Merged nets
+     * are found by flattening.
+     */
     static Optional<NetSummary> forWire(OpenDocument document, ElementId wire, SimulationSnapshot snapshot) {
         return forWire(document, wire, snapshot,
                 () -> TopLevelNets.of(document.document(), document.netlist(), document.registry()));
     }
 
     /**
-     * As {@link #forWire(OpenDocument, ElementId)} with {@code snapshot}; {@code topLevelNets} (asked only when the
+     * As {@link #forWire(OpenDocument, ElementId, SimulationSnapshot)}; {@code topLevelNets} (asked only when the
      * snapshot has problems) gives the id the engine reports the problems of a net joined through a template under:
      * the canvas keeps it cached ({@code canvas.highlights().topLevelNets}).
      */

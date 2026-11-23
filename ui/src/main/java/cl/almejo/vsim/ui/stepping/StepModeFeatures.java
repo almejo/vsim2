@@ -31,7 +31,6 @@ import java.awt.Dimension;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
 /**
@@ -80,7 +79,6 @@ public final class StepModeFeatures {
     private final StepHighlightOverlay overlay;
     private final PendingOutlineOverlay pendingOverlay;
     private final Runnable stepModeListener = this::stepModeChanged;
-    private final Consumer<SimulationSnapshot> snapshotListener = this::snapshotPublished;
     private final List<Runnable> shortcutRemovers;
     private final List<Runnable> removeOverlays;
     private final Runnable removeSnapshotListener;
@@ -142,7 +140,7 @@ public final class StepModeFeatures {
         // A step made before this view existed is not this view's to show.
         this.shownSequence = openDocument.latestStep().map(StepReport::sequence).orElse(0L);
         openDocument.addStepModeListener(stepModeListener);
-        this.removeSnapshotListener = EveryPane.addActivePaneSnapshotListener(view, snapshotListener);
+        this.removeSnapshotListener = EveryPane.addActivePaneSnapshotListener(view, this::snapshotPublished);
         refresh();
     }
 
@@ -302,7 +300,6 @@ public final class StepModeFeatures {
     }
 
     private static void showToolbarButton(JButton button, Action action, boolean stepMode) {
-        String name = String.valueOf(action.getValue(Action.NAME));
         button.setEnabled(stepMode && action.isEnabled());
         // the key stays in the tooltip in both states: the note is added to what the shortcuts' tooltip says (and
         // ToolbarTooltips, which follows the note, rewrites it with the key when the shortcuts change)

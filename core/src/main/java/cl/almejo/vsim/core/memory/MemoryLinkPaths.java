@@ -34,7 +34,7 @@ public final class MemoryLinkPaths {
     public static String storedLinkPath(Path file, Optional<Path> circuitFile) {
         Path absolute = file.toAbsolutePath().normalize();
         Optional<Path> folder = circuitFile.map(circuit -> circuit.toAbsolutePath().normalize().getParent());
-        if (folder.isPresent() && folder.get() != null) {
+        if (folder.isPresent()) {
             try {
                 return slashes(folder.get().relativize(absolute));
             } catch (IllegalArgumentException otherDrive) {
@@ -51,7 +51,7 @@ public final class MemoryLinkPaths {
             return path.normalize();
         }
         Optional<Path> folder = circuitFile.map(circuit -> circuit.toAbsolutePath().normalize().getParent());
-        return (folder.isPresent() && folder.get() != null ? folder.get().resolve(path) : path.toAbsolutePath())
+        return (folder.isPresent() ? folder.get().resolve(path) : path.toAbsolutePath())
                 .normalize();
     }
 

@@ -26,7 +26,6 @@ import java.util.stream.IntStream;
  * groups being edited, on the scheme's board colour, so the user sees the pins and their labels before Aceptar. While
  * the groups have a problem it keeps showing the last valid ones.
  */
-@SuppressWarnings("serial")
 final class GroupsPreview extends JComponent implements Scrollable {
 
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;

@@ -35,7 +35,6 @@ public final class FixedStepFeatures {
     private final EditorView view;
     private final AppPreferences preferences;
     private final StepSizeChooser chooser;
-    private final Action stepSizeAction;
     private final JMenuItem stepSizeItem;
     private final StepSizeButton arrow;
     private final Runnable preferenceListener = this::followPreference;
@@ -47,7 +46,7 @@ public final class FixedStepFeatures {
         this.view = view;
         this.preferences = view.services().preferences();
         this.chooser = chooser;
-        this.stepSizeAction = Actions.of(Messages.text("action.stepSize"), () -> askForASize());
+        Action stepSizeAction = Actions.of(Messages.text("action.stepSize"), () -> askForASize());
         this.stepSizeItem = new JMenuItem(stepSizeAction);
         stepSizeItem.putClientProperty(COMPANION, Boolean.TRUE);
         JMenu simulation = view.menu(MenuId.SIMULATION);

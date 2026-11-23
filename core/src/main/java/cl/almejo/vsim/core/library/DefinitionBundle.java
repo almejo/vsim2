@@ -21,9 +21,8 @@ public record DefinitionBundle(ComponentDefinition root, List<ComponentDefinitio
         if (byId.containsKey(root.id())) {
             throw new IllegalArgumentException("a definition cannot depend on itself: " + root.id());
         }
-        ComponentDefinition checkedRoot = root;
-        DefinitionGraph.closure(List.of(root.id()), id -> id.equals(checkedRoot.id())
-                ? Optional.of(checkedRoot) : Optional.ofNullable(byId.get(id)));
+        DefinitionGraph.closure(List.of(root.id()), id -> id.equals(root.id())
+                ? Optional.of(root) : Optional.ofNullable(byId.get(id)));
     }
 
     public static DefinitionBundle of(ComponentDefinition root, Function<String, Optional<ComponentDefinition>> lookup) {

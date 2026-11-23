@@ -28,7 +28,6 @@ final class PinNameTable extends JTable {
 
     private final Supplier<List<String>> names;
     private final BiConsumer<Integer, String> rename;
-    private final IntFunction<Optional<String>> problem;
     private final NameModel model = new NameModel();
     private final JTextField editorField = new JTextField();
     private int editedRow = -1;
@@ -39,7 +38,6 @@ final class PinNameTable extends JTable {
                  IntFunction<Optional<String>> problem) {
         this.names = names;
         this.rename = rename;
-        this.problem = problem;
         setModel(model);
         setTableHeader(null);
         setShowGrid(false);

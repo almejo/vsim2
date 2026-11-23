@@ -90,10 +90,6 @@ public final class MemoryGridModel extends AbstractTableModel {
         return width;
     }
 
-    public MemoryRadix radix() {
-        return radix;
-    }
-
     public void setRadix(MemoryRadix radix) {
         this.radix = radix;
         dataVersion++;

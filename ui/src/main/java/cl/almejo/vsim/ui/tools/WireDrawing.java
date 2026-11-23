@@ -68,10 +68,6 @@ public final class WireDrawing {
         this.startWidth = startWidth;
     }
 
-    public GridPoint start() {
-        return start;
-    }
-
     public void dragTo(ToolContext context, CanvasMouseEvent event) {
         if (horizontalFirst == null) {
             double movedX = Math.abs(event.gridPosition().getX() - pressPosition.getX());

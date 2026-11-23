@@ -71,10 +71,6 @@ final class ContinuousWirePath {
         this.rawCurrent = this.start;
     }
 
-    GridPoint start() {
-        return start;
-    }
-
     /** The start and every corner fixed since, in order. */
     List<GridPoint> corners() {
         List<GridPoint> corners = new ArrayList<>();

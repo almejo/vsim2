@@ -43,7 +43,6 @@ public final class MagnifierFeatures {
     private final MagnifierPresenter popup;
     private final MagnifierHover hover;
     private final Runnable menuRemover;
-    private final JCheckBoxMenuItem menuItem;
     private final Runnable toolButtonRemover;
     private final Runnable shortcutRemover;
     private final Runnable marksRemover;
@@ -89,7 +88,7 @@ public final class MagnifierFeatures {
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.magnifier.tooltip"));
         Icons.install(toggle, MagnifierIcons.EYE);
         toggle.putValue(Action.SELECTED_KEY, false);
-        this.menuItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         this.menuRemover = MenuSlots.add(view, MenuSlot.LOOK_INSIDE, menuItem);
         this.toolButtonRemover = view.addToolbarToggleAfterTools(new JToggleButton(toggle));
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);

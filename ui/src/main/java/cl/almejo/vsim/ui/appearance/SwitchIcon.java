@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import javax.swing.AbstractButton;
 import javax.swing.Icon;
-import javax.swing.UIManager;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Component;
