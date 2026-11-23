@@ -151,6 +151,17 @@ class TipsFileTest {
     }
 
     @Test
+    void stateMachinesHaveATipThatOpensTheSemaforoCircuit() {
+        Tip tip = TipsFile.load().stream().filter(candidate -> candidate.id().equals("state-machines"))
+                .findFirst().orElseThrow();
+
+        assertThat(tip.kind()).isEqualTo(TipKind.CIRCUIT);
+        assertThat(tip.pictures()).containsExactly("state-machine.vsim");
+        assertThat(tip.trial()).isPresent();
+        assertThat(tip.trial().orElseThrow().circuit()).contains("state-machine.vsim");
+    }
+
+    @Test
     void tipIdsAreUnique() {
         assertThatThrownBy(() -> TipsFile.parse(List.of(
                 "a | image | t | x | one.png | - | -",

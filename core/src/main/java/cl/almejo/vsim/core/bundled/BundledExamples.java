@@ -41,7 +41,12 @@ public final class BundledExamples {
             example("punto-de-parada"),
             example("value-formats"),
             example("led-matrix"),
-            example("marquee"));
+            example("marquee"),
+            example("semaforo"),
+            example("detector-de-secuencia"));
+
+    /** The examples of the «Máquinas de estado» submenu of Archivo ▸ Ejemplos, in menu order; they are also in {@link #ids()}. */
+    private static final List<String> STATE_MACHINE_IDS = List.of("semaforo", "detector-de-secuencia");
 
     private BundledExamples() {
     }
@@ -49,6 +54,11 @@ public final class BundledExamples {
     /** Every example, in menu order. */
     public static List<BundledExample> all() {
         return ALL;
+    }
+
+    /** The ids of the state machine examples (a submenu of its own), a part of {@link #ids()}. */
+    public static List<String> stateMachineIds() {
+        return STATE_MACHINE_IDS;
     }
 
     public static List<String> ids() {

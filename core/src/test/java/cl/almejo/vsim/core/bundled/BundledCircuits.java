@@ -45,6 +45,8 @@ public final class BundledCircuits {
         builders.put("value-formats", ValueFormatExamples::valueFormats);
         builders.put("led-matrix", MatrixExamples::heart);
         builders.put("marquee", MatrixExamples::marquee);
+        builders.put("semaforo", StateMachineExamples::semaforo);
+        builders.put("detector-de-secuencia", StateMachineExamples::sequenceDetector);
         return builders;
     }
 

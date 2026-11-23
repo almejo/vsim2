@@ -1,0 +1,299 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.8",
+  "formatVersion" : 7,
+  "kind" : "circuit",
+  "name" : "Detector de secuencia",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "subcircuit:detector-101",
+    "x" : 30,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : { }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 14,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "x",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c6",
+    "type" : "switch",
+    "x" : 14,
+    "y" : 13,
+    "rotation" : 0,
+    "label" : "Reiniciar",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c8",
+    "type" : "clock",
+    "x" : 16,
+    "y" : 20,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 1000,
+      "time-up" : 1000
+    }
+  }, {
+    "id" : "c12",
+    "type" : "led",
+    "x" : 53,
+    "y" : 9,
+    "rotation" : 0,
+    "label" : "Z",
+    "parameters" : {
+      "color" : "green"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 18,
+    "y1" : 6,
+    "x2" : 24,
+    "y2" : 6
+  }, {
+    "id" : "w4",
+    "x1" : 24,
+    "y1" : 6,
+    "x2" : 24,
+    "y2" : 12
+  }, {
+    "id" : "w5",
+    "x1" : 24,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w7",
+    "x1" : 18,
+    "y1" : 14,
+    "x2" : 30,
+    "y2" : 14
+  }, {
+    "id" : "w9",
+    "x1" : 18,
+    "y1" : 22,
+    "x2" : 26,
+    "y2" : 22
+  }, {
+    "id" : "w10",
+    "x1" : 26,
+    "y1" : 16,
+    "x2" : 26,
+    "y2" : 22
+  }, {
+    "id" : "w11",
+    "x1" : 26,
+    "y1" : 16,
+    "x2" : 30,
+    "y2" : 16
+  }, {
+    "id" : "w13",
+    "x1" : 42,
+    "y1" : 12,
+    "x2" : 54,
+    "y2" : 12
+  } ],
+  "labels" : [ {
+    "id" : "l14",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Detector de secuencia"
+  }, {
+    "id" : "l15",
+    "x" : 2,
+    "y" : 27,
+    "text" : "Prueba: pon x en 1, 0, 1 en tres bajadas seguidas del reloj: Z se enciende con el último 1"
+  } ],
+  "definitions" : [ {
+    "id" : "detector-101",
+    "name" : "Detector 101",
+    "description" : "",
+    "width" : 12,
+    "height" : 8,
+    "pinout" : [ {
+      "name" : "x",
+      "x" : 0,
+      "y" : 2,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-input-x"
+    }, {
+      "name" : "RST",
+      "x" : 0,
+      "y" : 4,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-reset"
+    }, {
+      "name" : "CLK",
+      "x" : 0,
+      "y" : 6,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-clock"
+    }, {
+      "name" : "Z",
+      "x" : 12,
+      "y" : 2,
+      "direction" : "OUTPUT",
+      "width" : 1,
+      "source" : "machine-output-Z"
+    } ],
+    "components" : [ {
+      "id" : "machine-input-x",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "x",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-reset",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 4,
+      "rotation" : 0,
+      "label" : "RST",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-clock",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 8,
+      "rotation" : 0,
+      "label" : "CLK",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-output-Z",
+      "type" : "output-pin",
+      "x" : 10,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "Z",
+      "parameters" : {
+        "width" : 1
+      }
+    } ],
+    "wires" : [ ],
+    "labels" : [ ],
+    "revision" : 1,
+    "machine" : {
+      "states" : [ {
+        "id" : "s0",
+        "name" : "S0",
+        "x" : 0.0,
+        "y" : 110.0
+      }, {
+        "id" : "s1",
+        "name" : "S1",
+        "x" : 260.0,
+        "y" : 0.0
+      }, {
+        "id" : "s2",
+        "name" : "S2",
+        "x" : 260.0,
+        "y" : 220.0
+      } ],
+      "transitions" : [ {
+        "id" : "t1",
+        "from" : "s0",
+        "to" : "s1",
+        "condition" : "x"
+      }, {
+        "id" : "t2",
+        "from" : "s0",
+        "to" : "s0",
+        "condition" : "x'",
+        "loopSide" : "top"
+      }, {
+        "id" : "t3",
+        "from" : "s1",
+        "to" : "s1",
+        "condition" : "x",
+        "loopSide" : "right"
+      }, {
+        "id" : "t4",
+        "from" : "s1",
+        "to" : "s2",
+        "condition" : "x'"
+      }, {
+        "id" : "t5",
+        "from" : "s2",
+        "to" : "s1",
+        "condition" : "x",
+        "outputs" : [ {
+          "output" : "Z",
+          "value" : 1
+        } ]
+      }, {
+        "id" : "t6",
+        "from" : "s2",
+        "to" : "s0",
+        "condition" : "x'"
+      } ],
+      "initialState" : "s0",
+      "inputs" : [ "x" ],
+      "outputs" : [ "Z" ],
+      "edge" : "falling",
+      "tests" : [ {
+        "id" : "p1",
+        "name" : "101 con traslape",
+        "columns" : 8,
+        "inputs" : {
+          "x" : "10101101"
+        },
+        "expected" : {
+          "Z" : "00101001"
+        }
+      }, {
+        "id" : "p2",
+        "name" : "Sin 101",
+        "columns" : 6,
+        "inputs" : {
+          "x" : "110010"
+        },
+        "expected" : {
+          "Z" : "000000"
+        }
+      } ],
+      "notes" : [ {
+        "id" : "n1",
+        "x" : 420.0,
+        "y" : 70.0,
+        "width" : 250.0,
+        "height" : 110.0,
+        "color" : "yellow",
+        "text" : "S0: nada útil todavía. S1: llegó un 1. S2: llegaron 1 y 0. Z sale en la flecha de S2 a S1 (x / Z=1): el 1 que completa 1-0-1."
+      } ]
+    }
+  } ],
+  "stickyNotes" : [ {
+    "id" : "s16",
+    "x" : 2,
+    "y" : 30,
+    "width" : 66,
+    "height" : 15,
+    "color" : "YELLOW",
+    "kind" : "text",
+    "text" : "Qué probar\n1. Cambia x entre una bajada del reloj y la siguiente: la máquina mira x justo en la bajada.\n2. Z se enciende con el 1 que completa 1-0-1, antes de la bajada: es una máquina de Mealy, la salida está en la flecha.\n3. Prueba 1 0 1 0 1: las secuencias se pueden traslapar y Z se enciende dos veces.\n4. Doble clic en la máquina para ver su diagrama; con «Probar…» arriba ves sus pruebas, todas ✓."
+  } ]
+}

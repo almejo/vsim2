@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.BreakpointTypes;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
@@ -19,6 +20,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.layout.CircuitTidy;
+import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.InterfacePins;
@@ -86,6 +88,7 @@ final class TipCircuits {
         builders.put("truth-table.vsim", TipCircuits::truthTable);
         builders.put("circuit-from-expressions.vsim", TipCircuits::circuitFromExpressions);
         builders.put("highlight-net.vsim", TipCircuits::highlightNet);
+        builders.put("state-machine.vsim", TipCircuits::stateMachine);
         return builders;
     }
 
@@ -567,6 +570,27 @@ final class TipCircuits {
         builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(9, 1), 11, 9, "A + B",
                 FrameTint.NONE, false));
         return builder.document;
+    }
+
+    /**
+     * «Máquinas de estado»: the «Semáforo» example without its sticky note and its «Prueba:» line, so the picture is
+     * only the circuit (a clock, a reset and the machine with three lights).
+     */
+    private static CircuitDocument stateMachine() {
+        try {
+            CircuitDocument document = BundledExamples.open("semaforo", StandardComponentTypes.registry());
+            for (StickyNote note : List.copyOf(document.stickyNotes())) {
+                document.remove(note.id());
+            }
+            for (TextLabel label : List.copyOf(document.labels())) {
+                if (label.text().startsWith("Prueba: ")) {
+                    document.remove(label.id());
+                }
+            }
+            return document;
+        } catch (CircuitFormatException exception) {
+            throw new IllegalStateException("the bundled example «semaforo» does not open", exception);
+        }
     }
 
     /** «Notas adhesivas»: a switch, a NOT and an LED with a yellow note beside them. */

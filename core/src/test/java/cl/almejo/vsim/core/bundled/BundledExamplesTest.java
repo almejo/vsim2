@@ -31,7 +31,9 @@ class BundledExamplesTest {
                 "parity-3-bits", "multiplier-2x2", "register-4-bits", "shift-register-4-bits", "counter-4-bits",
                 "johnson-counter", "bus-8-bits", "alu-4-bits", "mini-alu", "accumulator", "rom-program",
                 "ram-fill", "hola-terminal", "punto-de-parada", "value-formats",
-                "led-matrix", "marquee");
+                "led-matrix", "marquee", "semaforo", "detector-de-secuencia");
+        assertThat(BundledExamples.stateMachineIds()).containsExactly("semaforo", "detector-de-secuencia")
+                .isSubsetOf(BundledExamples.ids());
         assertThat(BundledExamples.all()).first().isEqualTo(new BundledExample("full-adder",
                 "/cl/almejo/vsim/core/bundled/examples/full-adder.vsim"));
         assertThat(BundledExamples.all()).extracting(BundledExample::resourceName)
