@@ -75,6 +75,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Máquinas de estado: en el modo prueba, la línea del resultado sobre la tabla («2 ✓, 1 ✗ en el flanco 6 salió Z = 0») ya no se corta en una ventana angosta o al 150 %: la ayuda en gris de al lado se acorta primero, y las dos se leen enteras al pasar el mouse.
 - Máquinas de estado: Propiedades de la máquina ya no se sale por la derecha con la interfaz al 150 % o 200 % («en 7 flec…», «sie…»): toma el ancho del panel, «Como un bus» ya no ensancha la lista de pines, el resumen de «Pruebas» pasa a otra línea si no cabe y «Flanco» dice «Bajada» cerrado (al abrirlo, «Bajada (como los flip-flops)»).
 - Máquinas de estado: los textos de segundo plano de la pestaña de la máquina (el contador y los encabezados de la lista de pines, las ayudas de Propiedades) usan el gris legible de la interfaz, y las separaciones de Propiedades y de la lista de pines siguen el tamaño de la interfaz (100–200 %); la ayuda de «Escribir el nombre, la condición o la nota» ya no escribe la tecla F2 (cambia si la reasignas).
 - Máquinas de estado: el «en ninguna flecha» de los pines que ninguna flecha usa se lee bien también con el tema oscuro: usa el dorado legible de los avisos de la interfaz, el mismo en todas partes.

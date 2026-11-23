@@ -118,7 +118,9 @@ public final class MachineTestTable extends JPanel {
                 }
             }
         });
-        JPanel line = new JPanel(new MigLayout("insets 2lp 6lp 2lp 6lp, gap 12lp", "[][grow, fill]", "[center]"));
+        // the verdict is the useful part: the grey hint gives way first, both cut with «…» and whole in their tooltip
+        JPanel line = new JPanel(new MigLayout("insets 2lp 6lp 2lp 6lp, gap 12lp",
+                "[shrinkprio 50][grow, fill, shrinkprio 200]", "[center]"));
         line.add(summary, "wmin 0");
         line.add(hint, "wmin 0");
 
@@ -154,6 +156,7 @@ public final class MachineTestTable extends JPanel {
         scrollBars.getVerticalScrollBar().setUnitIncrement(grid.model().layout().rowHeight());
         refreshTabs(grid.model());
         summary.setText(model.summary());
+        summary.setToolTipText(summary.getText());
         hint.setText(Messages.text(model.unwritten() ? "machine.test.hint.first" : "machine.test.hint"));
         hint.setToolTipText(hint.getText()); // a narrow window cuts it with «…»: the whole line is here
     }
@@ -259,6 +262,11 @@ public final class MachineTestTable extends JPanel {
     /** The grey line beside the summary. */
     JLabel hint() {
         return hint;
+    }
+
+    /** The verdict line («2 ✓, 1 ✗ en el flanco 6 salió Z = 0»). */
+    JLabel summary() {
+        return summary;
     }
 
     String summaryText() {
