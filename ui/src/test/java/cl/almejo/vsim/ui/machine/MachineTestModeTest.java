@@ -5,7 +5,10 @@ import cl.almejo.vsim.core.command.EditMachineCommand;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.logic.LogicValue;
+import cl.almejo.vsim.core.machine.MachinePin;
 import cl.almejo.vsim.core.machine.MachinePinEdits;
+import cl.almejo.vsim.core.machine.MachineTestRun;
+import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.MachineTest;
 import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -599,5 +602,90 @@ class MachineTestModeTest {
         assertThat(test.machine().tests().getFirst().columns().getFirst().expected(outputId()))
                 .isEqualTo(LogicValue.ONE);
         assertThat(test.chosenTest()).isZero();
+    }
+
+    /** The detector with «x·y» on the arrow S0 → S1 and «W=1» on S1: two names that are not pins yet. */
+    private static StateMachine withNewNames(StateMachine machine) {
+        return machine.withTransitions(machine.transitions().stream()
+                        .map(transition -> transition.id().equals("t1") ? transition.withCondition("x·y") : transition)
+                        .toList())
+                .withStates(machine.states().stream()
+                        .map(state -> state.id().equals("s1")
+                                ? state.withOutputs(List.of(new OutputAssignment("W", true))) : state)
+                        .toList());
+    }
+
+    private static List<String> pinNames(List<MachinePin> pins) {
+        return pins.stream().map(MachinePin::name).toList();
+    }
+
+    private static String pinId(StateMachine machine, String name) {
+        return java.util.stream.Stream.concat(machine.inputs().stream(), machine.outputs().stream())
+                .filter(pin -> pin.name().equals(name)).findFirst().orElseThrow().id();
+    }
+
+    private List<String> tableRowLabels() {
+        MachineTestTable table = (MachineTestTable) view.bottomDock().content().orElseThrow();
+        return table.grid().model().rows().stream().map(MachineTestTableModel.Row::label).toList();
+    }
+
+    /** Final review finding 1: a name typed in the draft becomes a pin there, as in the circuit. */
+    @Test
+    void namesNewInTheDraftBecomePinsTheTableThePropertiesAndTheRunUse() {
+        MachineTestMode test = start();
+
+        canvas.edit(MachineTestModeTest::withNewNames);
+
+        StateMachine draft = test.machine();
+        assertThat(pinNames(draft.inputs())).containsExactly("x", "y");
+        assertThat(pinNames(draft.outputs())).containsExactly("Z", "W");
+        assertThat(tableRowLabels()).contains("y", "W", Messages.format("machine.test.row.expected", "W"));
+        mode.selection().clear();
+        MachinePinRows pins = mode.inspectorRows().pinRows().orElseThrow();
+        assertThat(pins.table(MachinePinEdits.Side.INPUT).rowNames()).contains("y");
+        assertThat(pins.table(MachinePinEdits.Side.OUTPUT).rowNames()).contains("W");
+        String xId = pinId(draft, "x");
+        String yId = pinId(draft, "y");
+        test.editTests(tests -> List.of(MachineTests.withInput(MachineTests.withInput(tests.getFirst(), 0, xId,
+                true), 0, yId, true)), "x y");
+        assertThat(MachineTestRun.run(test.machine(), test.machine().tests().getFirst()).columns().getFirst()
+                .nextStateId()).isEqualTo("s1");
+        assertTheCircuitIsUntouched();
+    }
+
+    @Test
+    void afterAplicarYGuardarNewNamesLeaveTheBarClean() {
+        MachineTestMode test = start();
+        canvas.edit(MachineTestModeTest::withNewNames);
+        questions.answers.add("Aplicar y guardar");
+
+        assertThat(view.draftGuards().settle(DraftGuard.Reason.SAVE)).isEqualTo(DraftGuard.Answer.GO_ON);
+
+        assertThat(pinNames(circuitsMachine().inputs())).containsExactly("x", "y");
+        assertThat(test.diagramChanged()).isFalse();
+        assertThat(test.bar().exitButton().isVisible()).isTrue();
+        assertThat(test.bar().applyButton().isVisible()).isFalse();
+    }
+
+    @Test
+    void dejarComoEstabaDropsThePinsTheDraftAdded() {
+        MachineTestMode test = start();
+        canvas.edit(MachineTestModeTest::withNewNames);
+
+        test.bar().keepButton().doClick(0);
+
+        assertThat(pinNames(circuitsMachine().inputs())).containsExactly("x");
+        assertThat(pinNames(circuitsMachine().outputs())).containsExactly("Z");
+    }
+
+    @Test
+    void aRecoveredDraftWithNewNamesHasThemAsPins() {
+        mode.resumeTest(withNewNames(real));
+
+        MachineTestMode test = mode.testMode().orElseThrow();
+        assertThat(pinNames(test.machine().inputs())).containsExactly("x", "y");
+        assertThat(pinNames(test.machine().outputs())).containsExactly("Z", "W");
+        assertThat(tableRowLabels()).contains("y", "W");
+        assertTheCircuitIsUntouched();
     }
 }

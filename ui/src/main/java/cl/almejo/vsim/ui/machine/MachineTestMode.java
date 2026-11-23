@@ -121,8 +121,9 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
                                                Runnable ended) {
         return canvas.standardSource().machine().map(real -> {
             MachineDraft draft = new MachineDraft(real);
-            if (!recovered.equals(real)) {
-                draft.edited(recovered, Messages.text("machine.test.recoveredStep"));
+            StateMachine withPins = recovered.withUsedNamesAdded();
+            if (!withPins.equals(real)) {
+                draft.edited(withPins, Messages.text("machine.test.recoveredStep"));
             }
             return started(view, canvas, frame, new Carried(MachineTestUnderWay.begin(
                     MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(), draft), 0, 0),
@@ -693,7 +694,8 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
         @Override
         public boolean edit(UnaryOperator<StateMachine> change) {
             StateMachine current = theDraft().current();
-            StateMachine changed = change.apply(current);
+            // the names now in use become pins, as in the circuit (MachineDefinitions.edited)
+            StateMachine changed = change.apply(current).withUsedNamesAdded();
             if (changed.equals(current)) {
                 return false;
             }
