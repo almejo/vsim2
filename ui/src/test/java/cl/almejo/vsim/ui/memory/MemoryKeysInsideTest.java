@@ -90,7 +90,7 @@ class MemoryKeysInsideTest {
         MemoryEditorDialog outside = new MemoryEditorDialog(circuit,
                 place("c40", StandardComponentTypes.ROM, 40, 0, Map.of()).id(), null, NoLinkActions.INSTANCE);
 
-        assertThat(onePiece.title()).isEqualTo("Contenido de ROM1 de Banco — solo Banco 1 · ROM · 256 × 8");
+        assertThat(onePiece.title()).isEqualTo("Contenido de ROM1 de Banco — solo Banco · copia 1 · ROM · 256 × 8");
         assertThat(allPieces.title()).isEqualTo("Contenido de ROM1 de Banco — todas las piezas · ROM · 256 × 8");
         assertThat(outside.title()).isEqualTo("Contenido de ROM1 · ROM · 256 × 8");
     }

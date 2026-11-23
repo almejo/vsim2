@@ -51,6 +51,9 @@ public record Connectivity(Set<Set<PinRef>> pinNets, Map<String, Set<PinRef>> pr
         Map<String, Set<String>> pinlessGroups = new HashMap<>();
         Set<String> unresolved = new HashSet<>();
         for (Probe probe : document.probes()) {
+            if (probe.target() instanceof ProbeTarget.MachineStateTarget) {
+                continue; // a machine's state: no wire changes it, and it is no net of the netlist
+            }
             Optional<String> netId = ProbeResolver.netOf(retarget(probe.target(), probeRetargets), scratch, netlist);
             if (netId.isEmpty()) {
                 unresolved.add(probe.id());

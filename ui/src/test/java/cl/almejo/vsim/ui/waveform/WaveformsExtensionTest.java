@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.machine.MachineFixtures;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -193,6 +195,26 @@ class WaveformsExtensionTest {
         } finally {
             features.dispose();
             view.dispose();
+        }
+    }
+
+    @Test
+    void showInCircuitOnAMachineStateRowSelectsThePiece() {
+        OpenDocument machines = MachineFixtures.circuitWithGeneratedMachines(1);
+        ElementId piece = new ElementId(MachineFixtures.copies(machines).get(0));
+        EditorView view = new EditorView(machines, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        WaveformFeatures features = new WaveformFeatures(view, NO_ANSWER, (parent, message) -> messages.add(message));
+        try {
+            String stateRow = features.actions().addMachineStatesAndOutputs(piece).addedIds().getFirst();
+            view.canvas().selection().set(List.of());
+
+            features.showInCircuit(stateRow);
+
+            assertThat(view.canvas().selection().ids()).containsExactly(piece);
+        } finally {
+            features.dispose();
+            view.dispose();
+            machines.close();
         }
     }
 

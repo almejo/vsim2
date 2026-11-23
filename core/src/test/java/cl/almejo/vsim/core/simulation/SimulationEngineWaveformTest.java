@@ -20,10 +20,12 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.ChannelTrace;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.TraceEdges;
 import cl.almejo.vsim.core.waveform.TraceEvent;
@@ -86,6 +88,25 @@ class SimulationEngineWaveformTest {
         assertThat(trace("b").valueAt(5)).contains(Value.ONE);
         assertThat(trace("c").valueAt(5)).contains(Value.ZERO);
         assertThat(trace("a").firstTime()).hasValue(5);
+    }
+
+    @Test
+    void aMachineChannelKeepsAShorterHistoryThanAProbe() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        String machineChannel = MachineChannels.stateChannelId("m");
+        engine.setProbes(Map.of("probe", netOf(source, 0), machineChannel, netOf(source, 0)));
+        int events = ChannelTrace.CHUNK_SIZE * (MachineChannels.HISTORY_CHUNKS + 1);
+        for (int event = 0; event < events; event++) {
+            engine.advance(1);
+            engine.interact(source.value());
+        }
+
+        assertThat(trace(machineChannel).truncated()).isTrue();
+        assertThat(trace(machineChannel).eventCount())
+                .isLessThanOrEqualTo(ChannelTrace.CHUNK_SIZE * MachineChannels.HISTORY_CHUNKS);
+        assertThat(trace("probe").truncated()).isFalse();
+        assertThat(trace("probe").eventCount()).isEqualTo(events + 1);
     }
 
     @Test

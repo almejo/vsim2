@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.function.LongFunction;
 
 /**
  * Draws the rows of a waveform panel with the time diagram's conventions: one bit as high and low lines joined by
@@ -39,6 +41,9 @@ public final class WaveformPainter {
     static final int LEVEL_MARGIN = 6;
     static final double BUS_SLANT = 3;
     private static final float BUS_TEXT_SIZE = 11f;
+    private static final String ELLIPSIS = "…";
+    /** The text of a band keeps this many pixels from the slants on each side. */
+    private static final double TEXT_MARGIN = BUS_SLANT + 1;
     private static final double HATCH_SPACING = 6;
     private static final BasicStroke LINE = new BasicStroke(1f);
     private static final BasicStroke HIGH_IMPEDANCE = new BasicStroke(1f, BasicStroke.CAP_BUTT,
@@ -77,11 +82,33 @@ public final class WaveformPainter {
     /** As above; {@code formats} gives a channel id its bus format ({@link Probe#FORMAT_HEX} when absent). */
     public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
                              int width, ColorScheme scheme, Map<String, String> formats) {
+        paint(graphics, snapshot, channelIds, axis, width, scheme, formats, Map.of());
+    }
+
+    /**
+     * As above; {@code valueNames} gives a channel the names its values stand for (a machine's state row): such a row
+     * is a band per value with its name, 1-bit too, and «—» while it is Z.
+     */
+    public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
+                             int width, ColorScheme scheme, Map<String, String> formats,
+                             Map<String, LongFunction<String>> valueNames) {
+        paint(graphics, snapshot, channelIds, axis, width, scheme, formats, valueNames, Map.of());
+    }
+
+    /**
+     * As above; {@code valueColors} gives a named row the colours the user gave its values (a machine's states, hito
+     * 3): a band of a value with a colour is filled with the scheme's {@link ColorScheme#waveStateFill} shade of it,
+     * read now, and its name written in {@link ColorScheme#waveStateFillText}.
+     */
+    public static void paint(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds, TimeAxis axis,
+                             int width, ColorScheme scheme, Map<String, String> formats,
+                             Map<String, LongFunction<String>> valueNames,
+                             Map<String, LongFunction<Optional<StateColor>>> valueColors) {
         // Pure strokes: lines and the bus outlines land on the same pixel rows (normalization shifts paths by a row).
         Object strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         try {
-            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats);
+            paintRows(graphics, snapshot, channelIds, axis, width, scheme, formats, valueNames, valueColors);
         } finally {
             graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                     strokeControl == null ? RenderingHints.VALUE_STROKE_DEFAULT : strokeControl);
@@ -89,7 +116,9 @@ public final class WaveformPainter {
     }
 
     private static void paintRows(Graphics2D graphics, WaveformSnapshot snapshot, List<String> channelIds,
-                                  TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats) {
+                                  TimeAxis axis, int width, ColorScheme scheme, Map<String, String> formats,
+                                  Map<String, LongFunction<String>> valueNames,
+                                  Map<String, LongFunction<Optional<StateColor>>> valueColors) {
         int height = channelIds.size() * rowHeight();
         graphics.setColor(scheme.diagramBackground());
         graphics.fill(new Rectangle2D.Double(0, 0, width, height));
@@ -98,7 +127,8 @@ public final class WaveformPainter {
             Optional<Trace> trace = snapshot.trace(channelIds.get(row));
             if (trace.isPresent()) {
                 paintRow(graphics, trace.get(), row * rowHeight(), axis, width, snapshot.time(), scheme,
-                        formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX));
+                        formats.getOrDefault(channelIds.get(row), Probe.FORMAT_HEX),
+                        valueNames.get(channelIds.get(row)), valueColors.get(channelIds.get(row)));
             }
         }
         OptionalLong cursor = axis.cursor();
@@ -107,6 +137,38 @@ public final class WaveformPainter {
             graphics.setColor(scheme.selection());
             graphics.setStroke(LINE);
             graphics.draw(new Line2D.Double(x, 0, x, height));
+        }
+    }
+
+    /**
+     * Draws one row of equal steps instead of a recording (a machine test's columns, hito 4): {@code values.get(k)}
+     * from {@code left + k · stepWidth} to the next step, equal neighbours joined into one segment, with the same
+     * levels, edges, bands, names and colours as a recorded row ({@link #paint}); an empty value is hatched as a gap.
+     * The row is {@link #rowHeight()} tall from {@code top}.
+     */
+    public static void paintSteps(Graphics2D graphics, List<Optional<Value>> values, double left, double stepWidth,
+                                  double top, ColorScheme scheme, LongFunction<String> names,
+                                  LongFunction<Optional<StateColor>> colours) {
+        Object strokeControl = graphics.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
+        graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        try {
+            int start = 0;
+            for (int index = 1; index <= values.size(); index++) {
+                if (index < values.size() && values.get(index).equals(values.get(start))) {
+                    continue;
+                }
+                double right = left + index * stepWidth;
+                paintSegment(graphics, values.get(start), left + start * stepWidth, right, top, scheme,
+                        Probe.FORMAT_HEX, names, colours);
+                if (index < values.size()) {
+                    paintEdge(graphics, levelOf(values.get(start), names), levelOf(values.get(index), names), right,
+                            top, scheme);
+                }
+                start = index;
+            }
+        } finally {
+            graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                    strokeControl == null ? RenderingHints.VALUE_STROKE_DEFAULT : strokeControl);
         }
     }
 
@@ -144,6 +206,12 @@ public final class WaveformPainter {
         return present.bits() != 0 ? Level.HIGH : Level.LOW;
     }
 
+    /** As {@link #levelOf(Optional)}; in a named row every value but a gap or a conflict is a band. */
+    static Level levelOf(Optional<Value> value, LongFunction<String> names) {
+        Level level = levelOf(value);
+        return names != null && level != Level.GAP && level != Level.CONFLICT ? Level.BUS : level;
+    }
+
     private static void paintGrid(Graphics2D graphics, TimeAxis axis, int height, ColorScheme scheme) {
         graphics.setColor(scheme.diagramGrid());
         graphics.setStroke(LINE);
@@ -171,6 +239,19 @@ public final class WaveformPainter {
 
     static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
                         ColorScheme scheme, String format) {
+        return paintRow(graphics, trace, top, axis, width, now, scheme, format, null);
+    }
+
+    /** As above; a non-null {@code names} draws every value as a named band ({@link #paint} with value names). */
+    static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
+                        ColorScheme scheme, String format, LongFunction<String> names) {
+        return paintRow(graphics, trace, top, axis, width, now, scheme, format, names, null);
+    }
+
+    /** As above; a non-null {@code colours} fills the band of each value that has a colour with it. */
+    static int paintRow(Graphics2D graphics, Trace trace, double top, TimeAxis axis, int width, long now,
+                        ColorScheme scheme, String format, LongFunction<String> names,
+                        LongFunction<Optional<StateColor>> colours) {
         OptionalLong first = trace.firstTime();
         if (first.isEmpty()) {
             return 0;
@@ -198,7 +279,7 @@ public final class WaveformPainter {
             double column = Math.floor(right);
             long nextColumnTime = Math.max(time + 1, (long) Math.ceil(axis.timeAt(column + 1)));
             int next = index + 1;
-            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format);
+            paintSegment(graphics, value, axis.xOf(segmentStart), right, top, scheme, format, names, colours);
             if (next < eventCount && trace.eventTime(next) < nextColumnTime && trace.eventTime(next) <= to) {
                 graphics.setColor(scheme.diagramTrace());
                 graphics.setStroke(LINE);
@@ -209,23 +290,25 @@ public final class WaveformPainter {
                 index = last + 1;
             } else {
                 Optional<Value> after = trace.eventValue(index);
-                paintEdge(graphics, levelOf(value), levelOf(after), right, top, scheme);
+                paintEdge(graphics, levelOf(value, names), levelOf(after, names), right, top, scheme);
                 value = after;
                 segmentStart = time;
                 index = next;
             }
         }
-        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format);
+        paintSegment(graphics, value, axis.xOf(segmentStart), axis.xOf(to), top, scheme, format, names,
+                colours);
         return visited;
     }
 
     private static void paintSegment(Graphics2D graphics, Optional<Value> value, double left, double right,
-                                     double top, ColorScheme scheme, String format) {
+                                     double top, ColorScheme scheme, String format,
+                                     LongFunction<String> names, LongFunction<Optional<StateColor>> colours) {
         if (right <= left) {
             return;
         }
         graphics.setStroke(LINE);
-        switch (levelOf(value)) {
+        switch (levelOf(value, names)) {
             case HIGH, LOW -> {
                 double y = levelOf(value) == Level.HIGH ? highY(top) : lowY(top);
                 graphics.setColor(scheme.diagramTrace());
@@ -239,17 +322,37 @@ public final class WaveformPainter {
             case CONFLICT -> {
                 graphics.setColor(scheme.wireConflict());
                 graphics.fill(new Rectangle2D.Double(left, highY(top), right - left, lowY(top) - highY(top)));
-                if (value.orElseThrow().width() > 1) {
+                if (value.orElseThrow().width() > 1 || names != null) {
                     paintText(graphics, BusValueText.CONFLICT, left, right, top, scheme.diagramTrace());
                 }
             }
             case BUS -> {
+                Optional<StateColor> colour = colourOf(value, names, colours);
+                Shape band = hexagon(left, right, top);
+                colour.ifPresent(found -> {
+                    graphics.setColor(scheme.waveStateFill(found));
+                    graphics.fill(band);
+                });
                 graphics.setColor(scheme.diagramTrace());
-                graphics.draw(hexagon(left, right, top));
-                paintText(graphics, busText(value.orElseThrow(), format), left, right, top, scheme.diagramTrace());
+                graphics.draw(band);
+                Color textColor = colour.map(scheme::waveStateFillText).orElseGet(scheme::diagramTrace);
+                if (names != null) {
+                    paintName(graphics, ChannelRows.valueText(value, format, names), left, right, top, textColor);
+                } else {
+                    paintText(graphics, busText(value.orElseThrow(), format), left, right, top, textColor);
+                }
             }
             case GAP -> hatch(graphics, left, right, top, scheme);
         }
+    }
+
+    /** The colour of a named band's value, when the row has colours and the value is a whole code. */
+    private static Optional<StateColor> colourOf(Optional<Value> value, LongFunction<String> names,
+                                                 LongFunction<Optional<StateColor>> colours) {
+        if (names == null || colours == null || value.isEmpty() || !value.get().isFullyDefined()) {
+            return Optional.empty();
+        }
+        return colours.apply(value.get().bits());
     }
 
     /** The text of a bus segment in a channel's {@code format}: {@code 0x66} or {@code 'f'}. */
@@ -293,13 +396,26 @@ public final class WaveformPainter {
         return shape;
     }
 
+    /**
+     * A value's name centered in its band, {@linkplain #fittedName shortened} when the band is too narrow for it: a
+     * name cut short still tells the states apart, a number cut short would lie, so only names are shortened.
+     */
+    private static void paintName(Graphics2D graphics, String name, double left, double right, double top,
+                                  Color color) {
+        FontMetrics metrics = graphics.getFontMetrics(graphics.getFont().deriveFont(busTextSize()));
+        String fitted = fittedName(name, metrics, right - left - 2 * TEXT_MARGIN);
+        if (!fitted.isEmpty()) {
+            paintText(graphics, fitted, left, right, top, color);
+        }
+    }
+
     /** {@code text} centered in the band, only when it fits between the slants. */
     private static void paintText(Graphics2D graphics, String text, double left, double right, double top,
                                   Color color) {
         Font font = graphics.getFont().deriveFont(busTextSize());
         FontMetrics metrics = graphics.getFontMetrics(font);
         int textWidth = metrics.stringWidth(text);
-        if (textWidth + 2 * BUS_SLANT + 2 > right - left) {
+        if (textWidth + 2 * TEXT_MARGIN > right - left) {
             return;
         }
         graphics.setFont(font);
@@ -307,6 +423,28 @@ public final class WaveformPainter {
         float x = (float) ((left + right - textWidth) / 2);
         float baseline = (float) (middleY(top) + (metrics.getAscent() - metrics.getDescent()) / 2.0);
         graphics.drawString(text, x, baseline);
+    }
+
+    /**
+     * What of a value's name fits in {@code room} pixels: the whole name; else its start with «…» («AMA…»); else its
+     * first letter; else nothing. The hover tooltip of the plot says the whole name ({@link WaveformPanel}).
+     */
+    static String fittedName(String text, FontMetrics metrics, double room) {
+        if (metrics.stringWidth(text) <= room) {
+            return text;
+        }
+        for (int end = text.offsetByCodePoints(text.length(), -1); end > 0;
+             end = text.offsetByCodePoints(end, -1)) {
+            String shortened = text.substring(0, end) + ELLIPSIS;
+            if (metrics.stringWidth(shortened) <= room) {
+                return shortened;
+            }
+        }
+        if (text.isEmpty()) {
+            return text;
+        }
+        String firstLetter = text.substring(0, text.offsetByCodePoints(0, 1));
+        return metrics.stringWidth(firstLetter) <= room ? firstLetter : "";
     }
 
     private static void hatch(Graphics2D graphics, double left, double right, double top, ColorScheme scheme) {

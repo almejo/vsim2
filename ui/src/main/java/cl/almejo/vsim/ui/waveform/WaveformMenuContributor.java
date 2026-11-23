@@ -22,7 +22,8 @@ import java.util.function.Supplier;
 
 /**
  * Canvas context-menu items that add channels (spec §3.2): «Ver en formas de onda» on a wire or a multi-selection,
- * «Ver pines en formas de onda» on a component. Each add is handed to {@code afterAdd} (open the panel, blink a row,
+ * «Ver pines en formas de onda» on a component, and right after it on a machine piece «Ver estados y salidas en
+ * formas de onda». Each add is handed to {@code afterAdd} (open the panel, blink a row,
  * report the cap).
  */
 public final class WaveformMenuContributor implements ContextMenuContributor {
@@ -51,8 +52,13 @@ public final class WaveformMenuContributor implements ContextMenuContributor {
         }
         switch (element) {
             case Wire wire -> menu.add(item("waveform.menu.show", () -> actions.addWire(wire.id())));
-            case Component component -> menu.add(item("waveform.menu.showPins",
-                    () -> actions.addComponentPins(component.id())));
+            case Component component -> {
+                menu.add(item("waveform.menu.showPins", () -> actions.addComponentPins(component.id())));
+                if (actions.isMachinePiece(component.id())) {
+                    menu.add(item("waveform.menu.showMachine",
+                            () -> actions.addMachineStatesAndOutputs(component.id())));
+                }
+            }
             case TextLabel label -> {
             }
             case Frame frame -> {

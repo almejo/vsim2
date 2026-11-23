@@ -73,6 +73,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -99,13 +100,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int GLOW_FRAME_MILLISECONDS = 33;
     /** Device pixels added around a moving terminal's area so antialiased edges are repainted too. */
     private static final int TERMINAL_REPAINT_MARGIN = 2;
-    private static final double WHEEL_SCROLL_PIXELS = 40;
-    /**
-     * A touchpad's sideways swipe reaches Swing on Linux as presses of these extra mouse buttons (X11 buttons 6 and 7),
-     * not as a wheel turn; they scroll like Shift+wheel up and down.
-     */
-    private static final int SCROLL_LEFT_BUTTON = 4;
-    private static final int SCROLL_RIGHT_BUTTON = 5;
 
     private final OpenDocument openDocument;
     private final CircuitRenderer renderer;
@@ -118,6 +112,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     };
     private final List<Runnable> pressObservers = new CopyOnWriteArrayList<>();
     private final Viewport viewport = new Viewport();
+    private final Map<String, Consumer<GridPoint>> paletteActionDrops = new HashMap<>();
     private final Tool defaultTool = new SelectTool();
     private final Timer frameTimer;
     private final MarchingAnts marchingAnts = new MarchingAnts();
@@ -291,10 +286,28 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /**
+     * Makes dropping the palette entry {@code paletteId} run {@code create} at the dropped, snapped point instead of
+     * placing a part (an entry that is a creation, not a type: the state machine). Returns what takes it away.
+     */
+    public Runnable setPaletteActionDrop(String paletteId, Consumer<GridPoint> create) {
+        Objects.requireNonNull(paletteId, "paletteId");
+        Objects.requireNonNull(create, "create");
+        paletteActionDrops.put(paletteId, create);
+        return () -> paletteActionDrops.remove(paletteId, create);
+    }
+
+    /**
      * Places the palette entry encoded in {@code transferText} (a type, or a preset such as NAND with its parameters)
      * at {@code screenPoint}; false when it is not one.
      */
     public boolean dropComponent(String transferText, Point screenPoint) {
+        Optional<String> droppedId = PaletteTransfer.decode(transferText);
+        if (droppedId.isPresent() && paletteActionDrops.containsKey(droppedId.get())) {
+            paletteActionDrops.get(droppedId.get()).accept(viewport.snap(screenPoint.x, screenPoint.y));
+            useDefaultTool();
+            requestFocusInWindow();
+            return true;
+        }
         Optional<PaletteEntry> entry = PaletteTransfer.decode(transferText)
                 .flatMap(id -> PaletteEntry.forId(id, openDocument.registry()));
         if (entry.isEmpty()) {
@@ -1756,9 +1769,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /**
      * The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor; the selection and zoom cursors
-     * are drawn once, lazily).
+     * are drawn once, lazily). Public so a machine's diagram shows the very same cursors.
      */
-    private static Cursor awtCursor(CanvasCursor cursor) {
+    public static Cursor awtCursor(CanvasCursor cursor) {
         return switch (cursor) {
             case DEFAULT -> Cursor.getDefaultCursor();
             case MOVE -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
@@ -1955,8 +1968,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return displayedSnapshot;
     }
 
-    /** Called every frame: publishes a new snapshot and repaints only if something visible changed. */
-    void refreshSnapshot() {
+    /**
+     * Shows the document's latest snapshot now and hands it to the snapshot listeners (the status bar, Problemas). The
+     * frame timer does this while the pane is shown; a view that shows another content instead of its panes (a
+     * machine's diagram) calls it on its own frames, so what follows the snapshot keeps going.
+     */
+    public void refreshSnapshot() {
         display(openDocument.latestSnapshot());
     }
 
@@ -2009,15 +2026,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             pointerEvent = inside ? event : null;
         }
 
-        /** Buttons past the third (sideways scrolling, back/forward) never reach the tool as a click. */
-        private static boolean isExtraButton(MouseEvent event) {
-            return event.getButton() > MouseEvent.BUTTON3;
-        }
-
         @Override
         public void mousePressed(MouseEvent event) {
             pressObservers.forEach(Runnable::run);
-            if (isExtraButton(event)) {
+            if (WheelNavigation.isExtraButton(event)) { // sideways scrolling, back/forward: never a click
                 scrollSideways(event.getButton());
                 return;
             }
@@ -2119,7 +2131,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void mouseReleased(MouseEvent event) {
-            if (isExtraButton(event)) {
+            if (WheelNavigation.isExtraButton(event)) { // sideways scrolling, back/forward: never a click
                 return;
             }
             autoscroll.stopAutoscroll();
@@ -2203,30 +2215,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             tool.mouseExited(CircuitCanvas.this);
         }
 
-        /** One sideways step, as far as one Shift+wheel step: left like wheel up, right like wheel down. */
+        /** One sideways step ({@link WheelNavigation#scrollSideways}). */
         private void scrollSideways(int button) {
-            if (button == SCROLL_LEFT_BUTTON) {
-                viewport.panBy(WHEEL_SCROLL_PIXELS, 0);
-            } else if (button == SCROLL_RIGHT_BUTTON) {
-                viewport.panBy(-WHEEL_SCROLL_PIXELS, 0);
-            } else {
-                return;
+            if (WheelNavigation.scrollSideways(viewport, button)) {
+                repaint();
             }
-            repaint();
         }
 
         @Override
         public void mouseWheelMoved(MouseWheelEvent event) {
             track(event); // where the pointer is when the view moves under it
-            double rotation = event.getPreciseWheelRotation();
-            if (event.isControlDown()) {
-                viewport.zoomAt(event.getX(), event.getY(), viewport.zoom() * Math.pow(Viewport.ZOOM_STEP, -rotation));
+            if (WheelNavigation.wheel(viewport, event) == WheelNavigation.Move.ZOOMED) {
                 viewChanged();
-            } else if (event.isShiftDown()) {
-                viewport.panBy(-rotation * WHEEL_SCROLL_PIXELS, 0);
-                repaint();
             } else {
-                viewport.panBy(0, -rotation * WHEEL_SCROLL_PIXELS);
                 repaint();
             }
         }

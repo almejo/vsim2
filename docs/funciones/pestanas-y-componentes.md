@@ -25,7 +25,7 @@ Cómo se crean y se guardan los componentes propios está en
 - **Volver a entrar**: si el grupo ya tiene una pestaña de ese componente, entrar de nuevo la trae al frente en vez de
   abrir otra. Esa pestaña pasa a mostrar los valores de la pieza por la que entraste. Si el grupo está plegado, entrar
   lo despliega.
-- **Varias pestañas del mismo componente**: Ventana ▸ «Nueva pestaña del mismo circuito», usada en una pestaña de
+- **Varias pestañas del mismo componente**: Ventana ▸ «Nueva vista de «X»», usada en una pestaña de
   componente, abre otra pestaña del mismo componente. Las dos se llaman «Ram (1)» y «Ram (2)», y cada una puede
   mostrar los valores de una pieza distinta. Al entrar de nuevo se usa la última que estuvo activa, y las otras siguen
   mostrando su pieza.
@@ -57,11 +57,11 @@ Cómo se crean y se guardan los componentes propios está en
 Debajo de la fila de pestañas, cada pestaña de componente muestra una barra con el color de su grupo. Las pestañas
 de circuito no la tienen.
 
-- **Ruta**: `▤ circuito › ⬚ Ram › ⬚ Selector 2`. Cada paso es la pieza con el mismo nombre que tiene en el
-  [árbol del circuito](#árbol-del-circuito) (su etiqueta, o su tipo, numerado si hay varias iguales sin etiqueta). Un
+- **Ruta**: `▤ circuito › ⬚ Ram › ⬚ Selector · copia 2`. Cada paso es la pieza con el mismo nombre que tiene en el
+  [árbol del circuito](#árbol-del-circuito) (su etiqueta, o su tipo, numerado si hay varias iguales sin etiqueta; las de un componente propio, como copias). Un
   clic en el circuito trae su pestaña; un clic en un paso entra a ese componente con la ruta anterior como valores. El
-  último paso es donde estás y no hace nada.
-- **Valores de**: lista todas las piezas por las que se llega a este componente, como «Inversor 2 en Doble inversor»
+  último paso es donde estás: va en negrita, con el color del texto (no gris, porque no está apagado) y no hace nada.
+- **Valores de**: lista todas las piezas por las que se llega a este componente, como «Inversor · copia 2 en Doble inversor»
   o, si está puesto en el circuito mismo, «Inversor en lrv32im» (con el nombre del circuito). Elegir una cambia los
   valores que se ven y la ruta.
   «Sin valores (no se simula)» deja la pestaña sin valores; es lo único que hay cuando ninguna pieza usa el componente.
@@ -71,10 +71,18 @@ de circuito no la tienen.
   la selecciona, mueve la vista hasta ella y la hace brillar un momento (1,5 s, con el color de selección del tema;
   quieto, sin desvanecerse, con «Reducir movimiento») para que el ojo la encuentre. Lo mismo al llegar desde F8, la
   lista de Problemas o el árbol del circuito. Está apagado sin valores.
+- **Probar…** (solo en la pestaña de una máquina de estados): «Probar…» entra al modo prueba (es la misma entrada que la de Propiedades de la máquina y la de Lógica ▸ «Probar la máquina…»; mientras se prueba dice «Ya estás probando»).
 - **Guardar en Mis componentes / Agregar a Mis componentes**: «Agregar» aparece cuando el componente no está en Mis componentes
   (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
   la de Mis componentes y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe
   en Mis componentes por sí solo.
+- **Lo que no cabe**: la barra nunca hace dos filas ni impide ensanchar los paneles de los lados. Si la ventana es
+  angosta (o la interfaz está al 150 % o 200 %), lo que no cabe sale por la derecha, en orden, y aparece el botón «»»,
+  como en la barra de herramientas: abre un menú con lo que salió, en el mismo orden («Valores de: …» como un submenú
+  con sus piezas, «Se usa en N lugares» como una línea de texto, y los botones con su estado y su razón cuando están
+  apagados). La ruta es lo último que se acorta: si tampoco cabe, sus pasos se cortan con «…», primero los anteriores
+  y al final el lugar donde estás, y al pasar el mouse se lee el nombre entero. «Se usa en N lugares» y el aviso en
+  ámbar se leen bien sobre el color del grupo, en el tema claro y en el oscuro.
 - **Un cambio que no se hizo**: si un cambio adentro no se puede hacer, no cambia nada y la barra lo dice en ámbar
   durante unos segundos; la barra de estado también lo dice.
 
@@ -178,9 +186,17 @@ lo que hay dentro de cada componente propio, a cualquier profundidad. Es el mism
 - **Las filas**: la primera es el circuito, con su nombre y cuántas piezas tiene («1 pieza», «12 piezas»). Debajo va
   cada pieza, en el orden del circuito, con el ícono de la paleta. Una pieza de un componente propio se despliega en
   las piezas de adentro. Los cables, los marcos y las notas no son piezas y no aparecen; las filas no muestran valores.
+- **Las máquinas de estados**: la pieza de una máquina se despliega en sus estados, una fila cada uno, con un punto del
+  color del estado (el inicial lleva un segundo aro y dice «estado inicial»); si tiene notas, al final va el grupo
+  «Notas (n)», con una fila por nota (su primera línea). Un estado con un problema se ve en rojo (error) o dorado
+  (aviso) y con un «!». Un clic en un estado o en una nota entra a la máquina (en esa pieza) y lo elige en el diagrama.
+  Las flechas y los textos libres no tienen fila.
 - **Los nombres**: una pieza se llama por su etiqueta («IR · Registro», con el tipo detrás) o, si no tiene, por su
   tipo («Ram», «AND de 3 entradas»). Si en un mismo lugar hay varias sin etiqueta del mismo tipo, se numeran en el
-  orden del circuito: «Multiplexor 1» … «Multiplexor 4». El identificador de la pieza («c5/c2») está en la ayuda al
+  orden del circuito: «Multiplexor 1» … «Multiplexor 4». Las piezas de un componente propio o de una máquina de
+  estados son copias de ese componente y se numeran como copias: «Sumador · copia 1», «Sumador · copia 2» (en inglés
+  «copy»), para no confundirlas con otro componente llamado «Sumador 2» (como el que deja «Duplicar como otra
+  máquina» o una importación con el nombre ocupado). El nombre solo se muestra: no se guarda. El identificador de la pieza («c5/c2») está en la ayuda al
   pasar el mouse. La [barra de lugar](#la-barra-de-lugar) y Problemas las nombran igual.
 - **Clic en una fila**: lleva a la pieza. Si está en otro lugar, primero va a esa pestaña (la del circuito, o la del
   componente que la tiene adentro, con los valores de esa pieza, abriéndola si hace falta); después la selecciona y la

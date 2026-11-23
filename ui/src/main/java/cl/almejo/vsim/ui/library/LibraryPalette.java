@@ -108,7 +108,12 @@ public final class LibraryPalette {
                 LibraryPalette.this.addToLibrary(bundle);
             }
         });
-        removePlaceBar = view.addAboveCanvas(placeBar);
+        Runnable removeFromView = view.addAboveCanvas(placeBar);
+        Runnable forget = placeBar.shownIn(view);
+        removePlaceBar = () -> {
+            forget.run();
+            removeFromView.run();
+        };
     }
 
     public void dispose() {

@@ -145,6 +145,15 @@ public interface WindowCommands {
         return false;
     }
 
+    /**
+     * Whether {@code view}'s tab is the one this window shows now: after {@link #showPlace} it is not when the tab shown
+     * before kept the front (a draft's «Seguir probando», hito 4 of the machines), and the caller must not act on the
+     * hidden tab. True outside a real window, where the caller works on what it has.
+     */
+    default boolean isShown(EditorView view) {
+        return true;
+    }
+
     /** Ventana ▸ «Cerrar los componentes de este circuito»: the component tabs of the active tab's group. */
     default void closeComponents() {
     }

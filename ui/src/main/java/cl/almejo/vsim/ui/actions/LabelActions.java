@@ -165,11 +165,12 @@ public final class LabelActions {
                 text -> setStickyTextIfChanged(id, text.strip())), stillThere);
     }
 
-    /** One undo step when the confirmed text changes what the note says. */
+    /** One undo step when the confirmed text changes what the note says; blanks only change nothing. */
     private void setStickyTextIfChanged(ElementId id, String text) {
         Optional<StickyNote> current = openDocument.document().stickyNote(id)
                 .filter(note -> !StickyNoteLock.isLocked(openDocument, id));
-        if (current.isEmpty()) {
+        // an edit that leaves only blanks keeps the note as it was (as a free text does)
+        if (current.isEmpty() || text.isBlank()) {
             return;
         }
         StickyContent edited = switch (current.get().content()) {

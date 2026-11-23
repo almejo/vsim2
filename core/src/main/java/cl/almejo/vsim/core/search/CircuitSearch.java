@@ -104,8 +104,10 @@ public final class CircuitSearch {
             if (depth >= MAXIMUM_DEPTH) {
                 return;
             }
+            // a state machine's body is only the pins generated from its diagram: nothing of the user's to find
             Optional<ComponentDefinition> definition = SubcircuitTypes.definitionIdOf(instance.typeId())
-                    .flatMap(document::definition);
+                    .flatMap(document::definition)
+                    .filter(found -> !found.isMachine());
             if (definition.isEmpty()) {
                 return;
             }

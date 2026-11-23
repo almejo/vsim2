@@ -1,6 +1,7 @@
 package cl.almejo.vsim.automation.read;
 
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -17,6 +18,8 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
@@ -308,6 +311,30 @@ class ProblemsReaderTest {
         assertThat(problem.kind()).isEqualTo("PIN_LOOSENED_BY_SHAPE_CHANGE");
         assertThat(problem.elementIds()).containsExactly(piece.id().value());
         assertThat(problem.insidePaths()).containsExactly(inside);
+    }
+
+    /** A state machine's problems reach the AI as the editor lists them: its model's, and a running copy's. */
+    @Test
+    void aMachinesProblemsAreTheEditorsRows() {
+        fixture.document.putDefinition(MachineDefinitions.create("maquina-1", "Detector")
+                .withMachine(StateMachine.initial().withInitialStateId(Optional.empty())));
+        Component copy = fixture.place(SubcircuitTypes.typeIdOf("maquina-1"), 0, 0);
+        VisibleState.MachineVisibleState running = new VisibleState.MachineVisibleState("s0", "S0",
+                Optional.empty(), Optional.empty(), List.of(), true);
+        fixture.useSnapshot(new SimulationSnapshot(0, 0, 0, true, Map.of(), Map.of(copy.id().value(), running),
+                List.of(), Optional.empty()));
+
+        List<ProblemView> problems = ProblemsReader.read(fixture.source()).problems();
+
+        assertThat(problems).extracting(ProblemView::kind)
+                .containsExactly("MACHINE_NO_INITIAL_STATE", "MACHINE_CLOCK_UNDEFINED");
+        assertThat(problems).extracting(ProblemView::warning).containsExactly(false, true);
+        assertThat(problems).allSatisfy(problem -> {
+            assertThat(problem.elementIds()).containsExactly(copy.id().value());
+            assertThat(problem.message()).contains("Detector");
+        });
+        assertThat(problems.get(0).message()).contains("initial");
+        assertThat(problems.get(1).message()).contains("CLK");
     }
 
     /** The editor's linked-file rows are its watcher's, the unreadable ones too, not a look at the files. */

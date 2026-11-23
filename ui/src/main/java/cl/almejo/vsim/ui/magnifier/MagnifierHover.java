@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.tools.EnterableInstances;
 
 import java.awt.geom.Point2D;
@@ -45,7 +46,19 @@ final class MagnifierHover {
         Point2D gridPoint = pane.viewport().screenToGrid(screenPoint.getX(), screenPoint.getY());
         Optional<DocumentElement> hit = pane.hitTester().elementAt(pane.openDocument().document(), gridPoint);
         return hit.filter(Component.class::isInstance).map(Component.class::cast)
-                .filter(component -> EnterableInstances.definitionOf(pane.openDocument(), component).isPresent());
+                .filter(component -> canLookInside(pane.openDocument(), component));
+    }
+
+    /**
+     * True when the magnifier has something to show inside {@code component}: an enterable user component, but not a
+     * state machine, whose body is only the pins generated from its diagram.
+     */
+    static boolean canLookInside(OpenDocument place, Component component) {
+        OpenDocument circuit = place.parent().orElse(place);
+        return EnterableInstances.definitionOf(place, component)
+                .flatMap(definitionId -> circuit.document().definition(definitionId))
+                .filter(definition -> !definition.isMachine())
+                .isPresent();
     }
 
     void pointerMoved(CircuitCanvas pane, Point2D screenPoint) {

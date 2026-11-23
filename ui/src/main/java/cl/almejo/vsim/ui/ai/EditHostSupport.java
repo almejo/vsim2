@@ -8,10 +8,12 @@ import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.EditInsideCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.ui.window.PlaceBar;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.netlist.ProbeNaming;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -112,9 +114,35 @@ final class EditHostSupport {
             try {
                 openDocument.execute(command);
             } catch (InsideEditRefusedException refusal) {
-                throw new AutomationException(AutomationError.NOT_ALLOWED, PlaceBar.explanation(refusal),
-                        Map.of("reason", refusal.messageKey()));
+                throw refused(refusal);
             }
+        }
+
+        /**
+         * Inside a component, what the place refuses before applying anything (an edit of a state machine's body),
+         * checked with the place's own rule and answered with the same error as {@link #execute}.
+         */
+        @Override
+        public void requireAccepts(Command command) {
+            if (!openDocument.isBody()) {
+                return;
+            }
+            Optional<ComponentDefinition> definition = openDocument.parent().flatMap(parent -> openDocument
+                    .definitionId().flatMap(parent.document()::definition));
+            try {
+                definition.ifPresent(edited -> EditInsideCommand.requireAllowedInside(edited, command));
+            } catch (InsideEditRefusedException refusal) {
+                throw refused(refusal);
+            }
+        }
+
+        private static AutomationException refused(InsideEditRefusedException refusal) {
+            String explanation = PlaceBar.explanation(refusal);
+            if (refusal.messageKey().equals(EditInsideCommand.MACHINE_REFUSAL)) {
+                explanation += " The AI cannot edit state machines yet; the user changes them in their own tab.";
+            }
+            return new AutomationException(AutomationError.NOT_ALLOWED, explanation,
+                    Map.of("reason", refusal.messageKey()));
         }
 
         /** The circuit a place inside a component belongs to: it keeps each piece's own memory contents. */

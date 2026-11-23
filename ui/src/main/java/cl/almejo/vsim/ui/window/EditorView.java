@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.CreateMachineCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
@@ -16,7 +17,10 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.machine.MachineCreation;
+import cl.almejo.vsim.ui.machine.PlaceMachineTool;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.ContentZoom;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
@@ -93,6 +97,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -122,6 +127,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private List<CircuitCanvas> knownPanes = List.of();
     /** What the window's tool choice makes for each pane; null while the panes use their default tool. */
     private Supplier<? extends Tool> toolChoice;
+    /** The tool choices the content shown instead of the panes takes ({@link #chooseToolInstead}). */
+    private final Map<Class<? extends Tool>, Runnable> toolsInstead = new HashMap<>();
     private boolean spreadingDefaultTool;
     private final EditorActions actions;
     private KeyboardFocus keyboardFocus = KeyboardFocus.SWING;
@@ -149,8 +156,14 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final StatusBar statusBar = new StatusBar();
     private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
-    private final InspectorPanel inspector = new InspectorPanel(viewFocus, () -> viewFocus.request(canvas()));
+    private final InspectorPanel inspector = new InspectorPanel(viewFocus, () -> viewFocus.request(focusTarget()));
     private final CanvasArea canvasArea;
+    /** What {@link #showInsteadOfCanvas} shows where the panes go; empty while they show. */
+    private Optional<JComponent> canvasSubstitute = Optional.empty();
+    /** What gets the focus while {@link #canvasSubstitute} shows (the substitute itself, or a part of it). */
+    private Optional<java.awt.Component> substituteFocus = Optional.empty();
+    /** The drafts this view keeps outside its circuit, asked before it is saved, closed or left. */
+    private final DraftGuards draftGuards = new DraftGuards();
     private final BottomDock bottomDock;
     /** Canvas | right panel; the left column | this; both with the strip: rearranged by presentation mode. */
     private final JSplitPane inspectorSplit;
@@ -172,6 +185,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
     private final InlineTextEditor inlineEditor;
+    private final List<InlineTextEditor> otherInlineEditors = new ArrayList<>();
     /** Which part has the keyboard of this window (a Teclado after a click on it), shared by every pane. */
     private final KeyboardCapture keyboardCapture;
     private final CapturedKeys capturedKeys;
@@ -221,11 +235,17 @@ public final class EditorView extends JPanel implements CanvasHost {
         actions.runStepsWith(new UndoInItsPlace(this));
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
+        selectionActions.showNoticesWith(this::showNotice);
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
-            setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
+            if (entry.id().equals(MachineCreation.PALETTE_ID)) {
+                setToolOnEveryPane(() -> new PlaceMachineTool(services.library()::ids));
+            } else {
+                setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
+            }
             canvas().requestFocusInWindow();
         });
-        this.leftColumn = new LeftColumn(palette, services.preferences(), services.appearance()::interfaceZoom, viewFocus, () -> viewFocus.request(canvas()));
+        this.leftColumn = new LeftColumn(palette, services.preferences(), services.appearance()::interfaceZoom, viewFocus,
+                () -> viewFocus.request(focusTarget()));
         createInspectorToggles();
 
         this.menuBar = actions.createMenuBar();
@@ -268,6 +288,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 () -> performIfEnabled(actions.start()));
         inlineEditor = new InlineTextEditor(this::canvas);
         forEachPane(this::configurePane);
+        forEachPane(pane -> pane.setPaletteActionDrop(MachineCreation.PALETTE_ID, this::dropNewMachine));
         forEachPane(pane -> pane.addDrawingListener(actions::refresh)); // Deshacer drops a corner while a wire is drawn
         forEachPane(pane -> pane.addDrawingListener(selectionActions::refresh)); // so do Cortar, Copiar and Duplicar
         forEachPane(pane -> pane.addDrawingListener(selectionActions::refreshPaste)); // and Pegar
@@ -340,6 +361,62 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public CircuitCanvas canvas() { return canvasPanes.active(); }
 
+    /**
+     * What gets the keyboard focus when it goes back to the canvas (a tab shown, Esc in a side panel): the active pane,
+     * or the content shown instead of the panes ({@link #showInsteadOfCanvas}).
+     */
+    public java.awt.Component focusTarget() {
+        if (substituteFocus.isPresent()) {
+            return substituteFocus.get();
+        }
+        return canvas();
+    }
+
+    /**
+     * Shows {@code content} where the circuit panes go (a machine's diagram, spec 2026-11-14 §2.4) until the returned
+     * runnable runs: the panes leave the view, so they get no pointer, key, focus or drop (their frame timer stops;
+     * whoever shows the content keeps their snapshot listeners fed with {@link CircuitCanvas#refreshSnapshot}), the
+     * zoom actions and the status bar's zoom act on {@code zoom}, and the focus goes to {@code content}. What is shown
+     * above the canvas (the place bar, the find bar) stays. One content at a time.
+     */
+    public Runnable showInsteadOfCanvas(JComponent content, ContentZoom zoom) {
+        return showInsteadOfCanvas(content, zoom, content);
+    }
+
+    /**
+     * As {@link #showInsteadOfCanvas(JComponent, ContentZoom)}, the focus going to {@code focus} (a part of
+     * {@code content}: a machine's diagram inside the frame of its test mode) instead of {@code content} itself.
+     */
+    public Runnable showInsteadOfCanvas(JComponent content, ContentZoom zoom, java.awt.Component focus) {
+        Objects.requireNonNull(content, "content");
+        Objects.requireNonNull(zoom, "zoom");
+        Objects.requireNonNull(focus, "focus");
+        if (canvasSubstitute.isPresent()) {
+            throw new IllegalStateException("the view already shows another content instead of its panes");
+        }
+        canvasArea.remove(canvasPanes);
+        canvasArea.add(content, BorderLayout.CENTER);
+        canvasSubstitute = Optional.of(content);
+        substituteFocus = Optional.of(focus);
+        canvasArea.layOutNow();
+        Runnable stopZooming = actions.zoomContentInstead(zoom);
+        Runnable stopFollowingTheZoom = zoom.addViewListener(() -> statusBar.showZoom(zoom.zoom()));
+        statusBar.showZoom(zoom.zoom());
+        return () -> {
+            if (canvasSubstitute.isEmpty() || canvasSubstitute.get() != content) {
+                return;
+            }
+            stopFollowingTheZoom.run();
+            stopZooming.run();
+            canvasArea.remove(content);
+            canvasArea.add(canvasPanes, BorderLayout.CENTER);
+            canvasSubstitute = Optional.empty();
+            substituteFocus = Optional.empty();
+            canvasArea.layOutNow();
+            statusBar.showZoom(canvas().viewport().zoom());
+        };
+    }
+
     /** Every pane of this window, in reading order. */
     public List<CircuitCanvas> panes() {
         return canvasPanes.panes();
@@ -390,6 +467,31 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /**
+     * Chooses a tool of {@code toolType} for every pane ({@link #setToolOnEveryPane}), unless the content shown instead
+     * of the panes took that choice ({@link #chooseToolInstead}): then that runs instead (a machine's diagram arms its
+     * own note tool for «Nota adhesiva»).
+     */
+    public <T extends Tool> void chooseTool(Class<T> toolType, Supplier<T> newTool) {
+        Runnable instead = toolsInstead.get(Objects.requireNonNull(toolType, "toolType"));
+        if (instead != null) {
+            instead.run();
+        } else {
+            setToolOnEveryPane(newTool);
+        }
+    }
+
+    /**
+     * From now on {@link #chooseTool} with {@code toolType} runs {@code instead}, until the returned runnable runs (the
+     * content shown instead of the panes has a tool of its own for it).
+     */
+    public Runnable chooseToolInstead(Class<? extends Tool> toolType, Runnable instead) {
+        Objects.requireNonNull(toolType, "toolType");
+        Objects.requireNonNull(instead, "instead");
+        toolsInstead.put(toolType, instead);
+        return () -> toolsInstead.remove(toolType, instead);
+    }
+
+    /**
      * The user was taken away from this view (its tab was hidden, the AI started a task on its circuit): every pane's
      * tool cancels what must not survive it (a continuous wire's path). Returns the notice that says so («Cable
      * cancelado»), for the caller to show where the user looks now; empty when nothing was cancelled.
@@ -434,10 +536,31 @@ public final class EditorView extends JPanel implements CanvasHost {
     public ZoomControl zoomControl() { return zoomControl; }
     public InspectorPanel inspector() { return inspector; }
     public BottomDock bottomDock() { return bottomDock; }
+
+    /** The drafts this view keeps outside its circuit (a machine's test mode), settled before save, close or switch. */
+    public DraftGuards draftGuards() { return draftGuards; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
 
     /** The editor that writes texts right over the canvas (labels, titles, the Constante value). */
     public InlineTextEditor inlineEditor() { return inlineEditor; }
+
+    /**
+     * Another editor that writes texts right over this tab (a machine's diagram has its own): a close finishes its open
+     * edit too, as the circuit's ({@link #inlineEditors()}). Returns what takes it away again.
+     */
+    public Runnable addInlineEditor(InlineTextEditor editor) {
+        Objects.requireNonNull(editor, "editor");
+        otherInlineEditors.add(editor);
+        return () -> otherInlineEditors.remove(editor);
+    }
+
+    /** Every editor that writes texts over this tab, the circuit's first: a close finishes their open edits first. */
+    public List<InlineTextEditor> inlineEditors() {
+        List<InlineTextEditor> all = new ArrayList<>();
+        all.add(inlineEditor);
+        all.addAll(otherInlineEditors);
+        return all;
+    }
 
     /** Which part has this window's keyboard (decision 5): painters and the Terminal window read it. */
     public KeyboardCapture keyboardCapture() { return keyboardCapture; }
@@ -969,23 +1092,26 @@ public final class EditorView extends JPanel implements CanvasHost {
 
         @Override
         public double zoom() {
-            return canvas().viewport().zoom();
+            return actions.contentZoom().map(ContentZoom::zoom).orElseGet(() -> canvas().viewport().zoom());
         }
 
         @Override
         public void zoomAroundCenter(double zoom) {
-            canvas().zoomAroundCenter(zoom);
+            actions.contentZoom().ifPresentOrElse(content -> content.zoomAroundCenter(zoom),
+                    () -> canvas().zoomAroundCenter(zoom));
         }
 
         @Override
         public void zoomTo(double zoom) {
-            CircuitCanvas pane = canvas();
-            pane.zoomTo(ZoomTargets.atZoom(pane.viewState(), zoom));
+            actions.contentZoom().ifPresentOrElse(content -> content.zoomAroundCenter(zoom), () -> {
+                CircuitCanvas pane = canvas();
+                pane.zoomTo(ZoomTargets.atZoom(pane.viewState(), zoom));
+            });
         }
 
         @Override
         public void returnFocus() {
-            canvas().requestFocusInWindow();
+            focusTarget().requestFocusInWindow();
         }
     }
 
@@ -1056,7 +1182,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         if (canvas.tool() != canvas.defaultTool() || canvas.drawsBetweenClicks()) {
             canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
         }
-        viewFocus.request(canvas);
+        viewFocus.request(focusTarget());
     }
 
     /**
@@ -1294,6 +1420,13 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public Optional<KeyStroke> shortcut(String id) {
         return new KeyBindings(services.preferences()).strokeFor(id);
+    }
+
+    /** A «Máquina de estados» dragged from the palette lands at {@code origin}: one undo step, and it is selected. */
+    private void dropNewMachine(GridPoint origin) {
+        CreateMachineCommand command = MachineCreation.create(openDocument, origin, services.library().ids());
+        selection.select(command.instanceId().orElseThrow());
+        canvas().repaint();
     }
 
     /** A new pane's canvas: same document, a renderer of its own, the window's selection. */

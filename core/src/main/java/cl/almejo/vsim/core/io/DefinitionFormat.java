@@ -31,7 +31,8 @@ public final class DefinitionFormat {
                          @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.StickyNoteEntry> stickyNotes,
                          @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                          @JsonInclude(JsonInclude.Include.NON_NULL) Long revision,
-                         @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance) {
+                         @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance,
+                         @JsonInclude(JsonInclude.Include.NON_NULL) MachineEntries.MachineEntry machine) {
     }
 
     private final ComponentTypeRegistry registry;
@@ -47,7 +48,7 @@ public final class DefinitionFormat {
                 KIND_COMPONENT, root.id(), root.name(), root.description(), root.width(), root.height(), root.pinout(),
                 root.components(), root.wires(), root.labels(), root.frames(), root.stickyNotes(),
                 bundle.dependencies().stream().map(DefinitionEntries::entry).toList(), root.revision(),
-                root.appearance());
+                root.appearance(), root.machine());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -81,7 +82,7 @@ public final class DefinitionFormat {
                 new ArrayList<>(CircuitFormat.entries(file.definitions()));
         entries.add(new DefinitionEntries.DefinitionEntry(file.id(), file.name(), file.description(), file.width(),
                 file.height(), file.pinout(), file.components(), file.wires(), file.labels(), file.frames(),
-                file.stickyNotes(), file.revision(), file.appearance()));
+                file.stickyNotes(), file.revision(), file.appearance(), file.machine()));
         DefinitionEntries.readInto(scratch, entries, local);
         ComponentDefinition definition = scratch.definition(file.id()).orElseThrow();
         try {

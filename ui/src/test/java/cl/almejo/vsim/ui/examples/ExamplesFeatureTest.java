@@ -101,7 +101,7 @@ class ExamplesFeatureTest {
                 "Decodificador 2 a 4", "Paridad de 3 bits", "Multiplicador 2×2", "Registro de 4 bits",
                 "Registro de desplazamiento", "Contador de 4 bits", "Contador Johnson", "Bus de 8 bits",
                 "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM", "RAM que se llena", "Hola, terminal",
-                "Punto de parada", "Formatos de valor", "Matriz LED", "Marquesina");
+                "Punto de parada", "Formatos de valor", "Matriz LED", "Marquesina", "Máquinas de estado");
         assertThat(item(examples, "Sumador completo").getToolTipText())
                 .isEqualTo("Suma A, B y el acarreo de entrada con dos XOR, dos AND y una OR");
         assertThat(item(examples, "Sumador completo").getClientProperty(Actions.SEARCH_TERMS))
@@ -110,6 +110,26 @@ class ExamplesFeatureTest {
         disposer.run();
         assertThat(texts(file)).isEqualTo(before);
         recentDisposer.run();
+    }
+
+    @Test
+    void theStateMachineExamplesAreInTheirOwnSubmenuAtTheEndWithTheirDescriptions() {
+        Runnable disposer = feature().install(view);
+        JMenu examples = examplesMenu(view.menu(MenuId.FILE));
+
+        assertThat(examples.getMenuComponent(examples.getMenuComponentCount() - 1)).isInstanceOf(JMenu.class);
+        JMenu machines = (JMenu) examples.getMenuComponent(examples.getMenuComponentCount() - 1);
+        assertThat(machines.getText()).isEqualTo("Máquinas de estado");
+        assertThat(texts(machines)).containsExactly("Semáforo", "Detector de secuencia");
+        assertThat(item(machines, "Semáforo").getToolTipText()).isNotBlank();
+        assertThat(item(machines, "Semáforo").getClientProperty(Actions.SEARCH_TERMS)).isEqualTo("semaforo");
+        assertThat(texts(examples)).as("no machine example outside the submenu").doesNotContain("Semáforo",
+                "Detector de secuencia");
+
+        item(machines, "Detector de secuencia").doClick(0);
+        assertThat(untitled).singleElement().satisfies(document ->
+                assertThat(document.name()).isEqualTo("Detector de secuencia"));
+        disposer.run();
     }
 
     @Test
@@ -126,6 +146,7 @@ class ExamplesFeatureTest {
         for (Locale locale : List.of(Messages.SPANISH, Locale.ENGLISH)) {
             ResourceBundle bundle = Messages.bundle(locale);
             assertThat(bundle.containsKey("menu.file.examples")).as("%s menu.file.examples", locale).isTrue();
+            assertThat(bundle.containsKey("menu.file.examples.machines")).as("%s machines", locale).isTrue();
             assertThat(bundle.containsKey("example.openFailed")).as("%s example.openFailed", locale).isTrue();
             for (String id : BundledExamples.ids()) {
                 assertThat(bundle.getString("example." + id)).as("%s %s", locale, id).isNotBlank();

@@ -192,6 +192,32 @@ class ExpressionParserTest {
         assertThat(ExpressionParser.parseLine("F = A +").mergedNames()).isEmpty();
     }
 
+    // --- an expression alone (state machine conditions) ---
+
+    @Test
+    void anExpressionAloneReadsLikeTheRightSideOfALine() {
+        ExpressionParser.ExpressionResult result = ExpressionParser.parseExpression("A B' + C");
+        assertThat(result.problem()).isEmpty();
+        assertThat(result.expression()).contains(or(and(A, new Not(B)), C));
+    }
+
+    @Test
+    void anExpressionAloneReportsColumnsInItsOwnText() {
+        ExpressionParser.ExpressionResult result = ExpressionParser.parseExpression("A + + B");
+        assertThat(result.expression()).isEmpty();
+        assertThat(result.problem().orElseThrow().messageKey()).isEqualTo(ExpressionProblem.MISSING_OPERAND);
+        assertThat(result.problem().orElseThrow().column()).isEqualTo(4);
+        assertThat(ExpressionParser.parseExpression("  ").problem().orElseThrow().messageKey())
+                .isEqualTo(ExpressionProblem.EMPTY_EXPRESSION);
+        assertThat(ExpressionParser.parseExpression("A = B").problem().orElseThrow().messageKey())
+                .isEqualTo(ExpressionProblem.UNEXPECTED_CHARACTER);
+    }
+
+    @Test
+    void anExpressionAloneReportsMergedNames() {
+        assertThat(ExpressionParser.parseExpression("AB + C").mergedNames()).containsExactly("AB");
+    }
+
     // --- the tree ---
 
     @Test
@@ -239,6 +265,16 @@ class ExpressionParserTest {
 
     private static Expression xor(Expression... operands) {
         return new Xor(List.of(operands));
+    }
+
+    @Test
+    void theNameSpansComeFromTheTokensAlsoInATextThatDoesNotParse() {
+        assertThat(ExpressionParser.nameSpans("x' + xy·x")).containsExactly(
+                new ExpressionParser.NameSpan("x", 0, 1), new ExpressionParser.NameSpan("xy", 5, 7),
+                new ExpressionParser.NameSpan("x", 8, 9));
+        assertThat(ExpressionParser.nameSpans("x + ? y")).extracting(ExpressionParser.NameSpan::name)
+                .containsExactly("x", "y");
+        assertThat(ExpressionParser.nameSpans("")).isEmpty();
     }
 
     @Test

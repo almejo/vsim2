@@ -8,7 +8,6 @@ import cl.almejo.vsim.ui.actions.ContextMenuEntry;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
@@ -180,7 +179,7 @@ public final class MagnifierFeatures {
     private void contribute(JPopupMenu menu, Optional<DocumentElement> target, Point2D gridPosition) {
         CircuitCanvas pane = view.canvas();
         Optional<Component> instance = target.filter(Component.class::isInstance).map(Component.class::cast)
-                .filter(component -> EnterableInstances.definitionOf(view.openDocument(), component).isPresent());
+                .filter(component -> MagnifierHover.canLookInside(view.openDocument(), component));
         if (instance.isEmpty()) {
             return;
         }

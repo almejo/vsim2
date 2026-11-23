@@ -527,4 +527,71 @@ class AutosaveServiceTest {
         autosave.afterPendingWrites(() -> { throw new AssertionError("must not run after shutdown"); });
         assertThat(runWrites()).isZero();
     }
+
+    /** What a fake editor keeps outside its documents: one draft, held or not, with an edit count. */
+    private static final class FakeDrafts implements RecoveryDrafts {
+        private boolean holding;
+        private long edits;
+
+        @Override
+        public boolean holds(OpenDocument document) {
+            return holding;
+        }
+
+        @Override
+        public long changeCount(OpenDocument document) {
+            return edits;
+        }
+
+        @Override
+        public String serialized(OpenDocument document) {
+            return document.serialized().replaceFirst("\\{", "{ \"draft\" : " + edits + ",");
+        }
+    }
+
+    /**
+     * Fix round 2 of hito 4: a machine's test draft lives outside the document, and its recovery copy carries it: a
+     * document holding a draft is copied even when saved, every edit of the draft counts as a change, and the copy goes
+     * once the document is saved and holds no draft.
+     */
+    @Test
+    void aDraftOutsideTheDocumentIsCopiedAndEachOfItsEditsCounts() throws Exception {
+        FakeDrafts drafts = new FakeDrafts();
+        AutosaveService withDrafts = new AutosaveService(store, Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add,
+                drafts);
+        OpenDocument document = untracked();
+        withDrafts.track(document);
+        try {
+            withDrafts.tick();
+            assertThat(runWrites()).isZero();
+
+            drafts.holding = true;
+            drafts.edits = 1;
+            withDrafts.tick();
+            assertThat(runWrites()).isEqualTo(1);
+            assertThat(Files.readString(store.contentPath(document.recoveryId()))).contains("\"draft\" : 1");
+
+            withDrafts.tick();
+            assertThat(runWrites()).as("no draft edit since the last copy").isZero();
+
+            drafts.edits = 2;
+            withDrafts.tick();
+            assertThat(runWrites()).isEqualTo(1);
+            assertThat(Files.readString(store.contentPath(document.recoveryId()))).contains("\"draft\" : 2");
+
+            // the document back at its saved state keeps the copy while the draft is held
+            place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+            document.history().undo();
+            runWrites();
+            assertThat(hasCopy(document)).isTrue();
+
+            drafts.holding = false;
+            withDrafts.tick();
+            runWrites();
+            assertThat(hasCopy(document)).isFalse();
+        } finally {
+            withDrafts.untrack(document);
+            runWrites();
+        }
+    }
 }

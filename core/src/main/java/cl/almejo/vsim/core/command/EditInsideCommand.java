@@ -29,6 +29,12 @@ import java.util.function.Function;
  */
 public final class EditInsideCommand implements WrapsCommand, LoosensPins {
 
+    /**
+     * The explanation of an edit refused inside a state machine: its body holds only the pins generated from its
+     * diagram, so nothing but the machine's own {@link EditMachineCommand} is made there.
+     */
+    public static final String MACHINE_REFUSAL = "machine.refused.circuitEdit";
+
     private final String definitionId;
     private final Command bodyCommand;
     private final CircuitDocument workingCopy;
@@ -63,6 +69,11 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
         ComponentDefinition previous = document.definition(definitionId).orElseThrow(() ->
                 new IllegalStateException("the document has no definition " + definitionId));
         placeName = previous.name();
+        requireAllowedInside(previous, bodyCommand);
+        if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
+            applyToTheDefinition(document, definitionEdit);
+            return;
+        }
         if (prepared && !copyMatches(document)) {
             if (writeBack != null) {
                 writeBack.apply(document);
@@ -85,6 +96,40 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
             bodyCommand.revert(workingCopy);
             throw exception;
         }
+    }
+
+    /**
+     * Refuses, before anything changes, any edit of a state machine's body but the machine's own diagram edit: the
+     * body is generated from the diagram, so a part or wire added there (a paste, a dropped file, the AI through a
+     * place opened without the machine's tab) would be dropped by the next diagram edit or load, and a changed pin
+     * would no longer match the machine's inputs and outputs. Here, and not in the tab, so every place refuses it.
+     * Public so a caller that only checks an edit (the AI's validate-only call) refuses exactly what applying it would.
+     *
+     * @throws InsideEditRefusedException with {@link #MACHINE_REFUSAL}, before anything changed
+     */
+    public static void requireAllowedInside(ComponentDefinition definition, Command bodyCommand) {
+        if (!definition.isMachine()) {
+            return;
+        }
+        if (bodyCommand instanceof EditMachineCommand machineEdit && machineEdit.definitionId().equals(definition.id())) {
+            return;
+        }
+        throw new InsideEditRefusedException(MACHINE_REFUSAL, List.of());
+    }
+
+    /**
+     * An edit of the definition itself (a machine's diagram): it applies to the document, and the working copy, whose
+     * body it does not edit, is brought to the new body afterwards (ids kept). What its update of the placed pieces
+     * could not carry is reported like a write-back's.
+     */
+    private void applyToTheDefinition(CircuitDocument document, EditsDefinitionItself definitionEdit) {
+        if (!definitionEdit.definitionId().equals(definitionId)) {
+            throw new IllegalArgumentException("an edit of " + definitionId + " cannot change "
+                    + definitionEdit.definitionId());
+        }
+        definitionEdit.apply(document);
+        writeBack = definitionEdit.plannedUpdate().orElse(null);
+        bringCopyToTheDefinition(document);
     }
 
     /**
@@ -143,6 +188,11 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
 
     @Override
     public void revert(CircuitDocument document) {
+        if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
+            definitionEdit.revert(document);
+            bringCopyToTheDefinition(document);
+            return;
+        }
         if (!copyMatches(document)) {
             if (writeBack != null) {
                 writeBack.revert(document);
@@ -229,6 +279,9 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
      * (spec §6.1); empty before the first apply.
      */
     public List<RemovedPinWire> removedPinWires() {
+        if (bodyCommand instanceof EditsDefinitionItself definitionEdit) {
+            return definitionEdit.removedPinWires();
+        }
         return writeBack == null ? List.of() : writeBack.removedPinWires();
     }
 

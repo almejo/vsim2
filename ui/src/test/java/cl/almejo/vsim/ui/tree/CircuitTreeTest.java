@@ -5,7 +5,14 @@ import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineNote;
+import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -157,7 +164,7 @@ class CircuitTreeTest {
     }
 
     @Test
-    void unlabeledPiecesOfOneTypeAreNumbered() {
+    void unlabeledPiecesOfOneComponentAreNumberedCopies() {
         inverterInThreePlaces();
         Component labeled = place(openDocument, StandardComponentTypes.BUFFER, 60, 0, Map.of());
         openDocument.execute(new SetLabelCommand(labeled.id(), "IR"));
@@ -165,8 +172,8 @@ class CircuitTreeTest {
 
         assertThat(tree.rowText("c2")).contains("Inversor");
         assertThat(tree.rowText("c3")).contains("Doble inversor");
-        assertThat(tree.rowText("c3/c2")).contains("Inversor 1");
-        assertThat(tree.rowText("c3/c3")).contains("Inversor 2");
+        assertThat(tree.rowText("c3/c2")).contains("Inversor · copia 1");
+        assertThat(tree.rowText("c3/c3")).contains("Inversor · copia 2");
         assertThat(tree.rowText(labeled.id().value())).contains("IR · Buffer");
     }
 
@@ -324,7 +331,7 @@ class CircuitTreeTest {
 
         assertThat(tree.resultPaths()).containsExactly("c2/c2", "c3/c2/c2", "c3/c3/c2");
         assertThat(tree.rowText("c3/c2/c2")).contains("NOT");
-        assertThat(tree.routeOf("c3/c2/c2")).contains("en Doble inversor › Inversor 1");
+        assertThat(tree.routeOf("c3/c2/c2")).contains("en Doble inversor › Inversor · copia 1");
         assertThat(tree.routeOf("c2/c2")).contains("en Inversor");
         assertThat(tree.countText()).isEqualTo("3 resultados");
 
@@ -481,5 +488,77 @@ class CircuitTreeTest {
         assertThat(appearance.listenerCount()).isEqualTo(appearanceListeners - 1);
         assertThat(openDocument.changeListenerCount()).isEqualTo(documentListeners - 1);
         assertThat(preferences.listenerCount()).isEqualTo(preferenceListeners - 1);
+    }
+
+    private void machineWithStates() {
+        ComponentDefinition created = MachineDefinitions.create("maquina-abc123", "Máquina 1");
+        openDocument.execute(new PutDefinitionsCommand(List.of(MachineDefinitions.edited(created,
+                created.machine().orElseThrow().withStates(List.of(
+                        new MachineState("s0", "Espera", DiagramPoint.ORIGIN, List.of()),
+                        new MachineState("s1", "Cuenta", DiagramPoint.ORIGIN, List.of(), Optional.of(StateColor.GREEN))))
+                        .withNotes(List.of(new MachineNote("n1", DiagramPoint.ORIGIN, 160, 120, StickyColor.YELLOW,
+                                "Ojo")))))));
+        place(openDocument, SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, Map.of());
+    }
+
+    @Test
+    void aMachinePieceExpandsToItsStatesAndNotes() {
+        machineWithStates();
+        CircuitTree tree = tree();
+
+        assertThat(tree.childPaths("c1")).containsExactly("c1#s0", "c1#s1", "c1#notas:");
+        assertThat(tree.childPaths("c1#notas:")).containsExactly("c1#notas:n1");
+        assertThat(tree.rowText("c1#notas:")).contains("Notas (1)");
+        assertThat(tree.iconOf("c1#s1")).containsInstanceOf(StateDot.class);
+        assertThat(tree.toolTipOf("c1#s0")).hasValueSatisfying(tip -> assertThat(tip).contains("estado"));
+    }
+
+    @Test
+    void theNotesGroupHasTheNoteIconAndEachNoteASwatchInItsColour() {
+        machineWithStates();
+        CircuitTree tree = tree();
+
+        assertThat(tree.iconOf("c1#notas:")).hasValueSatisfying(icon -> assertThat(icon.getIconWidth()).isPositive());
+        assertThat(tree.iconOf("c1#notas:n1")).containsInstanceOf(NoteSwatch.class);
+        NoteSwatch swatch = (NoteSwatch) tree.iconOf("c1#notas:n1").orElseThrow();
+        assertThat(swatch.paper(appearance.scheme())).isEqualTo(appearance.scheme().stickyPaper(StickyColor.YELLOW));
+    }
+
+    @Test
+    void theGreyTextOfARowReadsOnTheTreeBackgroundInTheDarkTheme() throws Exception {
+        javax.swing.LookAndFeel previous = javax.swing.UIManager.getLookAndFeel();
+        try {
+            javax.swing.UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf());
+            machineWithStates();
+            CircuitTree tree = tree();
+
+            assertThat(cl.almejo.vsim.ui.theme.ReadableColors.contrast(tree.greyColorOf("c1#s0").orElseThrow(),
+                    tree.tree().getBackground()))
+                    .isGreaterThanOrEqualTo(cl.almejo.vsim.ui.theme.ReadableColors.MINIMUM_TEXT_CONTRAST);
+        } finally {
+            javax.swing.UIManager.setLookAndFeel(previous);
+        }
+    }
+
+    @Test
+    void aClickOnAStateEntersItsMachineAtThatPiece() {
+        machineWithStates();
+        CircuitTree tree = tree();
+
+        tree.rowClicked("c1#s1", 1);
+
+        assertThat(places).containsExactly("maquina-abc123@c1");
+        assertThat(shown).isEmpty(); // not a piece to travel to
+    }
+
+    @Test
+    void theSearchFindsAStateByName() {
+        machineWithStates();
+        CircuitTree tree = tree();
+
+        tree.searchField().setText("cuent");
+
+        assertThat(tree.resultPaths()).containsExactly("c1#s1");
+        assertThat(tree.routeOf("c1#s1")).contains("en Máquina 1");
     }
 }

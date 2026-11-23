@@ -259,9 +259,10 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.LOGIC))).containsExactly("Tabla de verdad…", "---",
-                    "Circuito desde tabla de verdad…", "Circuito desde expresiones…", "---", "Practicar Karnaugh…");
+                    "Circuito desde tabla de verdad…", "Circuito desde expresiones…", "---", "Practicar Karnaugh…", "---",
+                    "Probar la máquina…");
             assertThat(view.shortcutActions()).containsKeys("simulation.truthTable", "tools.circuitFromTruthTable",
-                    "tools.karnaughPractice", "tools.circuitFromExpressions");
+                    "tools.karnaughPractice", "tools.circuitFromExpressions", "tools.testMachine");
         } finally {
             view.dispose();
         }
@@ -316,8 +317,8 @@ class ApplicationExtensionsTest {
                     "Buscar…", "Buscar siguiente", "Buscar anterior", "---",
                     "Siguiente problema", "Problema anterior", "---",
                     "Enmarcar selección", "---",
-                    "Crear componente desde selección…", "Actualizar componente…", "---",
-                    "Ordenar circuito", "Ordenar circuito con opciones…", "Los cables siguen al mover", "Dibujar cables");
+                    "Crear componente desde selección…", "Actualizar componente…", "Duplicar como otra máquina",
+                    "---", "Ordenar circuito", "Ordenar circuito con opciones…", "Los cables siguen al mover", "Dibujar cables");
         } finally {
             view.dispose();
         }
@@ -520,8 +521,9 @@ class ApplicationExtensionsTest {
     void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
+            String name = openDocument.circuitName();
             assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
-                    "Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+                    "Nueva vista de «" + name + "»", "Nueva vista de «" + name + "» en otra ventana",
                     "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
                     "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito",
                     "Reabrir pestaña cerrada", "---", "Dividir", "Siguiente panel", "---", "IA (MCP)…");

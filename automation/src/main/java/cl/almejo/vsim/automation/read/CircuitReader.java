@@ -17,6 +17,10 @@ import cl.almejo.vsim.automation.read.ReadFilter.ElementKind;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.machine.MachineKind;
+import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.TerminalTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
@@ -170,7 +174,26 @@ public final class CircuitReader {
         }
         return new PartView(component.id().value(), component.typeId(), component.label(), component.position(),
                 component.rotation().name(), parameters, boundsOf(component, source), pins,
-                SubcircuitTypes.definitionIdOf(component.typeId()).map(definition -> component.appearance().isPresent()));
+                SubcircuitTypes.definitionIdOf(component.typeId()).map(definition -> component.appearance().isPresent()),
+                machine(source, component));
+    }
+
+    /** What a state machine piece is, for the AI; empty for every other part. */
+    private static Optional<CircuitView.MachineView> machine(ReadSource source, Component component) {
+        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionIdOf(component.typeId())
+                .flatMap(source.document()::definition).filter(ComponentDefinition::isMachine);
+        if (definition.isEmpty()) {
+            return Optional.empty();
+        }
+        StateMachine machine = definition.get().machine().orElseThrow();
+        MachineKind kind = MachineKind.of(machine);
+        String kindName = kind.mixed() ? "MIXED" : kind.moore() ? "MOORE" : kind.mealy() ? "MEALY" : "NONE";
+        Optional<String> current = source.snapshot().componentState(component.id().value())
+                instanceof VisibleState.MachineVisibleState state ? Optional.of(state.stateName()) : Optional.empty();
+        return Optional.of(new CircuitView.MachineView(definition.get().name(), kindName,
+                machine.states().stream().map(MachineState::name).toList(),
+                machine.initialStateId().flatMap(machine::state).map(MachineState::name),
+                machine.transitions().size(), machine.inputNames(), machine.outputNames(), machine.edge(), current));
     }
 
     private static Map<String, Object> resolved(ComponentType type, Component component) {

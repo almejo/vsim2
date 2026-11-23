@@ -27,7 +27,8 @@ import java.util.function.Function;
 /**
  * Archivo ▸ Ejemplos (spec M6.1 §3.1), right after «Recientes»: one entry per bundled example, with its description as
  * tooltip. Choosing one reads a fresh copy of the example, names it after the example and asks the window to show it
- * as a new untitled document ({@link WindowCommands#openUntitled}); the bundled file is never written.
+ * as a new untitled document ({@link WindowCommands#openUntitled}); the bundled file is never written. The state
+ * machine examples have a submenu of their own, «Máquinas de estado», at the end.
  */
 public final class ExamplesFeature implements EditorExtension {
 
@@ -66,14 +67,25 @@ public final class ExamplesFeature implements EditorExtension {
         JMenu file = view.menu(MenuId.FILE);
         JMenu examples = new JMenu(Messages.text("menu.file.examples"));
         for (String id : BundledExamples.ids()) {
-            JMenuItem item = new JMenuItem(Messages.text(nameKey(id)));
-            item.setToolTipText(Messages.text(nameKey(id) + ".description"));
-            item.putClientProperty(Actions.SEARCH_TERMS, id.replace('-', ' '));
-            item.addActionListener(event -> open(id, view));
-            examples.add(item);
+            if (!BundledExamples.stateMachineIds().contains(id)) {
+                examples.add(item(id, view));
+            }
         }
+        JMenu machines = new JMenu(Messages.text("menu.file.examples.machines"));
+        for (String id : BundledExamples.stateMachineIds()) {
+            machines.add(item(id, view));
+        }
+        examples.add(machines);
         file.add(examples, position(file, view));
         return () -> file.remove(examples);
+    }
+
+    private JMenuItem item(String id, EditorView view) {
+        JMenuItem item = new JMenuItem(Messages.text(nameKey(id)));
+        item.setToolTipText(Messages.text(nameKey(id) + ".description"));
+        item.putClientProperty(Actions.SEARCH_TERMS, id.replace('-', ' '));
+        item.addActionListener(event -> open(id, view));
+        return item;
     }
 
     /** Right after «Recientes»; right after «Abrir…» when there is no «Recientes»; at the end without either. */

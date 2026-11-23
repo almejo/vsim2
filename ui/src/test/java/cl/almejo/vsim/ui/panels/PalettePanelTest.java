@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.clipboard.FileListTransferable;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.machine.MachineCreation;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.AppearanceTestSupport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -90,11 +91,14 @@ class PalettePanelTest {
     void listsEveryStandardTypeGroupedByCategoryAndTheGateShortcuts() {
         List<String> presetIds = StandardComponentTypes.presets().stream().map(preset -> preset.id()).toList();
         List<String> shown = palette.visibleTypeIds();
-        assertThat(shown.stream().filter(id -> !presetIds.contains(id)).toList()).containsExactlyElementsOf(
+        assertThat(shown.stream().filter(id -> !presetIds.contains(id) && !id.equals(MachineCreation.PALETTE_ID))
+                .toList()).containsExactlyElementsOf(
                 registry.all().stream()
                         .sorted(java.util.Comparator.comparing(ComponentType::category))
                         .map(ComponentType::id).toList());
         assertThat(shown).containsAll(presetIds);
+        // the machine creation sits in Memoria, right after the RAM and the ROM
+        assertThat(shown.indexOf(MachineCreation.PALETTE_ID)).isEqualTo(shown.indexOf("rom") + 1);
     }
 
     @Test
@@ -160,7 +164,7 @@ class PalettePanelTest {
         assertThat(palette.visibleTypeIds()).isEmpty();
         palette.setFilter("  ");
         assertThat(palette.visibleTypeIds())
-                .hasSize(registry.all().size() + StandardComponentTypes.presets().size());
+                .hasSize(registry.all().size() + StandardComponentTypes.presets().size() + 1); // + machine creation
     }
 
     @Test

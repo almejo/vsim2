@@ -11,12 +11,16 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JLabel;
+import javax.swing.JList;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -147,5 +151,26 @@ class ProblemsPanelTest {
         panel.showLibraryProblems(List.of("No se pudo leer x.\nDetalle técnico: boom", "una línea"));
         assertThat(panel.libraryRowText(0)).isEqualTo("<html>No se pudo leer x.<br>Detalle técnico: boom</html>");
         assertThat(panel.libraryRowText(1)).isEqualTo("una línea");
+    }
+
+    /** Fix round 4 (M6): a row whose sentence does not fit the panel says the whole sentence in its tooltip. */
+    @Test
+    void aRowCutByTheListsWidthShowsTheWholeSentenceInItsTooltip() {
+        String sentence = "Máquina «Detector»: desde A, «x» y «x + y» se cumplen a la vez con x = 1, y = 0: "
+                + "la máquina no sabe a cuál ir.";
+        ProblemsPanel narrow = new ProblemsPanel(problem -> sentence, navigated::add);
+        narrow.showSnapshot(snapshot(10, shortCircuit));
+        JList<Problem> list = narrow.problemList();
+
+        narrow.setSize(200, 300);
+        UiTestSupport.layOut(narrow);
+        Rectangle row = list.getCellBounds(0, 0);
+        MouseEvent overRow = new MouseEvent(list, MouseEvent.MOUSE_MOVED, 0, 0, row.x + 10, row.y + row.height / 2,
+                0, false);
+        assertThat(list.getToolTipText(overRow)).as("cut at 200 px").isEqualTo(sentence);
+
+        narrow.setSize(3000, 300);
+        UiTestSupport.layOut(narrow);
+        assertThat(list.getToolTipText(overRow)).as("whole at 3000 px: nothing to add").isNull();
     }
 }

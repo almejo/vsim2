@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.component.standard.WiringTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.machine.MachineCreation;
 import cl.almejo.vsim.ui.paint.LogicGatePainter.GateShape;
 
 import java.util.HashMap;
@@ -52,6 +53,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.UART_16550, new UartPainter());
         registry.register(StandardComponentTypes.TIME_DIAGRAM, new TimeDiagramPainter());
         registry.register(BreakpointTypes.BREAKPOINT, new BreakpointPainter());
+        registry.register(MachineCreation.PALETTE_ID, new MachinePainter());
         BusSplitterPainter bus = new BusSplitterPainter();
         registry.register(StandardComponentTypes.BUS_SPLITTER, bus);
         registry.register(StandardComponentTypes.BUS_JOINER, bus);

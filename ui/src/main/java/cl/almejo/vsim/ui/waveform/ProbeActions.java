@@ -8,6 +8,8 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -63,6 +65,36 @@ public final class ProbeActions {
     /** «Ver pines en formas de onda»: the component's pins in pin order, inputs first. */
     public AddResult addComponentPins(ElementId componentId) {
         return add(pinTargets(componentId));
+    }
+
+    /**
+     * «Ver estados y salidas en formas de onda» on a machine piece: its state (written with the state names), then
+     * each output pin in pin order. Nothing for a piece that is not a machine.
+     */
+    public AddResult addMachineStatesAndOutputs(ElementId componentId) {
+        if (!isMachinePiece(componentId)) {
+            return new AddResult(List.of(), Optional.empty(), false);
+        }
+        List<ProbeTarget> targets = new ArrayList<>();
+        targets.add(new ProbeTarget.MachineStateTarget(componentId));
+        ComponentType type = openDocument.registry().typeOf(openDocument.document().component(componentId)
+                .orElseThrow());
+        for (int index = 0; index < type.pinCount(); index++) {
+            if (type.pin(index).direction() == PinDirection.OUTPUT) {
+                targets.add(new ProbeTarget.PinTarget(componentId, index));
+            }
+        }
+        return add(targets);
+    }
+
+    /** Whether {@code componentId} is a «Máquina de estados» piece of this circuit. */
+    boolean isMachinePiece(ElementId componentId) {
+        CircuitDocument document = openDocument.document();
+        return document.component(componentId)
+                .flatMap(component -> SubcircuitTypes.definitionIdOf(component.typeId()))
+                .flatMap(document::definition)
+                .filter(ComponentDefinition::isMachine)
+                .isPresent();
     }
 
     /** «Ver en formas de onda» on a selection: its wires and the pins of its components, in document order. */

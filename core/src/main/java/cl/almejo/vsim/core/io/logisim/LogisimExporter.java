@@ -95,6 +95,11 @@ public final class LogisimExporter {
             ExportLayout.Result laidOut = layOut(name, false, body, bodyRegistry, pinLabels);
             Optional<ElementId> holder = holders.firstHolderOf(definition.id());
             laidOut.notes().forEach(note -> notes.add(note.withElement(holder)));
+            if (definition.isMachine()) {
+                // its body is only its pins: the box keeps the wires, and the user hears that it does nothing
+                notes.add(ImportNote.about(ImportNote.Kind.UNSUPPORTED, name, LogisimNotes.EXPORT_STATE_MACHINE,
+                        definition.name()).withElement(holder));
+            }
             Map<Integer, LogisimPoint> innerPins = new HashMap<>();
             List<DefinitionPin> pinout = definition.pinout();
             for (int index = 0; index < pinout.size(); index++) {

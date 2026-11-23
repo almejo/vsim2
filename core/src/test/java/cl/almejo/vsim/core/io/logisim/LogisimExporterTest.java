@@ -20,6 +20,8 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineExamples;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
@@ -261,6 +263,29 @@ class LogisimExporterTest {
             assertThat(note.circuit()).isEqualTo("alu");
             assertThat(note.arguments()).containsExactly(StandardComponentTypes.ALU, "U1");
         });
+    }
+
+    @Test
+    void aStateMachineIsExportedAsAnEmptyBoxWithItsPinsAndAWarningAndTheRestAsUsual() {
+        CircuitBuilder builder = new CircuitBuilder("principal");
+        builder.define(MachineDefinitions.create("maquina-abc123", "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector()));
+        Component machine = builder.placeByBox(SubcircuitTypes.typeIdOf("maquina-abc123"), 40, 10, Rotation.R0,
+                Map.of(), "");
+        builder.placeByBox(StandardComponentTypes.LED, 10, 10, Rotation.R0, Map.of(), "Z");
+
+        ExportResult result = LogisimExporter.exportDocument(builder.document(), REGISTRY);
+
+        assertThat(result.notes()).singleElement().satisfies(note -> {
+            assertThat(note.kind()).isEqualTo(ImportNote.Kind.UNSUPPORTED);
+            assertThat(note.messageKey()).isEqualTo(LogisimNotes.EXPORT_STATE_MACHINE);
+            assertThat(note.circuit()).isEqualTo("Máquina 1");
+            assertThat(note.element()).contains(machine.id());
+            assertThat(note.arguments()).containsExactly("Máquina 1");
+        });
+        LogisimCircuit exported = result.project().circuit("Máquina 1").orElseThrow();
+        assertThat(exported.appearance().shapes()).filteredOn(LogisimAppearance.Port.class::isInstance).hasSize(4);
+        assertThat(result.project().circuit("principal").orElseThrow().components()).hasSize(2);
     }
 
     @Test

@@ -19,13 +19,15 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.core.machine.MachineBody;
+import cl.almejo.vsim.core.machine.StateMachine;
 import com.fasterxml.jackson.annotation.JsonInclude;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
@@ -37,6 +39,8 @@ import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
  */
 final class DefinitionEntries {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefinitionEntries.class);
+
     record PinEntry(String name, int x, int y, String direction, int width, String source) {
     }
 
@@ -46,10 +50,9 @@ final class DefinitionEntries {
                            @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.FrameEntry> frames,
                            @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.StickyNoteEntry> stickyNotes,
                            @JsonInclude(JsonInclude.Include.NON_NULL) Long revision,
-                           @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance) {
+                           @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance,
+                           @JsonInclude(JsonInclude.Include.NON_NULL) MachineEntries.MachineEntry machine) {
     }
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefinitionEntries.class);
 
     private DefinitionEntries() {
     }
@@ -65,7 +68,8 @@ final class DefinitionEntries {
                 definition.body().labels().stream().map(CircuitFormat::labelEntry).toList(),
                 definition.body().frames().stream().map(CircuitFormat::frameEntry).toList(),
                 definition.body().stickyNotes().stream().map(CircuitFormat::stickyNoteEntry).toList(),
-                definition.revision(), definition.appearance().map(AppearanceEntries::entry).orElse(null));
+                definition.revision(), definition.appearance().map(AppearanceEntries::entry).orElse(null),
+                definition.machine().map(MachineEntries::entry).orElse(null));
     }
 
     /**
@@ -86,6 +90,9 @@ final class DefinitionEntries {
             written.add(definition);
         }
         for (ComponentDefinition definition : written) {
+            if (definition.isMachine()) {
+                continue; // its body was generated from the model: standard interface pins with default parameters
+            }
             List<Component> normalized = new ArrayList<>();
             for (Component component : definition.body().components()) {
                 ComponentType type = registry.find(component.typeId()).orElseThrow(() -> new CircuitFormatException(
@@ -118,6 +125,96 @@ final class DefinitionEntries {
     }
 
     private static ComponentDefinition definition(DefinitionEntry entry, CircuitDocument document)
+            throws CircuitFormatException {
+        if (entry.machine() == null) {
+            return circuitDefinition(entry, document);
+        }
+        return machineDefinition(entry, MachineEntries.machine(entry.machine(), entry.id()), document);
+    }
+
+    /**
+     * A «Máquina de estados»: the written body and pinout are only a copy of what the model generates (spec §2.2),
+     * so the model wins when they disagree (a hand-edited file, a body written by another build); a drawn appearance
+     * is kept when the written definition is valid.
+     */
+    private static ComponentDefinition machineDefinition(DefinitionEntry entry, StateMachine machine,
+            CircuitDocument document) throws CircuitFormatException {
+        ComponentDefinition written;
+        try {
+            written = circuitDefinition(entry, document);
+        } catch (CircuitFormatException exception) {
+            LOGGER.warn("The body written for machine {} is not valid; generating it from the machine",
+                    entry.id(), exception);
+            return generatedMachine(entry, machine);
+        }
+        try {
+            ComponentDefinition regenerated = written.withMachine(machine);
+            if (disagrees(written, regenerated)) {
+                LOGGER.warn("The body written for machine {} disagrees with the machine; generating it again",
+                        entry.id());
+            }
+            return regenerated;
+        } catch (IllegalArgumentException exception) {
+            throw invalid("definition " + entry.id() + ": " + exception.getMessage(), exception);
+        }
+    }
+
+    /** Whether the body and pinout {@code entry} wrote differ from what {@code machine} generates. */
+    static boolean writtenBodyDisagrees(DefinitionEntry entry, StateMachine machine) throws CircuitFormatException {
+        ComponentDefinition written = circuitDefinition(entry, new CircuitDocument());
+        return disagrees(written, written.withMachine(machine));
+    }
+
+    /**
+     * Whether the written body and pinout differ from the generated ones. A written component has only the parameters
+     * the writer keeps (its defaults are left out, and a machine's body is never normalized on reading), so a
+     * generated component equals it when it has every written parameter with the same value, whatever defaults it
+     * adds; that gap alone is no disagreement (it made every file with a machine log one).
+     */
+    private static boolean disagrees(ComponentDefinition written, ComponentDefinition regenerated) {
+        CircuitFragment body = written.body();
+        CircuitFragment generated = regenerated.body();
+        if (!regenerated.pinout().equals(written.pinout()) || !regenerated.size().equals(written.size())
+                || body.components().size() != generated.components().size()
+                || !body.wires().equals(generated.wires()) || !body.labels().equals(generated.labels())
+                || !body.frames().equals(generated.frames())
+                || !body.stickyNotes().equals(generated.stickyNotes())) {
+            return true;
+        }
+        for (int index = 0; index < body.components().size(); index++) {
+            if (!sameComponent(body.components().get(index), generated.components().get(index))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean sameComponent(Component written, Component generated) {
+        if (!generated.withParameters(written.parameters()).equals(written)) {
+            return false;
+        }
+        for (Map.Entry<String, Object> parameter : written.parameters().entrySet()) {
+            Object value = generated.parameters().get(parameter.getKey());
+            if (value == null || !String.valueOf(value).equals(String.valueOf(parameter.getValue()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static ComponentDefinition generatedMachine(DefinitionEntry entry, StateMachine machine)
+            throws CircuitFormatException {
+        try {
+            MachineBody generated = MachineBody.of(machine);
+            return new ComponentDefinition(entry.id(), entry.name(), entry.description(), generated.size(),
+                    generated.pinout(), generated.body(), Optional.empty(),
+                    entry.revision() == null ? 1 : entry.revision(), Optional.of(machine));
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            throw invalid("definition " + entry.id() + ": " + exception.getMessage(), exception);
+        }
+    }
+
+    private static ComponentDefinition circuitDefinition(DefinitionEntry entry, CircuitDocument document)
             throws CircuitFormatException {
         try {
             List<DefinitionPin> pinout = new ArrayList<>();

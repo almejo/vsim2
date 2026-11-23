@@ -289,12 +289,7 @@ final class ExpressionsModel {
 
     /** A problem's message with its position when it has one: «Falta cerrar un paréntesis (posición 9)». */
     static String describe(ExpressionProblem problem) {
-        String message = Messages.format(problem.messageKey(), problem.arguments().toArray());
-        if (problem.column() < 0) {
-            return message;
-        }
-        String bare = message.endsWith(".") ? message.substring(0, message.length() - 1) : message;
-        return Messages.format("expressions.position", bare, String.valueOf(problem.column() + 1));
+        return ExpressionProblemText.describe(problem);
     }
 
     private String proposedLine() {

@@ -9,3 +9,4 @@ menu.tools   | whatsNew.toolsMenu.title  | whatsNew.toolsMenu.text  | -
 menu.logic   | whatsNew.logicMenu.title  | whatsNew.logicMenu.text  | -
 menu.view    | whatsNew.shortView.title  | whatsNew.shortView.text  | -
 menu.window  | whatsNew.reopenTab.title  | whatsNew.reopenTab.text  | -
+menu.file    | whatsNew.stateMachines.title | whatsNew.stateMachines.text | -

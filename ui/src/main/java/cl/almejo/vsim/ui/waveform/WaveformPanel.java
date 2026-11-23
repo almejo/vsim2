@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.Actions;
@@ -34,10 +35,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
 /**
@@ -62,11 +65,15 @@ public final class WaveformPanel extends JPanel {
     private final TimeAxis axis = new TimeAxis();
     private final JToolBar toolBar = new JToolBar();
     private final JToggleButton followButton;
-    private final JToggleButton pinButton = new JToggleButton();
+    private final PinToggle pinButton = new PinToggle();
     private final JLabel scaleLabel = new JLabel();
     private final ChannelNameColumn names;
     private final WaveformPlot plot;
     private final TimeRuler ruler;
+    private final JLabel titleLabel = new JLabel();
+    private final List<JButton> headerButtons = new ArrayList<>();
+    private final ProbeChannels probeChannels;
+    private WaveformChannels channels;
     private final Timer timer;
     private final Blink rowBlink;
     private BooleanSupplier animations = () -> true;
@@ -76,8 +83,10 @@ public final class WaveformPanel extends JPanel {
     private String blinkingProbe;
     private int repaintCount;
     private long shownTickSpacing = -1;
-    private RowsKey rowsKey;
+    private Object rowsKey;
     private List<ChannelRows.ChannelRow> cachedRows = List.of();
+    private Map<String, LongFunction<String>> cachedValueNames = Map.of();
+    private Map<String, LongFunction<Optional<StateColor>>> cachedValueColors = Map.of();
     private boolean disposed;
 
     public WaveformPanel(OpenDocument openDocument, ProbeActions actions, Supplier<ColorScheme> scheme,
@@ -88,6 +97,8 @@ public final class WaveformPanel extends JPanel {
         this.scheme = scheme;
         this.prompt = prompt;
         this.showInCircuit = showInCircuit;
+        this.probeChannels = new ProbeChannels(openDocument, this::displayName);
+        this.channels = probeChannels;
         this.names = new ChannelNameColumn(this);
         this.plot = new WaveformPlot(this);
         this.ruler = new TimeRuler(this);
@@ -96,6 +107,10 @@ public final class WaveformPanel extends JPanel {
         followButton.setHideActionText(true);
         followButton.setSelected(true);
         toolBar.setFloatable(false);
+        titleLabel.putClientProperty("FlatLaf.style", "font: bold");
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, SCALE_LABEL_MARGIN, 0, SCALE_LABEL_MARGIN));
+        titleLabel.setVisible(false);
+        toolBar.add(titleLabel);
         toolBar.add(followButton);
         addTool(toolAction("waveform.zoomIn", WaveformIcons.ZOOM_IN, this::zoomIn));
         addTool(toolAction("waveform.zoomOut", WaveformIcons.ZOOM_OUT, this::zoomOut));
@@ -104,10 +119,6 @@ public final class WaveformPanel extends JPanel {
         addTool(toolAction("waveform.clear", WaveformIcons.CLEAR, openDocument::clearWaveforms));
         addTool(toolAction("waveform.hide", WaveformIcons.HIDE, hide));
         toolBar.add(Box.createHorizontalGlue());
-        pinButton.setIcon(Icons.get(WaveformIcons.PIN, Icons.MENU_SIZE));
-        pinButton.setSelectedIcon(new PinnedIcon(Icons.MENU_SIZE));
-        pinButton.setVisible(false);
-        showPinned(false);
         toolBar.add(pinButton);
         scaleLabel.setToolTipText(Messages.text("waveform.scaleTip"));
         scaleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, SCALE_LABEL_MARGIN));
@@ -139,6 +150,7 @@ public final class WaveformPanel extends JPanel {
         if (disposed) {
             return;
         }
+        rows(); // the title follows the rows
         if (selectedProbe != null && !channelIds().contains(selectedProbe)) {
             selectedProbe = null;
         }
@@ -187,7 +199,7 @@ public final class WaveformPanel extends JPanel {
     }
 
     /** The pin of presentation mode (docked or behind the bottom edge); shown only while the mode is on. */
-    public JToggleButton pinButton() {
+    public PinToggle pinButton() {
         return pinButton;
     }
 
@@ -196,8 +208,7 @@ public final class WaveformPanel extends JPanel {
      * like its neighbours; the tooltip says what a press does.
      */
     void showPinned(boolean pinned) {
-        pinButton.setSelected(pinned);
-        pinButton.setToolTipText(Messages.text(pinned ? "waveform.pinnedTip" : "waveform.pinTip"));
+        pinButton.showPinned(pinned);
     }
 
     /** The time under the cursor, empty without a cursor. */
@@ -208,6 +219,31 @@ public final class WaveformPanel extends JPanel {
     /** The names the rows show, in order. */
     public List<String> channelNames() {
         return rows().stream().map(ChannelRows.ChannelRow::name).toList();
+    }
+
+    /**
+     * Shows {@code shown}'s rows instead of the ones shown now (a machine tab shows its copy's wave strip); the
+     * returned restorer shows those again, and does nothing once another source replaced {@code shown}.
+     */
+    public Runnable showChannels(WaveformChannels shown) {
+        WaveformChannels previous = channels;
+        replaceChannels(shown);
+        return () -> {
+            if (channels == shown) {
+                replaceChannels(previous);
+            }
+        };
+    }
+
+    /** What the toolbar says first («Onda de Detector 11»); empty for the document's probes. */
+    public Optional<String> title() {
+        rows(); // the title is made with the rows
+        return titleLabel.isVisible() ? Optional.of(titleLabel.getText()) : Optional.empty();
+    }
+
+    /** Whether the panel has rows to show (the document's probes, or a machine copy's channels). */
+    public boolean hasChannels() {
+        return channels.hasChannels();
     }
 
     public void dispose() {
@@ -242,11 +278,11 @@ public final class WaveformPanel extends JPanel {
     void timerTick() {
         updateTimer();
         if (timer.isRunning()) {
-            boolean namesChanged = !currentRowsKey().equals(rowsKey);
+            boolean namesChanged = !channels.rowsKey().equals(rowsKey);
             if (namesChanged) {
                 rows(); // remembers what the names are now built from
             }
-            WaveformSnapshot latest = openDocument.latestWaveforms();
+            WaveformSnapshot latest = channels.latest();
             if (latest != displayed) {
                 display(latest);
             } else if (namesChanged) {
@@ -276,12 +312,42 @@ public final class WaveformPanel extends JPanel {
     }
 
     List<ChannelRows.ChannelRow> rows() {
-        RowsKey key = currentRowsKey();
+        Object key = channels.rowsKey();
         if (!key.equals(rowsKey)) {
             rowsKey = key;
-            cachedRows = ChannelRows.of(key.probes(), key.probeNets(), this::displayName);
+            cachedRows = channels.rows();
+            Map<String, LongFunction<String>> valueNames = new HashMap<>();
+            for (ChannelRows.ChannelRow row : cachedRows) {
+                channels.valueNames(row.probeId()).ifPresent(function -> valueNames.put(row.probeId(), function));
+            }
+            cachedValueNames = Map.copyOf(valueNames);
+            Map<String, LongFunction<Optional<StateColor>>> valueColors = new HashMap<>();
+            for (ChannelRows.ChannelRow row : cachedRows) {
+                channels.valueColors(row.probeId()).ifPresent(function -> valueColors.put(row.probeId(), function));
+            }
+            cachedValueColors = Map.copyOf(valueColors);
+            Optional<String> title = channels.title();
+            titleLabel.setText(title.orElse(""));
+            titleLabel.setVisible(title.isPresent());
         }
         return cachedRows;
+    }
+
+    /** Channel id to the names its values stand for, for the rows that have them (a machine's state row). */
+    Map<String, LongFunction<String>> valueNames() {
+        rows();
+        return cachedValueNames;
+    }
+
+    /** Channel id to the colours its values have, for the rows that have them (a machine's state row). */
+    Map<String, LongFunction<Optional<StateColor>>> valueColors() {
+        rows();
+        return cachedValueColors;
+    }
+
+    /** Whether the rows shown are ones the user adds and edits (the circuit's probes), not a machine's own wave. */
+    boolean channelsEditable() {
+        return channels.editable();
     }
 
     List<String> channelIds() {
@@ -325,7 +391,7 @@ public final class WaveformPanel extends JPanel {
     void placeCursor(double x) {
         long floor = (long) Math.floor(axis.timeAt(x));
         List<Long> candidates = new ArrayList<>();
-        for (Trace trace : displayed.traces().values()) {
+        for (Trace trace : ownTraces()) {
             trace.previousEdge(floor + 1).ifPresent(edge -> candidates.add(edge));
             trace.nextEdge(floor).ifPresent(edge -> candidates.add(edge));
         }
@@ -339,6 +405,23 @@ public final class WaveformPanel extends JPanel {
         String text = TimeAxis.timeLabel(time);
         OptionalLong cursor = axis.cursor();
         return cursor.isPresent() ? text + " · Δt = " + TimeAxis.format(time - cursor.getAsLong()) : text;
+    }
+
+    /**
+     * As {@link #hoverText(double)}; over a named row (a machine's state) the name of its value there comes first, in
+     * full, «AMARILLO · t = 12», since a narrow band shows it shortened.
+     */
+    String hoverText(double x, int y) {
+        String time = hoverText(x);
+        Optional<String> channelId = probeAt(y);
+        LongFunction<String> names = channelId.map(valueNames()::get).orElse(null);
+        if (names == null) {
+            return time;
+        }
+        long at = Math.round(Math.floor(axis.timeAt(x)));
+        String name = displayed.trace(channelId.get()).flatMap(trace -> trace.valueAt(at))
+                .map(value -> ChannelRows.valueText(Optional.of(value), Probe.FORMAT_HEX, names)).orElse("");
+        return name.isEmpty() ? time : Messages.format("waveform.valueHover", name, time);
     }
 
     /** ← / →: the cursor jumps to the previous / next edge of the selected row, scrolling it into view. */
@@ -392,7 +475,7 @@ public final class WaveformPanel extends JPanel {
 
     /** «historial desde t = …» once old events were dropped, else the current time. */
     String rulerToolTip() {
-        OptionalLong complete = displayed.traces().values().stream()
+        OptionalLong complete = ownTraces().stream()
                 .filter(Trace::truncated)
                 .map(Trace::firstTime)
                 .filter(OptionalLong::isPresent)
@@ -405,6 +488,39 @@ public final class WaveformPanel extends JPanel {
 
     void showInCircuit(String probeId) {
         showInCircuit.accept(probeId);
+    }
+
+    /**
+     * The right-click menu of a row; for rows that cannot be edited (a machine copy's own channels) the same items,
+     * off, each saying why.
+     */
+    Optional<JPopupMenu> menuOfRow(String probeId) {
+        return Optional.of(channels.editable() ? rowMenu(probeId) : readOnlyRowMenu());
+    }
+
+    /** The row menu's items, off, with the reason as their tooltip; an empty key is a separator. */
+    private static JPopupMenu readOnlyRowMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        String reason = Messages.text("waveform.rowsNotEdited");
+        for (String key : List.of("waveform.rename", "waveform.showAs", "", "waveform.moveUp", "waveform.moveDown",
+                "", "waveform.remove", "waveform.removeAll", "", "waveform.showInCircuit")) {
+            if (key.isEmpty()) {
+                menu.addSeparator();
+                continue;
+            }
+            JMenuItem item = new JMenuItem(Messages.text(key));
+            item.setEnabled(false);
+            item.setToolTipText(reason);
+            menu.add(item);
+        }
+        return menu;
+    }
+
+    /** A double click on a row's name: shows its net in the circuit, for rows that can be edited (probes). */
+    void rowDoubleClicked(String probeId) {
+        if (channels.editable()) {
+            showInCircuit(probeId);
+        }
     }
 
     /** The right-click menu of a row (spec §3.2). */
@@ -532,15 +648,6 @@ public final class WaveformPanel extends JPanel {
                 openDocument.registry());
     }
 
-    private RowsKey currentRowsKey() {
-        return new RowsKey(openDocument.document().probes(), openDocument.probeNets(),
-                openDocument.document().revision(), openDocument.netlistToken());
-    }
-
-    /** What the rows depend on. */
-    private record RowsKey(List<Probe> probes, Map<String, String> probeNets, long revision, long netlistToken) {
-    }
-
     private void followToggled() {
         axis.setFollowing(followButton.isSelected());
         axis.follow(displayed.time());
@@ -557,8 +664,42 @@ public final class WaveformPanel extends JPanel {
         axisChanged();
     }
 
+    /**
+     * The traces of the displayed snapshot this panel's rows are made of. The recording holds more (every machine
+     * copy's own channels, recorded for its tab), which never move the cursor, the fit or the history notice.
+     */
+    private List<Trace> ownTraces() {
+        List<Trace> traces = new ArrayList<>();
+        for (ChannelRows.ChannelRow row : rows()) {
+            displayed.trace(row.probeId()).ifPresent(traces::add);
+        }
+        return traces;
+    }
+
+    private void replaceChannels(WaveformChannels shown) {
+        channels = Objects.requireNonNull(shown, "shown");
+        rowsKey = null;
+        selectedProbe = null;
+        blinkingProbe = null;
+        headerButtons.forEach(toolBar::remove);
+        headerButtons.clear();
+        int index = toolBar.getComponentIndex(pinButton);
+        for (Action action : shown.headerActions()) {
+            JButton button = new JButton(action);
+            headerButtons.add(button);
+            toolBar.add(button, index++);
+        }
+        toolBar.revalidate();
+        toolBar.repaint();
+        rows();
+        if (!disposed) {
+            display(shown.latest());
+        }
+        probesChanged();
+    }
+
     private void fitAll() {
-        OptionalLong first = displayed.traces().values().stream()
+        OptionalLong first = ownTraces().stream()
                 .map(Trace::firstTime)
                 .filter(OptionalLong::isPresent)
                 .mapToLong(OptionalLong::getAsLong)
@@ -590,7 +731,7 @@ public final class WaveformPanel extends JPanel {
     }
 
     private void updateTimer() {
-        boolean needed = !disposed && showing.getAsBoolean() && !openDocument.document().probes().isEmpty();
+        boolean needed = !disposed && showing.getAsBoolean() && channels.hasChannels();
         if (needed && !timer.isRunning()) {
             timer.start();
         } else if (!needed && timer.isRunning()) {

@@ -11,12 +11,19 @@ import java.util.Objects;
  * The recording side of one channel, written by the simulation thread only. An event is kept only when it differs
  * from the one before; several changes at the same time keep only the last value (zero-width glitches are invisible
  * at any zoom). Events live in chunks of {@link #CHUNK_SIZE}; past {@link #MAXIMUM_CHUNKS} chunks the oldest is
- * dropped. {@link #snapshot()} copies only the open tail chunk.
+ * dropped (a channel may keep fewer, {@link #ChannelTrace(int, int)}). {@link #snapshot()} copies only the open tail
+ * chunk.
  */
 public final class ChannelTrace {
 
     public static final int CHUNK_SIZE = 1024;
     public static final int MAXIMUM_CHUNKS = 64;
+
+    /** The widest defined value {@link #canonical} shares. */
+    private static final int SHARED_WIDTH = 8;
+
+    /** Every defined value of 2 to {@link #SHARED_WIDTH} bits, by width and bits. */
+    private static final Value[][] SHARED_VALUES = sharedValues();
 
     private final List<Chunk> fullChunks = new ArrayList<>();
     private long[] tailTimes = new long[CHUNK_SIZE];
@@ -24,10 +31,20 @@ public final class ChannelTrace {
     private int tailSize;
     private boolean truncated;
     private int width;
+    private final int maximumChunks;
     private Trace published;
 
     public ChannelTrace(int width) {
+        this(width, MAXIMUM_CHUNKS);
+    }
+
+    /** A channel that keeps at most {@code maximumChunks} chunks (counting the open one) before dropping the oldest. */
+    public ChannelTrace(int width, int maximumChunks) {
+        if (maximumChunks < 2) {
+            throw new IllegalArgumentException("maximumChunks must be at least 2: " + maximumChunks);
+        }
         this.width = width;
+        this.maximumChunks = maximumChunks;
     }
 
     public int width() {
@@ -47,15 +64,35 @@ public final class ChannelTrace {
         return add(time, canonical(Objects.requireNonNull(value, "value")));
     }
 
-    /** 1-bit values share the {@link Value} constants, so a long 1-bit trace holds no Value instance per event. */
+    /**
+     * 1-bit values share the {@link Value} constants and defined values up to {@link #SHARED_WIDTH} bits (a machine's
+     * state code, a small counter) share one instance per code, so such a long trace holds no Value per event.
+     */
     private static Value canonical(Value value) {
-        if (value.width() != 1 || value.conflict()) {
+        if (value.conflict() || value.width() > SHARED_WIDTH) {
             return value;
         }
-        if (value.highImpedanceMask() != 0) {
-            return Value.HIGH_IMPEDANCE;
+        if (value.width() == 1) {
+            if (value.highImpedanceMask() != 0) {
+                return Value.HIGH_IMPEDANCE;
+            }
+            return value.bits() != 0 ? Value.ONE : Value.ZERO;
         }
-        return value.bits() != 0 ? Value.ONE : Value.ZERO;
+        if (value.highImpedanceMask() != 0 || (value.bits() & ~Value.maskFor(value.width())) != 0) {
+            return value;
+        }
+        return SHARED_VALUES[value.width()][(int) value.bits()];
+    }
+
+    private static Value[][] sharedValues() {
+        Value[][] values = new Value[SHARED_WIDTH + 1][];
+        for (int sharedWidth = 2; sharedWidth <= SHARED_WIDTH; sharedWidth++) {
+            values[sharedWidth] = new Value[1 << sharedWidth];
+            for (int bits = 0; bits < values[sharedWidth].length; bits++) {
+                values[sharedWidth][bits] = Value.of(sharedWidth, bits);
+            }
+        }
+        return values;
     }
 
     /** Records that the watched net disappeared at {@code time}; ignored before the first event. */
@@ -121,7 +158,7 @@ public final class ChannelTrace {
         tailTimes = new long[CHUNK_SIZE];
         tailValues = new Value[CHUNK_SIZE];
         tailSize = 0;
-        if (fullChunks.size() + 1 > MAXIMUM_CHUNKS) {
+        if (fullChunks.size() + 1 > maximumChunks) {
             fullChunks.removeFirst();
             truncated = true;
         }

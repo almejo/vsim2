@@ -42,7 +42,7 @@ public final class AppearanceReconciler {
                     spec.direction(), spec.width()), original.source()));
         }
         return new ComponentDefinition(candidate.id(), candidate.name(), candidate.description(), appearance.size(),
-                pins, candidate.body(), appearance.drawing(), candidate.revision());
+                pins, candidate.body(), appearance.drawing(), candidate.revision(), candidate.machine());
     }
 
     /**

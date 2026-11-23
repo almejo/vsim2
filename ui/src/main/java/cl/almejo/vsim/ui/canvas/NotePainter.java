@@ -20,7 +20,7 @@ import java.util.Optional;
  * colour. A plain note is only its lines in the scheme's text colour, as ever. In black and white the background is
  * left out and the border and the text are black, so the note reads on paper whatever its colours.
  */
-final class NotePainter {
+public final class NotePainter {
 
     /** The diameter of the box's rounded corners, in document pixels. */
     private static final double CORNER = 6;
@@ -30,7 +30,7 @@ final class NotePainter {
     }
 
     /** Paints {@code note} in {@code scheme} under {@code policy}. */
-    static void paint(Graphics2D graphics, TextLabel note, ColorScheme scheme, PaintPolicy policy) {
+    public static void paint(Graphics2D graphics, TextLabel note, ColorScheme scheme, PaintPolicy policy) {
         NoteStyle style = note.style();
         if (style.boxed()) {
             paintBox(graphics, note, scheme, policy);

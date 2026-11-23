@@ -39,7 +39,7 @@ public final class StartupHold {
     }
 
     /** {@code action} runs now, or at the release when the start is holding. */
-    void whenReleased(Runnable action) {
+    public void whenReleased(Runnable action) {
         Objects.requireNonNull(action, "action");
         if (held) {
             waiting.add(action);

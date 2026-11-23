@@ -1,0 +1,169 @@
+package cl.almejo.vsim.core.machine;
+
+import cl.almejo.vsim.core.component.PinDirection;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.library.AppearanceReconciler;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.core.library.InterfacePins;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class MachineBodyTest {
+
+    @Test
+    void aNewMachineHasOnlyResetAndClockOnTheLeft() {
+        MachineBody body = MachineBody.of(StateMachine.initial());
+        assertThat(names(body.pinout())).containsExactly("RST", "CLK");
+        assertThat(body.pinout()).allSatisfy(pin -> {
+            assertThat(pin.spec().direction()).isEqualTo(PinDirection.INPUT);
+            assertThat(pin.spec().position().x()).isZero();
+        });
+    }
+
+    @Test
+    void inputsComeFirstThenResetThenTheClockAndOutputsGoOnTheRight() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x", "y"), List.of("Z"));
+        MachineBody body = MachineBody.of(machine);
+        assertThat(names(body.pinout())).containsExactly("x", "y", "RST", "CLK", "Z");
+        DefinitionPin output = body.pinout().get(4);
+        assertThat(output.spec().direction()).isEqualTo(PinDirection.OUTPUT);
+        assertThat(output.spec().position().x()).isEqualTo(body.size().width());
+        assertThat(body.pinout().get(0).spec().position().y())
+                .isLessThan(body.pinout().get(3).spec().position().y());
+    }
+
+    @Test
+    void theBodyHoldsOneLabelledInterfacePinPerPin() {
+        MachineBody body = MachineBody.of(MachineExamples.twoOnesDetector());
+        assertThat(body.body().wires()).isEmpty();
+        for (DefinitionPin pin : body.pinout()) {
+            Component source = body.body().components().stream()
+                    .filter(component -> component.id().equals(pin.source())).findFirst().orElseThrow();
+            assertThat(source.label()).isEqualTo(pin.spec().name());
+            assertThat(source.typeId()).isEqualTo(pin.spec().direction() == PinDirection.OUTPUT
+                    ? InterfacePins.OUTPUT_PIN : InterfacePins.INPUT_PIN);
+        }
+        assertThat(body.body().components()).hasSameSizeAs(body.pinout());
+    }
+
+    @Test
+    void theSmallestBoxIsTwelveByEightSoAFourStateMiniatureFitsBetweenThePinNames() {
+        assertThat(MachineBody.of(StateMachine.initial()).size()).isEqualTo(new GridSize(12, 8));
+        assertThat(MachineBody.of(MachineExamples.twoOnesDetector()).size()).isEqualTo(new GridSize(12, 8));
+    }
+
+    @Test
+    void theSizeGrowsWithThePins() {
+        MachineBody few = MachineBody.of(StateMachine.initial());
+        MachineBody many = MachineBody.of(StateMachine.initial()
+                .withPinNames(List.of("a", "b", "c", "d", "e", "f"), List.of()));
+        assertThat(many.size().width()).isEqualTo(few.size().width());
+        assertThat(many.size().height()).isGreaterThan(few.size().height());
+    }
+
+    @Test
+    void aPinKeepsItsSourceWhenOthersAreAdded() {
+        MachineBody before = MachineBody.of(StateMachine.initial().withPinNames(List.of("x"), List.of("Z")));
+        MachineBody after = MachineBody.of(StateMachine.initial().withPinNames(List.of("w", "x"), List.of("Z", "Y")));
+        assertThat(sourceOf(after, "x")).isEqualTo(sourceOf(before, "x"));
+        assertThat(sourceOf(after, "Z")).isEqualTo(sourceOf(before, "Z"));
+        assertThat(sourceOf(after, "CLK")).isEqualTo(sourceOf(before, "CLK"));
+    }
+
+    @Test
+    void aPinNameWithASlashStillMakesAValidId() {
+        MachineBody body = MachineBody.of(StateMachine.initial().withPinNames(List.of("a/b"), List.of()));
+        assertThat(sourceOf(body, "a/b")).doesNotContain("/");
+    }
+
+    @Test
+    void theGeneratedPartsMakeAValidDefinition() {
+        MachineBody body = MachineBody.of(MachineExamples.twoOnesDetector());
+        ComponentDefinition definition = new ComponentDefinition("maquina-1", "Máquina 1", "", body.size(),
+                body.pinout(), body.body(), Optional.empty(), 1, Optional.of(MachineExamples.twoOnesDetector()));
+        assertThat(definition.isMachine()).isTrue();
+        assertThat(definition.pinout().get(0).spec().position()).isEqualTo(new GridPoint(0, 2));
+    }
+
+    private static List<String> names(List<DefinitionPin> pinout) {
+        return pinout.stream().map(pin -> pin.spec().name()).toList();
+    }
+
+    private static String sourceOf(MachineBody body, String name) {
+        return body.pinout().stream().filter(pin -> pin.spec().name().equals(name)).findFirst().orElseThrow()
+                .source().value();
+    }
+
+    @Test
+    void aRenamedPinKeepsItsSourceSoThePiecesWiresFollowIt() {
+        StateMachine machine = MachineExamples.twoOnesDetector();
+        ComponentDefinition before = MachineDefinitions.create("maquina-1", "Máquina 1").withMachine(machine);
+
+        ComponentDefinition after = before.withMachine(
+                MachinePinEdits.renamed(machine, MachinePinEdits.Side.INPUT, "x", "a"));
+
+        assertThat(names(after.pinout())).containsExactly("a", "RST", "CLK", "Z");
+        assertThat(after.pinout().get(0).source()).isEqualTo(before.pinout().get(0).source());
+        assertThat(AppearanceReconciler.previousPins(before, after).get(0)).contains(before.pinout().get(0));
+    }
+
+    @Test
+    void inputsAsABusAreOnePinAsWideAsTheNamesBeforeResetAndClock() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x", "y"), List.of("Z"))
+                .withBus(true, false);
+
+        MachineBody body = MachineBody.of(machine);
+
+        assertThat(names(body.pinout())).containsExactly(MachineBody.BUS_INPUT_NAME, "RST", "CLK", "Z");
+        DefinitionPin bus = body.pinout().get(0);
+        assertThat(bus.spec().width()).isEqualTo(2);
+        assertThat(bus.spec().direction()).isEqualTo(PinDirection.INPUT);
+        assertThat(bus.source().value()).isEqualTo("machine-input-bus");
+        Component source = body.body().components().stream()
+                .filter(component -> component.id().equals(bus.source())).findFirst().orElseThrow();
+        assertThat(InterfacePins.widthOf(source)).isEqualTo(2);
+        assertThat(body.pinout().get(1).spec().width()).isEqualTo(1);
+    }
+
+    @Test
+    void outputsAsABusAreOnePinOnTheRight() {
+        StateMachine machine = MachineExamples.twoOnesDetector().withPinNames(List.of("x"), List.of("Z", "W", "V"))
+                .withBus(false, true);
+
+        MachineBody body = MachineBody.of(machine);
+
+        assertThat(names(body.pinout())).containsExactly("x", "RST", "CLK", MachineBody.BUS_OUTPUT_NAME);
+        DefinitionPin bus = body.pinout().get(3);
+        assertThat(bus.spec().width()).isEqualTo(3);
+        assertThat(bus.spec().direction()).isEqualTo(PinDirection.OUTPUT);
+        assertThat(bus.spec().position().x()).isEqualTo(body.size().width());
+        assertThat(bus.source().value()).isEqualTo("machine-output-bus");
+    }
+
+    @Test
+    void aBusOfOneNameIsOneBitAndABusWithoutNamesHasNoPin() {
+        MachineBody one = MachineBody.of(StateMachine.initial().withPinNames(List.of("x"), List.of())
+                .withBus(true, true));
+        assertThat(names(one.pinout())).containsExactly(MachineBody.BUS_INPUT_NAME, "RST", "CLK");
+        assertThat(one.pinout().get(0).spec().width()).isEqualTo(1);
+    }
+
+    @Test
+    void aBusIsNeverNamedLikeAPinOfTheOtherSide() {
+        StateMachine machine = StateMachine.initial().withPinNames(List.of("x", "y"), List.of("in"))
+                .withBus(true, false);
+
+        MachineBody body = MachineBody.of(machine);
+
+        assertThat(names(body.pinout())).doesNotHaveDuplicates().contains("in");
+        assertThat(body.pinout().get(0).spec().name()).isEqualTo(MachineBody.busName(machine,
+                MachinePinEdits.Side.INPUT));
+    }
+}

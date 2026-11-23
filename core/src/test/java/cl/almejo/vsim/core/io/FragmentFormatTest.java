@@ -52,6 +52,19 @@ class FragmentFormatTest {
         assertThat(fragment.labels()).containsExactly(new TextLabel(new ElementId("l1"), GridPoint.ORIGIN, "hola"));
     }
 
+    @Test
+    void theNotesOfAFragmentIncludeItsFreeTextsAndNotCountedAsOtherElements() {
+        String onlyTexts = format.write(new CircuitFragment(List.of(), List.of(),
+                List.of(new TextLabel(new ElementId("l1"), new GridPoint(2, 3), "hola"))));
+        String withWire = format.write(sample());
+
+        FragmentFormat.Notes texts = FragmentFormat.notesOf(onlyTexts).orElseThrow();
+        assertThat(texts.texts()).extracting(TextLabel::text).containsExactly("hola");
+        assertThat(texts.notes()).isEmpty();
+        assertThat(texts.hasOtherElements()).isFalse();
+        assertThat(FragmentFormat.notesOf(withWire).orElseThrow().hasOtherElements()).isTrue();
+    }
+
     @ParameterizedTest
     @MethodSource("badInputs")
     void badInputFailsWithAReason(String json, CircuitFormatException.Reason reason) {
@@ -66,7 +79,7 @@ class FragmentFormatTest {
                 arguments("not json", CircuitFormatException.Reason.INVALID_JSON),
                 arguments("[1,2]", CircuitFormatException.Reason.NOT_VSIM_FILE),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\"}", CircuitFormatException.Reason.INVALID_ELEMENT),
-                arguments("{\"formatVersion\":7,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
+                arguments("{\"formatVersion\":8,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":2,\"kind\":\"fragment\",\"components\":"
                         + "[{\"id\":\"c1\",\"type\":\"lamp\",\"x\":0,\"y\":0}]}",
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE),

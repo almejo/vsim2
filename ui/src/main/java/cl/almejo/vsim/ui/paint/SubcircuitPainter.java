@@ -13,6 +13,8 @@ import java.awt.FontMetrics;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
@@ -20,7 +22,8 @@ import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
  * An instance of a user definition (spec §5.6): a box with the definition name along the top and each pin's name
  * inside the box next to the pin; texts shrink to fit, stay upright and never leave the box (or, for a pin
  * name, its pin's slot) in any rotation. The library-version badge is an overlay
- * ({@code LibraryVersionBadge}), not part of the drawing.
+ * ({@code LibraryVersionBadge}), not part of the drawing. A state machine's instance without a drawn appearance gets
+ * the {@link MachinePainter} face (its current state) instead of the plain box.
  */
 public final class SubcircuitPainter implements ComponentPainter {
 
@@ -35,6 +38,11 @@ public final class SubcircuitPainter implements ComponentPainter {
         if (SubcircuitTypes.appearanceOf(type).isPresent()) {
             SymbolPainter.paint(graphics, type, SubcircuitTypes.appearanceOf(type).orElseThrow(), scheme,
                     SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id()));
+            return;
+        }
+        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
+        if (definition.filter(ComponentDefinition::isMachine).isPresent()) {
+            MachinePainter.paintFace(graphics, type, definition.get(), state, scheme);
             return;
         }
         paintDefaultBox(graphics, type, scheme, PainterSupport.STROKE, 1);
@@ -53,11 +61,10 @@ public final class SubcircuitPainter implements ComponentPainter {
 
     private static void paintDefaultBox(Graphics2D graphics, ComponentType type, ColorScheme scheme,
                                         BasicStroke stroke, double pinScale) {
+        paintBoxAndPins(graphics, type, scheme, stroke, pinScale);
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
-        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme,
-                stroke);
         // Texts stay upright: turned a quarter, they run across the box (local y) instead of along it (local x).
         boolean sideways = PainterSupport.turnedSideways(graphics);
         String name = SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id());
@@ -65,11 +72,40 @@ public final class SubcircuitPainter implements ComponentPainter {
         double nameY = height >= SymbolTemplates.NAME_AT_TOP_HEIGHT * UNIT && !sideways ? UNIT : height / 2;
         float nameSize = fitted(graphics, name, NAME_SIZE, (sideways ? height : width) - 2 * INSET);
         PainterSupport.centeredText(graphics, box, name, width / 2, nameY, nameSize, scheme.text());
+    }
+
+    /**
+     * The default box with its pins' names and dots but no name: a state machine's face writes the name itself,
+     * always on top, because its middle holds the miniature even when the piece is turned a quarter.
+     */
+    static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
+        paintBoxAndPins(graphics, type, scheme, SubcircuitPainter::pinText);
+    }
+
+    /** {@link #paintBoxAndPins(Graphics2D, ComponentType, ColorScheme)} writing each pin as {@code pinText} says. */
+    static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                Function<PinSpec, String> pinText) {
+        paintBoxAndPins(graphics, type, scheme, PainterSupport.STROKE, 1, pinText);
+    }
+
+    private static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                        BasicStroke stroke, double pinScale) {
+        paintBoxAndPins(graphics, type, scheme, stroke, pinScale, SubcircuitPainter::pinText);
+    }
+
+    private static void paintBoxAndPins(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                        BasicStroke stroke, double pinScale, Function<PinSpec, String> pinText) {
+        double width = type.size().width() * UNIT;
+        double height = type.size().height() * UNIT;
+        Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
+        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme,
+                stroke);
+        boolean sideways = PainterSupport.turnedSideways(graphics);
         for (PinSpec pin : type.pins()) {
             if (pin.name().isBlank()) {
                 continue;
             }
-            String text = pinText(pin);
+            String text = pinText.apply(pin);
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
             boolean left = pinX <= 0;

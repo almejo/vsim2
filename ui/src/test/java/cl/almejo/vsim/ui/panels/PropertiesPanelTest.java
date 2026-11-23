@@ -99,6 +99,55 @@ class PropertiesPanelTest {
         assertThat(panel.getComponents()).doesNotContain(extra);
     }
 
+    /** A row placed before «Etiqueta» (a machine's name) stays first after the label's own edit (review focus 3). */
+    @Test
+    void aRowPlacedBeforeTheLabelStaysFirstAfterALabelEdit() {
+        Component gate = gate(0);
+        javax.swing.JLabel name = new javax.swing.JLabel("nombre");
+        panel.addComponentRows(new PlacedRows(PropertiesPanel.RowsPlace.BEFORE_LABEL,
+                (component, rows) -> rows.add("Nombre", name)));
+        panel.addComponentRows((component, rows) -> rows.add("Más", new javax.swing.JLabel("extra")));
+        selection.select(gate.id());
+
+        panel.textField().setText("U1");
+        panel.textField().postActionEvent();
+
+        java.util.List<java.awt.Component> children = java.util.List.of(panel.getComponents());
+        assertThat(current(gate).label()).isEqualTo("U1");
+        assertThat(children).containsOnlyOnce(name);
+        assertThat(children.indexOf(name)).isLessThan(children.indexOf(panel.textField()));
+    }
+
+    /** What a row before «Etiqueta» left pending still runs after the label's edit asked the other rows again. */
+    @Test
+    void aPendingCommitOfARowBeforeTheLabelSurvivesALabelEdit() {
+        Component gate = gate(0);
+        java.util.List<String> commits = new java.util.ArrayList<>();
+        panel.addComponentRows(new PlacedRows(PropertiesPanel.RowsPlace.BEFORE_LABEL,
+                (component, rows) -> rows.onCommit(() -> commits.add("before"))));
+        panel.addComponentRows((component, rows) -> {
+            rows.add("Más", new javax.swing.JLabel("extra"));
+            rows.onCommit(() -> commits.add("after"));
+        });
+        selection.select(gate.id());
+        panel.textField().setText("U1");
+        panel.textField().postActionEvent();
+        commits.clear();
+
+        selection.clear();
+
+        assertThat(commits).containsExactlyInAnyOrder("before", "after");
+    }
+
+    /** {@code rows} placed at {@code place}. */
+    private record PlacedRows(PropertiesPanel.RowsPlace place, PropertiesPanel.ComponentRows rows)
+            implements PropertiesPanel.ComponentRows {
+        @Override
+        public void addRows(Component component, PropertiesPanel.Rows target) {
+            rows.addRows(component, target);
+        }
+    }
+
     @Test
     void aRefreshWhileTypingKeepsWhatIsTypedAndAppliesNothing() {
         Component gate = gate(0);

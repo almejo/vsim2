@@ -1,5 +1,8 @@
 package cl.almejo.vsim.core.library;
 
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineExamples;
+import cl.almejo.vsim.core.machine.MachineTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -61,5 +64,20 @@ class LibraryVersionsTest {
         assertThat(candidate.revisedFrom(original).revision()).isEqualTo(2);
         assertThat(original.revisedFrom(candidate.revisedFrom(original)).revision()).isEqualTo(3);
         assertThat(original.revisedFrom(original)).isSameAs(original);
+    }
+
+    /** Tests live only in the circuit (the user's rule, hito 4): a machine that has them is not outdated for that. */
+    @Test
+    void aMachineWhoseOnlyDifferenceIsItsTestsIsNotOutdated() {
+        ComponentDefinition inLibrary = MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector());
+        ComponentDefinition inCircuit = MachineDefinitions.edited(inLibrary, inLibrary.machine().orElseThrow()
+                .withTests(List.of(MachineTest.empty("p1", "Prueba 1", 8))));
+        ComponentLibrary library = new ComponentLibrary();
+        library.put(new DefinitionBundle(inLibrary, List.of()));
+
+        assertThat(LibraryVersions.outdated(List.of(inCircuit), library)).isEmpty();
+        assertThat(LibraryVersions.outdated(List.of(inCircuit.withName("Otra")), library))
+                .containsExactly("maquina-1");
     }
 }

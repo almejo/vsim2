@@ -29,6 +29,33 @@ public sealed interface VisibleState {
     record LedState(Value value) implements VisibleState {
     }
 
+    /**
+     * A «Máquina de estados»: its current state ({@code stateId} stable, {@code stateName} as shown) and where the
+     * next clock edge takes it with today's inputs ({@code nextTransitionId} empty when no arrow is taken and it
+     * stays; {@code nextStateId} empty only while {@code RST} holds it in the initial state). What the machine read
+     * as 0 without wanting to: {@code undefinedInputsAtLastEdge}, the inputs its conditions read that were Z or in
+     * conflict at the last clock edge, and {@code clockUndefined}, whether something drives {@code CLK} Z or in
+     * conflict now, so the machine cannot advance (a {@code CLK} left free is not a problem).
+     */
+    record MachineVisibleState(String stateId, String stateName, Optional<String> nextStateId,
+                               Optional<String> nextTransitionId, List<String> undefinedInputsAtLastEdge,
+                               boolean clockUndefined) implements VisibleState {
+
+        public MachineVisibleState {
+            Objects.requireNonNull(stateId, "stateId");
+            Objects.requireNonNull(stateName, "stateName");
+            Objects.requireNonNull(nextStateId, "nextStateId");
+            Objects.requireNonNull(nextTransitionId, "nextTransitionId");
+            undefinedInputsAtLastEdge = List.copyOf(undefinedInputsAtLastEdge);
+        }
+
+        /** A machine that read every input and its clock as 0 or 1. */
+        public MachineVisibleState(String stateId, String stateName, Optional<String> nextStateId,
+                                   Optional<String> nextTransitionId) {
+            this(stateId, stateName, nextStateId, nextTransitionId, List.of(), false);
+        }
+    }
+
     record SwitchState(Value value) implements VisibleState {
     }
 

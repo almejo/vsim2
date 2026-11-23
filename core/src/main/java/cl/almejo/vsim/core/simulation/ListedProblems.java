@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -9,12 +10,16 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.KeptOldShape;
 import cl.almejo.vsim.core.library.PieceMemories;
+import cl.almejo.vsim.core.machine.MachineChecks;
+import cl.almejo.vsim.core.machine.MachineCopies;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -23,8 +28,9 @@ import java.util.Set;
  * The rows of the Problemas list of one circuit, in its order: what the simulation found, the wiring warnings (a wire
  * found at a piece's edge only once: this session's row for the removed pin it went to stands for it), the pins
  * this session's shape changes left loose, the new pins an inside edit put elsewhere, the pieces an update of the
- * library would break, the linked memory files that cannot be used and the pieces' own memory contents that do not
- * apply. The editor's list and the AI's read are both made here, so they never disagree (fix round D, the user: a
+ * library would break, the linked memory files that cannot be used, the pieces' own memory contents that do not
+ * apply and the problems of the state machines: of each machine's model ({@link MachineChecks}, also for a machine no
+ * piece places) and of each running copy, under its path. The editor's list and the AI's read are both made here, so they never disagree (fix round D, the user: a
  * problem is never hidden, not from the AI either). The component library's own load problems are not the circuit's
  * and are listed apart.
  */
@@ -37,11 +43,12 @@ public final class ListedProblems {
      * What the rows are made of. {@code simulated}: the problems of the snapshot shown (its connectivity problems are
      * replaced by {@code connectivity}, the editor's, which are up to date without a simulation tick and hold what inside
      * edits could not carry); {@code loosenedPins} and {@code keptOldShapes}: this session's, while their edit is applied;
-     * {@code outdatedPieces} and {@code linkedFiles}: what the editor's checks of the library and of the files reported.
+     * {@code outdatedPieces} and {@code linkedFiles}: what the editor's checks of the library and of the files reported;
+     * {@code componentStates}: the snapshot's, where the running machine copies say what they read in Z.
      */
     public record Sources(List<Problem> simulated, List<ConnectivityProblem> connectivity, Set<PinRef> loosenedPins,
                           List<KeptOldShape> keptOldShapes, List<ConnectivityProblem> outdatedPieces,
-                          List<LinkedFileProblem> linkedFiles) {
+                          List<LinkedFileProblem> linkedFiles, Map<String, VisibleState> componentStates) {
 
         public Sources {
             simulated = List.copyOf(simulated);
@@ -50,6 +57,14 @@ public final class ListedProblems {
             keptOldShapes = List.copyOf(keptOldShapes);
             outdatedPieces = List.copyOf(outdatedPieces);
             linkedFiles = List.copyOf(linkedFiles);
+            componentStates = Map.copyOf(componentStates);
+        }
+
+        /** Sources without component states: no running machine copy is told about. */
+        public Sources(List<Problem> simulated, List<ConnectivityProblem> connectivity, Set<PinRef> loosenedPins,
+                       List<KeptOldShape> keptOldShapes, List<ConnectivityProblem> outdatedPieces,
+                       List<LinkedFileProblem> linkedFiles) {
+            this(simulated, connectivity, loosenedPins, keptOldShapes, outdatedPieces, linkedFiles, Map.of());
         }
 
         /**
@@ -59,14 +74,15 @@ public final class ListedProblems {
         public static Sources published(SimulationSnapshot snapshot, List<LinkedFileProblem> linkedFiles) {
             List<ConnectivityProblem> connectivity = snapshot.problems().stream()
                     .filter(ConnectivityProblem.class::isInstance).map(ConnectivityProblem.class::cast).toList();
-            return new Sources(snapshot.problems(), connectivity, Set.of(), List.of(), List.of(), linkedFiles);
+            return new Sources(snapshot.problems(), connectivity, Set.of(), List.of(), List.of(), linkedFiles,
+                    snapshot.componentStates());
         }
 
         /** These sources with another view's own reports (a component tab lists its own document's). */
         public Sources withReports(List<ConnectivityProblem> otherOutdatedPieces,
                                    List<LinkedFileProblem> otherLinkedFiles) {
             return new Sources(simulated, connectivity, loosenedPins, keptOldShapes, otherOutdatedPieces,
-                    otherLinkedFiles);
+                    otherLinkedFiles, componentStates);
         }
     }
 
@@ -83,8 +99,40 @@ public final class ListedProblems {
         problems.addAll(sources.outdatedPieces());
         problems.addAll(sources.linkedFiles());
         problems.addAll(storedContents(document));
+        problems.addAll(machineProblems(document, sources.componentStates()));
         problems.addAll(unsupportedDrawings(document));
         return List.copyOf(problems);
+    }
+
+    /**
+     * The problems of every machine of {@code document}'s library, in library order, then those of each running copy
+     * in {@code componentStates}, by path.
+     */
+    private static List<MachineProblem> machineProblems(CircuitDocument document,
+                                                        Map<String, VisibleState> componentStates) {
+        List<MachineProblem> problems = new ArrayList<>();
+        for (ComponentDefinition definition : document.definitions()) {
+            definition.machine().ifPresent(machine -> MachineChecks.check(machine).forEach(finding ->
+                    problems.add(MachineProblem.of(definition.id(), Optional.empty(), finding))));
+        }
+        List<String> paths = new ArrayList<>();
+        componentStates.forEach((path, state) -> {
+            if (state instanceof VisibleState.MachineVisibleState running
+                    && !MachineChecks.runtime(running).isEmpty()) {
+                paths.add(path);
+            }
+        });
+        Collections.sort(paths);
+        for (String path : paths) {
+            Optional<ComponentDefinition> definition = MachineCopies.definitionAt(document, path);
+            if (definition.isEmpty()) {
+                continue;
+            }
+            VisibleState.MachineVisibleState running = (VisibleState.MachineVisibleState) componentStates.get(path);
+            MachineChecks.runtime(running).forEach(finding ->
+                    problems.add(MachineProblem.of(definition.get().id(), Optional.of(path), finding)));
+        }
+        return problems;
     }
 
     /**

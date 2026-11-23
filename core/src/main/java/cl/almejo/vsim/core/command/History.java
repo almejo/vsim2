@@ -197,6 +197,62 @@ public final class History {
         notifyListeners();
     }
 
+    /** The history as it is now, to come back to with {@link #rollBackTo}: its two stacks and its saved mark. */
+    public static final class Checkpoint {
+        private final List<Command> undo;
+        private final List<Command> redo;
+        private final Command savedTop;
+
+        private Checkpoint(List<Command> undo, List<Command> redo, Command savedTop) {
+            this.undo = undo;
+            this.redo = redo;
+            this.savedTop = savedTop;
+        }
+    }
+
+    /** Where the history is now, for a {@link #rollBackTo} after steps that may have to be taken back. */
+    public Checkpoint checkpoint() {
+        return new Checkpoint(List.copyOf(undoStack), List.copyOf(redoStack), savedTop);
+    }
+
+    /**
+     * Takes back every step executed since {@code checkpoint} (reverted, newest first) and gives back the redo and the
+     * saved mark it had, so no trace of them is left: a close that wrote a draft's steps before «¿Guardar cambios?»
+     * and was then cancelled (hito 4 of the machines). False, with nothing done, when the history went elsewhere
+     * since (a step of the checkpoint was undone, merged or dropped by the limit).
+     */
+    public boolean rollBackTo(Checkpoint checkpoint) {
+        List<Command> now = List.copyOf(undoStack);
+        int added = now.size() - checkpoint.undo.size();
+        if (added < 0 || !sameCommands(now.subList(added, now.size()), checkpoint.undo)) {
+            return false;
+        }
+        for (int step = 0; step < added; step++) {
+            Command command = undoStack.peek();
+            command.revert(document);
+            lastChange = command;
+            undoStack.pop();
+        }
+        redoStack.clear();
+        redoStack.addAll(checkpoint.redo);
+        savedTop = checkpoint.savedTop;
+        lastExecuted = null;
+        notifyListeners();
+        return true;
+    }
+
+    private static boolean sameCommands(List<Command> these, List<Command> those) {
+        if (these.size() != those.size()) {
+            return false;
+        }
+        for (int index = 0; index < these.size(); index++) {
+            if (these.get(index) != those.get(index)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean canUndo() {
         return !undoStack.isEmpty();
     }

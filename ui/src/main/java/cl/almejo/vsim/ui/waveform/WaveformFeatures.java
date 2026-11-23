@@ -1,5 +1,8 @@
 package cl.almejo.vsim.ui.waveform;
 
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.ui.actions.TextPrompt;
@@ -26,6 +29,7 @@ import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 /**
  * The waveform feature of one editor view (spec §3.2): the panel in the view's bottom dock, Ver ▸ Formas de onda,
@@ -94,6 +98,45 @@ public final class WaveformFeatures {
             dock.showDock();
         }
         this.inFullScreen = new WaveformsInFullScreen(view, panel, view.services().preferences());
+        view.putClientProperty(WaveformFeatures.class, this);
+    }
+
+    /** The waveform feature of {@code view}; empty when the view has none (or it was disposed). */
+    public static Optional<WaveformFeatures> of(EditorView view) {
+        return view.getClientProperty(WaveformFeatures.class) instanceof WaveformFeatures features
+                ? Optional.of(features) : Optional.empty();
+    }
+
+    /**
+     * The panel shows {@code channels} instead of the document's probes (a machine tab's wave strip): Ver ▸ Formas de
+     * onda, its «Ocultar», its pin and presentation mode's bottom edge then act on them. Returns what shows the probes
+     * again.
+     */
+    public Runnable showChannels(WaveformChannels channels) {
+        Runnable restorer = panel.showChannels(channels);
+        channelsChanged();
+        return () -> {
+            restorer.run();
+            channelsChanged();
+        };
+    }
+
+    /** What the panel's rows are made of changed outside the probes (a machine tab entered another copy). */
+    public void channelsChanged() {
+        if (disposed) {
+            return;
+        }
+        panel.probesChanged();
+        probesChangedInFullScreen();
+    }
+
+    /**
+     * {@code pin} is the pin of what the dock shows instead of the panel (a machine's test table): in presentation mode
+     * it is shown and works exactly as the panel's own (docks it, remembered for every view). Returns what takes it
+     * away.
+     */
+    public Runnable addPin(PinToggle pin) {
+        return inFullScreen.addPin(pin);
     }
 
     /** The blink, the markers, their tooltip and their click in {@code pane}. Returns what undoes it. */
@@ -188,13 +231,25 @@ public final class WaveformFeatures {
 
     /**
      * «Mostrar en el circuito»: centers the active pane on the probe's net, selects its wires (or its components) and
-     * blinks them.
+     * blinks them; for a machine's state row, travels to the machine piece and selects it.
      */
     void showInCircuit(String probeId) {
         if (disposed) {
             return;
         }
         OpenDocument openDocument = view.openDocument();
+        Optional<ElementId> machine = openDocument.document().probes().stream()
+                .filter(probe -> probe.id().equals(probeId))
+                .map(Probe::target)
+                .flatMap(target -> target instanceof ProbeTarget.MachineStateTarget state
+                        ? Stream.of(state.componentId())
+                        : Stream.empty())
+                .findFirst();
+        if (machine.isPresent()) {
+            // the state net lives only in the flat circuit: the row stands for the piece itself
+            ProblemNavigator.focusComponent(view.canvas(), blink, machine.get());
+            return;
+        }
         String netId = openDocument.probeNets().get(probeId);
         if (netId == null) {
             return;
@@ -222,6 +277,7 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
+        view.putClientProperty(WaveformFeatures.class, null);
         inFullScreen.dispose();
         removeFromPanes.run();
         shortcutRemover.run();

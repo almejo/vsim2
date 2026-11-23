@@ -69,6 +69,8 @@ final class FakeCircuitHost extends FakeAutomationHost {
         private Command lastTop;
         private List<DefinitionBundle> library = List.of();
         private ProbeNaming probeNaming = ProbeNaming.NONE;
+        /** What this place refuses every edit with, like a state machine's body; null: it takes them. */
+        private AutomationException refusal;
 
         Circuit(CircuitDocument document) {
             this.document = document;
@@ -100,6 +102,24 @@ final class FakeCircuitHost extends FakeAutomationHost {
         @Override
         public History history() {
             return history;
+        }
+
+        @Override
+        public void execute(Command command) {
+            requireAccepts(command);
+            history.execute(command);
+        }
+
+        @Override
+        public void requireAccepts(Command command) {
+            if (refusal != null) {
+                throw refusal;
+            }
+        }
+
+        /** From now on every edit is refused with {@code newRefusal}, as a state machine's body place does. */
+        void refuseEdits(AutomationException newRefusal) {
+            refusal = newRefusal;
         }
 
         @Override

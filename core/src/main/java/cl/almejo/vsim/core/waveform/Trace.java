@@ -120,4 +120,35 @@ public final class Trace {
         }
         return found;
     }
+
+    /**
+     * Bit {@code index} of this recording, as a 1-bit trace with only the changes of that bit: a machine's input or
+     * output that lives in a bus ({@code MachineChannels.inputSource}). An event whose value has no such bit (a
+     * narrower net) is a gap; a value in conflict gives its bit in conflict too, since a value has one conflict flag.
+     * Walks every event: callers keep the result while this trace is the same.
+     *
+     * @throws IllegalArgumentException when {@code index} is negative or past {@link Value#MAXIMUM_WIDTH}
+     */
+    public Trace bit(int index) {
+        if (index < 0 || index >= Value.MAXIMUM_WIDTH) {
+            throw new IllegalArgumentException("no bit " + index);
+        }
+        ChannelTrace bits = new ChannelTrace(1, Math.max(2, chunks.size() + 1));
+        for (int event = 0; event < eventCount; event++) {
+            Value value = valueAtIndex(event);
+            long time = timeAt(event);
+            if (value == null || value.width() <= index) {
+                bits.appendGap(time);
+            } else {
+                Value bit = switch (value.bit(index)) {
+                    case ZERO -> Value.ZERO;
+                    case ONE -> Value.ONE;
+                    case HIGH_IMPEDANCE -> Value.HIGH_IMPEDANCE;
+                };
+                bits.append(time, value.conflict() ? bit.withConflict() : bit);
+            }
+        }
+        Trace sliced = bits.snapshot();
+        return truncated ? new Trace(1, sliced.chunks(), true) : sliced;
+    }
 }

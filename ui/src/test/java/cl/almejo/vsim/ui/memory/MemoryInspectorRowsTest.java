@@ -196,7 +196,7 @@ class MemoryInspectorRowsTest {
             view.selection().select(memoryId);
 
             assertThat(named(view.labelFeatures().properties(), "memory.inspector.contents", JLabel.class).getText())
-                    .isEqualTo("Contenido propio de Memoria chica 1");
+                    .isEqualTo("Contenido propio de Memoria chica · copia 1");
         } finally {
             view.dispose();
             view = null;

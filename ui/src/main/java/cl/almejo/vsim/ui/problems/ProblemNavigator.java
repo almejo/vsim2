@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.machine.MachineCopies;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -14,6 +15,7 @@ import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
+import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
@@ -36,6 +38,8 @@ public final class ProblemNavigator {
     private final Predicate<Problem> shownElsewhere;
     private List<Problem> problems = List.of();
     private int current = -1;
+    /** The problems {@link #next} and {@link #previous} stop at: every one, or a machine's in its tab. */
+    private Predicate<Problem> walked = problem -> true;
 
     /** {@code canvas} is resolved at every travel: the window's active pane. */
     public ProblemNavigator(Supplier<CircuitCanvas> canvas, NetBlink blink) {
@@ -88,6 +92,11 @@ public final class ProblemNavigator {
         return problems;
     }
 
+    /** From now on {@link #next} and {@link #previous} skip the problems {@code scope} does not hold for. */
+    void walkOnly(Predicate<Problem> scope) {
+        walked = scope;
+    }
+
     public Optional<Problem> next() {
         return step(1);
     }
@@ -118,6 +127,9 @@ public final class ProblemNavigator {
         if (problem instanceof LinkedFileProblem linkedFile) {
             return navigateToMemory(linkedFile);
         }
+        if (problem instanceof MachineProblem machine) {
+            return navigateToMachine(machine);
+        }
         if (problem instanceof TunnelProblem tunnel && navigateToTunnels(tunnel)) {
             return true;
         }
@@ -126,6 +138,27 @@ public final class ProblemNavigator {
             return navigateToInstances(problem);
         }
         focusNet(canvas.get(), blink, net.get());
+        return true;
+    }
+
+    /**
+     * A machine's problem shown on this canvas: selects the piece that holds its copy (the running copy, else the
+     * machine's first one). False when no piece of this circuit holds one.
+     */
+    private boolean navigateToMachine(MachineProblem problem) {
+        CircuitCanvas pane = canvas.get();
+        CircuitDocument document = pane.openDocument().document();
+        Optional<Component> piece = problem.instancePath()
+                .or(() -> MachineCopies.firstPathOf(document, problem.definitionId()))
+                .map(InstancePath::topLevel)
+                .flatMap(id -> document.component(new ElementId(id)));
+        if (piece.isEmpty()) {
+            return false;
+        }
+        pane.travelTo(pane.openDocument().registry().typeOf(piece.get()).bounds(piece.get()));
+        pane.selection().set(List.of(piece.get().id()));
+        blink.stop();
+        pane.requestFocusInWindow();
         return true;
     }
 
@@ -183,6 +216,23 @@ public final class ProblemNavigator {
     }
 
     /**
+     * Takes {@code canvas} to the top-level component {@code componentId}, selects it and focuses the canvas; a
+     * blinking net stops. False when the canvas's circuit has no such component. Used by the waveforms' «Mostrar en
+     * el circuito» on a machine's state row.
+     */
+    public static boolean focusComponent(CircuitCanvas canvas, NetBlink blink, ElementId componentId) {
+        Optional<Component> component = canvas.openDocument().document().component(componentId);
+        if (component.isEmpty()) {
+            return false;
+        }
+        canvas.travelTo(canvas.openDocument().registry().typeOf(component.get()).bounds(component.get()));
+        canvas.selection().set(List.of(componentId));
+        blink.stop();
+        canvas.requestFocusInWindow();
+        return true;
+    }
+
+    /**
      * A tunnel problem of the top circuit: travels to its tunnels (the two entradas of a duplicate, the lone salida)
      * and selects them, which says more than the net they share. False when none of them is in the top circuit (a
      * problem inside a component goes to its instance instead).
@@ -220,6 +270,7 @@ public final class ProblemNavigator {
             case TunnelProblem tunnel -> ids.addAll(tunnel.tunnels());
             case ConnectivityProblem connectivity -> ids.add(connectivity.elementId());
             case LinkedFileProblem linkedFile -> ids.add(linkedFile.elementId());
+            case MachineProblem machine -> machine.instancePath().ifPresent(ids::add);
         }
         CircuitDocument document = canvas.get().openDocument().document();
         ComponentTypeRegistry registry = canvas.get().openDocument().registry();
@@ -258,12 +309,14 @@ public final class ProblemNavigator {
     }
 
     private Optional<Problem> step(int direction) {
-        if (problems.isEmpty()) {
-            return Optional.empty();
-        }
         int start = current >= 0 ? current : (direction > 0 ? -1 : 0);
-        Problem problem = problems.get(Math.floorMod(start + direction, problems.size()));
-        navigateTo(problem);
-        return Optional.of(problem);
+        for (int distance = 1; distance <= problems.size(); distance++) {
+            Problem problem = problems.get(Math.floorMod(start + distance * direction, problems.size()));
+            if (walked.test(problem)) {
+                navigateTo(problem);
+                return Optional.of(problem);
+            }
+        }
+        return Optional.empty();
     }
 }

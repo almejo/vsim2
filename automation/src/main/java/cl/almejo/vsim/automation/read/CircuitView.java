@@ -54,16 +54,35 @@ public record CircuitView(DocumentId document, DocumentVersion version, String n
      * A placed part: {@code rotation} R0, R90, R180 or R270 (clockwise on screen, y grows downwards), every
      * parameter with defaults filled in, its box, and in {@link ReadFilter.Detail#FULL} its pins where they are.
      * {@code ownShape}: only for an instance of a user component, whether it has a shape of its own («Solo esta
-     * pieza») rather than its definition's.
+     * pieza») rather than its definition's. {@code machine}: only for a state machine piece, what it is (a piece of
+     * a machine has no inside the AI can edit yet).
      */
     public record PartView(String id, String typeId, String label, GridPoint position, String rotation,
                            Map<String, Object> parameters, Bounds bounds, List<PinView> pins,
-                           Optional<Boolean> ownShape) {
+                           Optional<Boolean> ownShape, Optional<MachineView> machine) {
 
         public PartView {
             Objects.requireNonNull(ownShape, "ownShape");
+            Objects.requireNonNull(machine, "machine");
             parameters = Map.copyOf(parameters);
             pins = List.copyOf(pins);
+        }
+    }
+
+    /**
+     * A state machine piece: its {@code name}; {@code kind} MOORE (outputs in the states), MEALY (on the arrows),
+     * MIXED or NONE (no outputs assigned yet); its state names in order, the initial one, how many arrows, its
+     * input and output names (the pins are in the part's {@code pins}), the clock {@code edge} (falling or rising)
+     * and, only while a simulation runs it, {@code currentState}.
+     */
+    public record MachineView(String name, String kind, List<String> states, Optional<String> initialState,
+                              int arrows, List<String> inputs, List<String> outputs, String edge,
+                              Optional<String> currentState) {
+
+        public MachineView {
+            states = List.copyOf(states);
+            inputs = List.copyOf(inputs);
+            outputs = List.copyOf(outputs);
         }
     }
 

@@ -105,7 +105,7 @@ class ProblemsInsideTest {
         body.execute(new AddElementsCommand(List.of(StandardComponentTypes.registry().require(InterfacePins.INPUT_PIN)
                 .newComponent(body.document().newComponentId(), new GridPoint(0, 10), Rotation.R0, Map.of(), "b"))));
 
-        String expected = "Doble inversor › Inversor 2: el pin b quedó en otro lugar (su lugar estaba ocupado)";
+        String expected = "Doble inversor › Inversor · copia 2: el pin b quedó en otro lugar (su lugar estaba ocupado)";
         assertThat(main.problems().panel().problemTexts()).contains(expected);
         assertThat(inside.problems().panel().problemTexts()).contains(expected);
         circuit.history().undo();

@@ -6,11 +6,20 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.machine.DiagramPoint;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineNote;
+import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineTransition;
+import cl.almejo.vsim.core.machine.StateColor;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -74,11 +84,101 @@ class CircuitTreeModelTest {
         CircuitTreeNode instance = CircuitTreeModel.build("x", document, registry).children().getFirst();
 
         assertThat(instance.definitionId()).contains(ExampleDefinitions.DOUBLE_INVERTER);
-        assertThat(names(instance.children())).containsExactly("a", "Inversor 1", "Inversor 2", "y");
+        assertThat(names(instance.children())).containsExactly("a", "Inversor · copia 1", "Inversor · copia 2", "y");
         CircuitTreeNode nested = instance.children().get(2);
         assertThat(nested.path()).isEqualTo("c1/c3");
         assertThat(nested.definitionId()).contains(ExampleDefinitions.INVERTER);
         assertThat(nested.children().get(1).path()).isEqualTo("c1/c3/c2");
+    }
+
+    @Test
+    void aStateMachineHoldsItsStatesNotItsGeneratedPins() {
+        document.putDefinition(MachineDefinitions.create("maquina-abc123", "Máquina 1"));
+        add(SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+
+        CircuitTreeNode machine = CircuitTreeModel.build("x", document, registry).children().getFirst();
+
+        assertThat(machine.definitionId()).contains("maquina-abc123");
+        assertThat(names(machine.children())).containsExactly("S0");
+        CircuitTreeNode state = machine.children().getFirst();
+        assertThat(state.path()).isEqualTo("c1#s0");
+        assertThat(state.isUserComponent()).isFalse();
+        assertThat(state.machineRow().orElseThrow().initial()).isTrue();
+        assertThat(state.machineRow().orElseThrow().kind()).isEqualTo(CircuitTreeNode.MachineRow.Kind.STATE);
+    }
+
+    private ComponentDefinition machineWith(List<MachineState> states, List<MachineNote> notes) {
+        ComponentDefinition created = MachineDefinitions.create("maquina-abc123", "Máquina 1");
+        StateMachine base = created.machine().orElseThrow();
+        return MachineDefinitions.edited(created, base.withStates(states).withNotes(notes)
+                .withInitialStateId(Optional.of("s0")));
+    }
+
+    @Test
+    void theStatesComeInOrderWithTheirColourThenANotesGroupWithOneRowPerNote() {
+        document.putDefinition(machineWith(List.of(
+                new MachineState("s0", "Espera", DiagramPoint.ORIGIN, List.of()),
+                new MachineState("s1", "Cuenta", DiagramPoint.ORIGIN, List.of(), Optional.of(StateColor.GREEN))),
+                List.of(new MachineNote("n1", DiagramPoint.ORIGIN, 160, 120, StickyColor.YELLOW, "Primera\nlínea"),
+                        new MachineNote("n2", DiagramPoint.ORIGIN, 160, 120, StickyColor.YELLOW, ""))));
+        add(SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+
+        CircuitTreeNode machine = CircuitTreeModel.build("x", document, registry).children().getFirst();
+
+        assertThat(names(machine.children())).containsExactly("Espera", "Cuenta", "Notas (2)");
+        assertThat(machine.children().get(0).machineRow().orElseThrow().initial()).isTrue();
+        assertThat(machine.children().get(1).machineRow().orElseThrow().initial()).isFalse();
+        assertThat(machine.children().get(1).machineRow().orElseThrow().color()).contains(StateColor.GREEN);
+        CircuitTreeNode group = machine.children().get(2);
+        assertThat(group.machineRow().orElseThrow().kind()).isEqualTo(CircuitTreeNode.MachineRow.Kind.NOTES);
+        assertThat(names(group.children())).containsExactly("Primera", "(nota vacía)");
+        assertThat(group.children().getFirst().machineRow().orElseThrow().elementId()).isEqualTo("n1");
+    }
+
+    @Test
+    void noNotesNoGroupAndNoTransitionsAsRows() {
+        document.putDefinition(machineWith(List.of(new MachineState("s0", "A", DiagramPoint.ORIGIN, List.of()),
+                new MachineState("s1", "B", DiagramPoint.ORIGIN, List.of())), List.of()));
+        add(SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+
+        CircuitTreeNode machine = CircuitTreeModel.build("x", document, registry).children().getFirst();
+
+        assertThat(names(machine.children())).containsExactly("A", "B");
+    }
+
+    @Test
+    void aStateWithAProblemIsMarkedAndAWarningIsNotAnError() {
+        // two arrows without a condition out of A: an error on A; B has none
+        ComponentDefinition created = MachineDefinitions.create("maquina-abc123", "Máquina 1");
+        document.putDefinition(MachineDefinitions.edited(created,
+                created.machine().orElseThrow().withStates(List.of(
+                        new MachineState("s0", "A", DiagramPoint.ORIGIN, List.of()),
+                        new MachineState("s1", "B", DiagramPoint.ORIGIN, List.of())))
+                        .withTransitions(List.of(
+                                new MachineTransition("t1", "s0", "s1", "", List.of()),
+                                new MachineTransition("t2", "s0", "s0", "", List.of())))));
+        add(SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+
+        CircuitTreeNode machine = CircuitTreeModel.build("x", document, registry).children().getFirst();
+
+        assertThat(machine.children().get(0).machineRow().orElseThrow().problem())
+                .isEqualTo(CircuitTreeNode.MachineRow.Severity.ERROR);
+        assertThat(machine.children().get(1).machineRow().orElseThrow().problem())
+                .isEqualTo(CircuitTreeNode.MachineRow.Severity.NONE);
+    }
+
+    @Test
+    void theSearchFindsAStateByNameWithTheMachineInItsRoute() {
+        document.putDefinition(machineWith(List.of(new MachineState("s0", "Espera", DiagramPoint.ORIGIN, List.of()),
+                new MachineState("s1", "Cuenta", DiagramPoint.ORIGIN, List.of())), List.of()));
+        add(SubcircuitTypes.typeIdOf("maquina-abc123"), 0, 0, "");
+        CircuitTreeNode root = CircuitTreeModel.build("x", document, registry);
+
+        List<CircuitTreeModel.Match> matches = CircuitTreeModel.search(root, new SearchQuery("cuent", false, false).compile());
+
+        assertThat(matches).hasSize(1);
+        assertThat(matches.getFirst().node().path()).isEqualTo("c1#s1");
+        assertThat(matches.getFirst().route()).containsExactly("Máquina 1");
     }
 
     @Test

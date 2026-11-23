@@ -23,6 +23,8 @@ import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.Disassembly;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
+import cl.almejo.vsim.core.machine.MachineExamples;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import org.junit.jupiter.api.Test;
 
@@ -435,6 +437,22 @@ class ConnectivityChecksTest {
         assertThat(edgeWires()).extracting(ConnectivityProblem::elementId, ConnectivityProblem::position)
                 .containsExactlyInAnyOrder(tuple("h1/c5", new GridPoint(10, 11)),
                         tuple("h2/c5", new GridPoint(10, 11)));
+    }
+
+    @Test
+    void aStateMachinesPinsAreNeverUnconnectedInsideWiredOrNotAndAtAnyDepth() {
+        document.putDefinition(MachineDefinitions.create("maquina-x", "Máquina 1")
+                .withMachine(MachineExamples.twoOnesDetector()));
+        document.putDefinition(new ComponentDefinition("parent", "Parent", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(component(SubcircuitTypes.typeIdOf("maquina-x"), "inner", 0, 0)),
+                        List.of(), List.of())));
+        document.add(component(SubcircuitTypes.typeIdOf("maquina-x"), "machine", 0, 0));
+        document.add(component(SubcircuitTypes.typeIdOf("parent"), "outer", 30, 0));
+
+        assertThat(problems()).isEmpty();
+        // The machine inside «parent» is a part whose own pins are loose there; nothing comes from inside a machine.
+        assertThat(looseEnds()).extracting(ConnectivityProblem::cause)
+                .containsOnly(ConnectivityProblem.Cause.INNER_PIN);
     }
 
     /** A component whose only input reaches nothing inside: its outer terminal is a problem. */

@@ -71,7 +71,12 @@ public final class ProblemsPanel extends JPanel {
             public java.awt.Component getListCellRendererComponent(JList<?> source, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 super.getListCellRendererComponent(source, value, index, selected, focused);
-                setText(RowText.of(describer.apply((Problem) value)));
+                String sentence = describer.apply((Problem) value);
+                setText(RowText.of(sentence));
+                // a row the panel's width cuts (or scrolled sideways) says its whole sentence when hovered
+                Rectangle visible = source.getVisibleRect();
+                boolean cut = visible.x > 0 || getPreferredSize().width > visible.x + visible.width;
+                setToolTipText(cut ? RowText.of(sentence) : null);
                 return this;
             }
         });

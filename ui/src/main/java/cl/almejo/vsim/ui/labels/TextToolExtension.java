@@ -21,7 +21,8 @@ public final class TextToolExtension implements EditorExtension {
     @Override
     public Runnable install(EditorView view) {
         List<Runnable> removers = new ArrayList<>();
-        Action tool = Actions.of(Messages.text("action.toolText"), () -> view.setToolOnEveryPane(TextTool::new));
+        Action tool = Actions.of(Messages.text("action.toolText"),
+                () -> view.chooseTool(TextTool.class, TextTool::new));
         Icons.install(tool, TextToolIcons.TOOL);
         removers.add(view.addToolButton(tool, TextTool.class));
         removers.add(view.addToolMenuItem(MenuSlot.TEXT_TOOL, tool, TextTool.class));

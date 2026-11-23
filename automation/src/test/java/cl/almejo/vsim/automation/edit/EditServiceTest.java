@@ -270,6 +270,24 @@ class EditServiceTest {
         assertNothingChanged();
     }
 
+    /** A place that refuses the edit (a state machine's body) refuses the validate-only call the same way. */
+    @Test
+    void validateOnlyIsRefusedWhereTheRealEditWouldBe() {
+        circuit.refuseEdits(new AutomationException(AutomationError.NOT_ALLOWED, "not here",
+                Map.of("reason", "machine.refused.circuitEdit")));
+        List<EditOperation> operations = List.of(place("lamp", "led", 10, 0));
+
+        AutomationException real = assertRefused(new EditRequest(new DocumentId(DOCUMENT), circuit.version(),
+                "op-real", Optional.empty(), operations, false), AutomationError.NOT_ALLOWED);
+        AutomationException checked = assertRefused(new EditRequest(new DocumentId(DOCUMENT), circuit.version(),
+                "op-check", Optional.empty(), operations, true), AutomationError.NOT_ALLOWED);
+
+        assertThat(checked.getMessage()).isEqualTo(real.getMessage());
+        assertThat(checked.recovery()).isEqualTo(real.recovery())
+                .containsEntry("reason", "machine.refused.circuitEdit");
+        assertNothingChanged();
+    }
+
     // --- aliases, receipts, undo steps ---
 
     @Test

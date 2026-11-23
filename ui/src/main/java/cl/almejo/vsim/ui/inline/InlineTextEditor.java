@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -46,6 +47,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -108,6 +110,9 @@ public final class InlineTextEditor {
     private final JButton confirmButton;
     private final JButton cancelButton;
     private final JLabel problemText = new ProblemBadge();
+    /** How the text is written (an arrow's «condición / salidas»), under the field while there is no problem. */
+    private final JLabel hintText = new HintBadge();
+    private Optional<String> hint = Optional.empty();
     private final DefaultListModel<String> suggestionModel = new DefaultListModel<>();
     private final JList<String> suggestionList = new JList<>(suggestionModel);
     private final AWTEventListener pressListener = this::anywhereInTheApplication;
@@ -146,10 +151,14 @@ public final class InlineTextEditor {
         panel.add(cancelButton);
         panel.add(suggestionList);
         panel.add(problemText);
+        panel.add(hintText);
         installFieldKeys();
         installAreaKeys();
         TextChanges.onChange(field, this::textChanged);
         TextChanges.onChange(area, this::textChanged);
+        // copied parts or states also travel as plain text: Ctrl+V of them must not type their JSON here
+        FragmentRefusingTransferHandler.install(field);
+        FragmentRefusingTransferHandler.install(area);
     }
 
     private void configureFieldAndArea() {
@@ -169,6 +178,7 @@ public final class InlineTextEditor {
 
     private void configureSuggestionsAndProblem() {
         problemText.setVisible(false);
+        hintText.setVisible(false);
         suggestionList.setVisible(false);
         suggestionList.setFocusable(false); // the field keeps the focus, and its keys
         suggestionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -327,6 +337,23 @@ public final class InlineTextEditor {
         return problemText;
     }
 
+    /** How the open text is written, under the field while it has no problem; hidden without one. */
+    public JLabel hintText() {
+        return hintText;
+    }
+
+    /**
+     * Shows {@code text} under the field of the open edit while its text has no problem (a problem takes its place):
+     * how the text is written, such as an arrow's «condición / salidas». It goes away when the edit closes.
+     */
+    public void showHint(String text) {
+        if (!isOpen()) {
+            return;
+        }
+        hint = Optional.of(Objects.requireNonNull(text, "text"));
+        check();
+    }
+
     /** The suggestions that fit the text now; hidden when there are none. */
     public JList<String> suggestionList() {
         return suggestionList;
@@ -381,6 +408,8 @@ public final class InlineTextEditor {
         boolean hadFocus = field.isFocusOwner() || area.isFocusOwner();
         request = null;
         stillValid = () -> true;
+        hint = Optional.empty();
+        hintText.setVisible(false);
         List<Runnable> removals = new ArrayList<>(whileOpen);
         whileOpen.clear();
         for (int index = removals.size() - 1; index >= 0; index--) {
@@ -432,6 +461,8 @@ public final class InlineTextEditor {
         areaScroller.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
         problemText.setText(problem.orElse(""));
         problemText.setVisible(problem.isPresent());
+        hintText.setText(hint.orElse(""));
+        hintText.setVisible(problem.isEmpty() && hint.isPresent());
         confirmButton.setEnabled(problem.isEmpty());
         showSuggestions(text.getText());
         layOut();
@@ -533,12 +564,18 @@ public final class InlineTextEditor {
             problemBounds.setSize(problemText.getPreferredSize());
             all = all.union(problemBounds);
         }
+        Rectangle hintBounds = new Rectangle(fieldBounds.x, problemBounds.y, 0, 0);
+        if (hintText.isVisible()) {
+            hintBounds.setSize(hintText.getPreferredSize());
+            all = all.union(hintBounds);
+        }
         panel.setBounds(all);
         editingComponent().setBounds(relative(fieldBounds, all));
         confirmButton.setBounds(relative(confirmBounds, all));
         cancelButton.setBounds(relative(cancelBounds, all));
         suggestionList.setBounds(relative(suggestionBounds, all));
         problemText.setBounds(relative(problemBounds, all));
+        hintText.setBounds(relative(hintBounds, all));
         panel.revalidate();
         panel.repaint();
         if (request.multiLine()) {

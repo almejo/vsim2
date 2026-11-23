@@ -254,7 +254,9 @@ class ShortcutCatalogTest {
         List<String> logic = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.LOGIC).map(ShortcutEntry::id).toList();
         assertThat(logic).containsExactly("simulation.truthTable", "tools.circuitFromTruthTable",
-                "tools.circuitFromExpressions", "tools.karnaughPractice");
+                "tools.circuitFromExpressions", "tools.karnaughPractice", "tools.testMachine");
+        assertThat(ShortcutCatalog.find("tools.testMachine")).contains(new ShortcutEntry(
+                "tools.testMachine", "action.testMachine", MenuId.LOGIC, Scope.WINDOW, Optional.empty()));
         assertThat(ShortcutCatalog.find("tools.circuitFromTruthTable")).contains(new ShortcutEntry(
                 "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.LOGIC, Scope.WINDOW,
                 Optional.empty()));

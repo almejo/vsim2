@@ -30,6 +30,7 @@ import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
@@ -239,22 +240,41 @@ public final class TemplateActions {
             dialogs.showMessage(canvas.get(), Messages.text("template.noInterfacePins"));
             return;
         }
+        List<ComponentDefinition> targets = updateTargets(document);
+        if (targets.isEmpty()) {
+            dialogs.showMessage(canvas.get(), Messages.text("machine.refused.update"));
+            return;
+        }
         PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
         ComponentForm form = ComponentForm.update(order, DefinitionBuilder.pinNames(document, order), takenNames(),
-                document.definitions(), offersMemoryLinks(document, ids));
+                targets, offersMemoryLinks(document, ids));
         dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result, form.keepMemoryLinks()));
+    }
+
+    /**
+     * The definitions «Actualizar componente…» may replace: every one but the state machines, whose body is generated
+     * from their diagram (a selection would turn one silently into a circuit component and leave its tab with no
+     * machine, review I3).
+     */
+    private static List<ComponentDefinition> updateTargets(CircuitDocument document) {
+        return document.definitions().stream().filter(definition -> !definition.isMachine()).toList();
     }
 
     /**
      * "Desarmar": one undo step that removes the instance, pastes its body (interface pins included) unrotated with
      * the body's top-left at the instance's top-left, and bridges each instance pin that had an outside connection to
      * its pasted interface pin ({@link Disassembly}); the pasted parts become the selection. When the body would land
-     * on a foreign wire or pin nothing changes and a message says so; pins that cannot be bridged are named.
+     * on a foreign wire or pin nothing changes and a message says so; pins that cannot be bridged are named. A state
+     * machine is refused with its reason: its body is only its pins.
      */
     public void disassemble(Component instance) {
         ComponentTypeRegistry registry = openDocument.registry();
         Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(registry.typeOf(instance));
         if (definition.isEmpty()) {
+            return;
+        }
+        if (definition.get().isMachine()) {
+            dialogs.showMessage(canvas.get(), Messages.text("machine.refused.disassemble"));
             return;
         }
         CircuitDocument document = openDocument.document();
@@ -307,7 +327,18 @@ public final class TemplateActions {
             return;
         }
         KeptVersions.warn(document, bundle, dialogs, canvas.get());
-        replaceDefinition(bundle);
+        replaceDefinition(withTheCircuitsTests(document, bundle));
+    }
+
+    /**
+     * {@code bundle} from the library with the circuit's own tests on its machine: tests live only in the circuit
+     * file, so following the library keeps them, fitted to the library's pins ({@link MachineDefinitions#keepingTests}).
+     */
+    private static DefinitionBundle withTheCircuitsTests(CircuitDocument document, DefinitionBundle bundle) {
+        return document.definition(bundle.root().id())
+                .map(current -> new DefinitionBundle(MachineDefinitions.keepingTests(current, bundle.root()),
+                        bundle.dependencies()))
+                .orElse(bundle);
     }
 
     /** True when the library holds a different version of the instance's definition (the badge shows). */
@@ -353,11 +384,19 @@ public final class TemplateActions {
         return Actions.of(Messages.text("action.enter"), () -> canvas.get().enterComponent(instance));
     }
 
-    /** "Desarmar" for {@code instance}, with its icon. */
+    /** "Desarmar" for {@code instance}, with its icon; disabled with the reason as its tooltip on a state machine. */
     Action disassembleAction(Component instance) {
         Action action = Actions.of(Messages.text("action.disassemble"), () -> disassemble(instance));
         Icons.install(action, TemplateIcons.DISASSEMBLE);
+        if (definitionOf(instance).filter(ComponentDefinition::isMachine).isPresent()) {
+            Actions.disabledBecause(action, () -> Messages.text("machine.refused.disassemble"));
+            action.setEnabled(false);
+        }
         return action;
+    }
+
+    private Optional<ComponentDefinition> definitionOf(Component instance) {
+        return SubcircuitTypes.definitionOf(openDocument.registry().typeOf(instance));
     }
 
     /** "Actualizar desde la librería" for {@code instance}, with its icon. */
@@ -423,10 +462,15 @@ public final class TemplateActions {
         };
     }
 
-    /** The «Entrar ↘» button Propiedades shows for a user component's piece: as a double click on it. */
+    /**
+     * The «Entrar ↘» button Propiedades shows for a user component's piece: as a double click on it. A machine's piece
+     * has its own, «Entrar ↘ para cambiarlas», under the summary of its machine.
+     */
     public PropertiesPanel.ComponentRows enterRows() {
         return (component, rows) -> {
-            if (definitionIdOf(component).isPresent()
+            boolean machine = EnterableInstances.definitionOf(openDocument, component)
+                    .flatMap(circuit().document()::definition).filter(ComponentDefinition::isMachine).isPresent();
+            if (definitionIdOf(component).isPresent() && !machine
                     && EnterableInstances.definitionOf(openDocument, component).isPresent()) {
                 rows.addWide(new JButton(Actions.of(Messages.text("properties.enter"),
                         () -> canvas.get().enterComponent(component))));
@@ -626,7 +670,8 @@ public final class TemplateActions {
         return ids;
     }
 
-    void saveToLibrary(DefinitionBundle bundle) {
+    /** Writes {@code bundle} to «Mis componentes»; a failed write is told to the user and logged. */
+    public void saveToLibrary(DefinitionBundle bundle) {
         try {
             service.save(bundle);
         } catch (IOException exception) {

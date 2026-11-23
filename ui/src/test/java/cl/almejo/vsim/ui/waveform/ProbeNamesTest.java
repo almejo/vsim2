@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.machine.MachineFixtures;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,6 +118,23 @@ class ProbeNamesTest {
                         + " an M6 running in English")
                 .containsExactly("", "", "c1.in", "reloj", "", "", "cable " + wire.id().value() + " bis");
         assertThat(document.revision()).isEqualTo(revision);
+    }
+
+    @Test
+    void anOlderDefaultNameOfAMachinePinIsStillForgottenThoughItIsShownByTheMachinesName() {
+        try (OpenDocument machines = MachineFixtures.circuitWithGeneratedMachines(1)) {
+            Component piece = machines.document().components().getFirst();
+            int outputZ = machines.registry().typeOf(piece).pinIndexOf("Z").orElseThrow();
+            ProbeTarget target = new ProbeTarget.PinTarget(piece.id(), outputZ);
+            CircuitDocument document = machines.document();
+            document.setProbes(List.of(new Probe("p1", target, piece.id().value() + ".Z")));
+
+            ProbeNames.forgetDefaultNames(document, machines.registry());
+
+            assertThat(document.probes().getFirst().name()).isEmpty();
+            assertThat(ProbeNames.defaultName(target, document, machines.netlist(), machines.registry()))
+                    .isEqualTo("Detector 11.Z");
+        }
     }
 
     @Test

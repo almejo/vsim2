@@ -127,6 +127,29 @@ public final class InspectorPanel extends JPanel {
         refresh();
     }
 
+    /**
+     * Shows {@code content} as section {@code id} instead of what it holds, same title and icon, until the returned
+     * runnable runs: a machine's tab shows the diagram's properties where a circuit's go (spec 2026-11-14 §2.4).
+     */
+    public Runnable showInstead(String id, JComponent content) {
+        Objects.requireNonNull(content, "content");
+        Section own = section(id);
+        Section replaced = new Section(own.id(), own.title(), own.iconName(), content);
+        swap(own, replaced);
+        return () -> {
+            if (sections.get(id) == replaced) {
+                swap(replaced, own);
+            }
+        };
+    }
+
+    private void swap(Section shown, Section next) {
+        cards.remove(shown.content());
+        sections.put(next.id(), next);
+        cards.add(next.content(), next.id());
+        refresh();
+    }
+
     /** Shows {@code count} on the icon of section {@code id} as {@code kind}; 0 hides the badge. */
     public void setBadge(String id, int count, Badge kind) {
         section(id);

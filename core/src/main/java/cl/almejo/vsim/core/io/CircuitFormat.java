@@ -34,6 +34,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -58,16 +59,27 @@ import java.util.function.UnaryOperator;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
-/** Reads formats 2 to 6 and writes format 6 (JSON; first keys in {@link FileHeader}). */
+/** Reads formats 2 to 7 and writes format 7 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
     /**
      * 4: parameterized gates ({@link LegacyGateMigration}); 5: the thin register ({@link RegisterShapeMigration}) and
      * the D flip-flop's Q̅, off on old parts ({@link FlipFlopNotOutputMigration}); 6: a piece's own memory contents
      * ({@code memoryContents}, optional: older files read unchanged, and an older VSim refuses a newer file instead of
-     * dropping them).
+     * dropping them); 7: a definition's optional {@code machine}, a «Máquina de estados» whose body is generated from it
+     * (an older VSim refuses the file instead of showing the machine as an empty component), and a probe on a machine
+     * piece's state ({@code "watch": "state"}); added to 7 before its release (hito 3 of the machines, optional): a
+     * machine pin written as {@code {"id", "name"}} once renamed (a plain name otherwise), a state's {@code color} and
+     * the diagram's {@code notes}; and (hito 4) a machine test's {@code id}, {@code columns} and its {@code inputs} and
+     * {@code expected} values, one string per pin id ({@link MachineTestEntries}; an entry with only {@code name}, the
+     * earlier placeholder, reads as one empty column).
+     * <p>
+     * Format 7 is frozen as of release 0.9 ({@code MachineFormatFrozenTest} and its files in
+     * {@code machine-format-7}). Later milestones may only add optional fields: a field that is absent means what it
+     * means today, and no existing field changes its meaning. Recovery-only fields ({@code testDrafts}, see
+     * {@link RecoveryTestDrafts}) never go into a normal save.
      */
-    public static final int FORMAT_VERSION = 6;
+    public static final int FORMAT_VERSION = 7;
     static final String KIND_CIRCUIT = "circuit";
     private static final String STICKY_KIND_TEXT = "text";
     private static final String STICKY_KIND_LIST = "list";
@@ -226,7 +238,7 @@ public final class CircuitFormat {
     }
 
     /** The entry of a note's style; {@code null} (no key) for a plain note. */
-    private static StyleEntry styleEntry(NoteStyle style) {
+    static StyleEntry styleEntry(NoteStyle style) {
         if (style.isPlain()) {
             return null;
         }
@@ -238,20 +250,27 @@ public final class CircuitFormat {
     }
 
     /**
-     * One waveform channel: exactly one of {@code component} + {@code pin} or {@code wire}. An empty {@code name}
-     * (the live default name, M6.1-E) is left out of the file.
+     * One waveform channel: exactly one of {@code component} + {@code pin}, {@code wire}, or {@code component} +
+     * {@code watch: "state"} (a machine piece's state, format 7). An empty {@code name} (the live default name,
+     * M6.1-E) is left out of the file.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     record ProbeEntry(String id, @JsonInclude(JsonInclude.Include.NON_EMPTY) String name, String component,
-                      Integer pin, String wire, @JsonInclude(JsonInclude.Include.NON_NULL) String format) {
+                      Integer pin, String wire, String watch,
+                      @JsonInclude(JsonInclude.Include.NON_NULL) String format) {
     }
+
+    /** The {@code watch} of a probe on a machine piece's state. */
+    private static final String WATCH_STATE = "state";
 
     static ProbeEntry probeEntry(Probe probe) {
         return switch (probe.target()) {
             case ProbeTarget.PinTarget pin -> new ProbeEntry(probe.id(), probe.name(), pin.componentId().value(),
-                    pin.pinIndex(), null, formatEntry(probe));
+                    pin.pinIndex(), null, null, formatEntry(probe));
             case ProbeTarget.WireTarget wire -> new ProbeEntry(probe.id(), probe.name(), null, null,
-                    wire.wireId().value(), formatEntry(probe));
+                    wire.wireId().value(), null, formatEntry(probe));
+            case ProbeTarget.MachineStateTarget state -> new ProbeEntry(probe.id(), probe.name(),
+                    state.componentId().value(), null, null, WATCH_STATE, formatEntry(probe));
         };
     }
 
@@ -328,6 +347,15 @@ public final class CircuitFormat {
      * linked file relative to where the circuit is saved.
      */
     public String write(CircuitDocument document, UnaryOperator<Component> written) {
+        return write(document, written, UnaryOperator.identity());
+    }
+
+    /**
+     * Like {@link #write(CircuitDocument, UnaryOperator)}, with each definition written as {@code definitions} gives
+     * it (the document is not touched): a recovery copy writes a machine's test draft's tests in.
+     */
+    public String write(CircuitDocument document, UnaryOperator<Component> written,
+                        UnaryOperator<ComponentDefinition> definitions) {
         List<ComponentDefinition> used;
         try {
             used = DefinitionGraph.closure(SubcircuitTypes.definitionIds(document.components()), document::definition);
@@ -339,8 +367,8 @@ public final class CircuitFormat {
                 document.components().stream().map(written).map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                used.stream().map(definition -> definition.withBodyComponents(written)).map(DefinitionEntries::entry)
-                        .toList(),
+                used.stream().map(definitions).map(definition -> definition.withBodyComponents(written))
+                        .map(DefinitionEntries::entry).toList(),
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
                 document.frames().stream().map(CircuitFormat::frameEntry).toList(),
                 document.guides().stream().map(GuideEntries::entry).toList(),
@@ -579,7 +607,7 @@ public final class CircuitFormat {
     /**
      * The probes of a file, in order. A malformed entry fails with {@code INVALID_ELEMENT} and a detail that starts
      * with {@code probes[<index>]: }; a probe on a component or wire that does not exist is kept (it shows as not
-     * connected), since VSim itself writes these files.
+     * connected), since VSim itself writes these files. A probe id may not start with {@link MachineChannels#PREFIX}.
      */
     static List<Probe> probes(List<ProbeEntry> entries) throws CircuitFormatException {
         List<Probe> probes = new ArrayList<>();
@@ -593,6 +621,11 @@ public final class CircuitFormat {
             if (entry.id() == null || entry.id().isBlank()) {
                 throw invalid(where + "missing id");
             }
+            if (entry.id().startsWith(MachineChannels.PREFIX)) {
+                // the simulation records every machine copy under such ids: the probe would show the machine's trace
+                throw invalid(where + "id " + entry.id() + " starts with " + MachineChannels.PREFIX
+                        + ", which only a machine's own channels use");
+            }
             if (!ids.add(entry.id())) {
                 throw invalid(where + "duplicate id " + entry.id());
             }
@@ -602,9 +635,16 @@ public final class CircuitFormat {
     }
 
     private static ProbeTarget probeTarget(ProbeEntry entry, String where) throws CircuitFormatException {
-        boolean pinShape = entry.component() != null && entry.pin() != null && entry.wire() == null;
-        boolean wireShape = entry.wire() != null && entry.component() == null && entry.pin() == null;
+        boolean pinShape = entry.component() != null && entry.pin() != null && entry.wire() == null
+                && entry.watch() == null;
+        boolean wireShape = entry.wire() != null && entry.component() == null && entry.pin() == null
+                && entry.watch() == null;
+        boolean stateShape = WATCH_STATE.equals(entry.watch()) && entry.component() != null && entry.pin() == null
+                && entry.wire() == null;
         try {
+            if (stateShape) {
+                return new ProbeTarget.MachineStateTarget(new ElementId(entry.component()));
+            }
             if (pinShape) {
                 if (entry.pin() < 0) {
                     throw invalid(where + "negative pin " + entry.pin());
@@ -617,7 +657,7 @@ public final class CircuitFormat {
         } catch (IllegalArgumentException exception) {
             throw invalid(where + exception.getMessage(), exception);
         }
-        throw invalid(where + "a probe needs either component and pin, or wire");
+        throw invalid(where + "a probe needs either component and pin, wire, or component and watch \"state\"");
     }
 
     private interface ElementSupplier {

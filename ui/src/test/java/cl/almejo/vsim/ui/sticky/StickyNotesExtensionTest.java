@@ -177,6 +177,38 @@ class StickyNotesExtensionTest {
     }
 
     @Test
+    void anEditThatLeavesOnlyBlanksKeepsAFreeNoteAndAChecklistAsTheyWere() {
+        StickyNote free = note(new StickyText("antes"));
+        view.editLabel(free);
+        view.inlineEditor().area().setText("   ");
+        view.inlineEditor().confirm();
+        assertThat(current(free)).isEqualTo(free);
+
+        StickyNote checklist = note(new StickyChecklist(List.of(new StickyItem("a", true), new StickyItem("b", false))));
+        view.editLabel(checklist);
+        view.inlineEditor().area().setText(" \n  ");
+        view.inlineEditor().confirm();
+        assertThat(current(checklist)).isEqualTo(checklist);
+
+        view.editLabel(free);
+        view.inlineEditor().area().setText("");
+        view.inlineEditor().confirm();
+        assertThat(current(free)).isEqualTo(free);
+    }
+
+    @Test
+    void aRealEditOfANoteIsOneUndoStepThatBringsTheWordsBack() {
+        StickyNote note = note(new StickyText("antes"));
+        view.editLabel(note);
+        view.inlineEditor().area().setText("después");
+        view.inlineEditor().confirm();
+
+        openDocument.history().undo();
+
+        assertThat(current(note)).isEqualTo(note);
+    }
+
+    @Test
     void aNoteInALockedFrameOpensNoEditor() {
         StickyNote note = note(new StickyText("quieta"));
         openDocument.execute(new CreateFrameCommand(new Frame(openDocument.document().newFrameId(),

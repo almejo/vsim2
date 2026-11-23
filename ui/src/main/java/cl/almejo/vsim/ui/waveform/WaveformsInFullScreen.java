@@ -1,17 +1,19 @@
 package cl.almejo.vsim.ui.waveform;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.fullscreen.EdgeBars;
 import cl.almejo.vsim.ui.fullscreen.FullScreenFeatures;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 
+import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -20,7 +22,8 @@ import java.util.Optional;
  *   <li>Unpinned, the panel waits behind the bottom screen edge, at once on entering (nothing to drag), and comes up
  *       over the circuit, full width, after the dwell; its «Ocultar» slides it away and the edge keeps working.</li>
  *   <li>The edge brings it whenever the circuit has a probe, even with the panel closed; with no probes only an open
- *       panel is there, and closing it leaves the edge inert.</li>
+ *       panel is there, and closing it leaves the edge inert. In a machine tab the panel is the copy's wave strip,
+ *       whose channels count as probes here.</li>
  *   <li>Pinned (its pin, shown only in the mode and remembered in {@link AppPreferences}), it is docked and the canvas
  *       is shorter, also when it was closed. Its «Ocultar» puts it behind the edge for the rest of this time in the
  *       mode, the pin still remembered. Removing the pin leaves it where it is until the pointer leaves it.</li>
@@ -35,12 +38,14 @@ final class WaveformsInFullScreen {
     private final WaveformPanel panel;
     private final AppPreferences preferences;
     private final BottomDock dock;
-    private final CircuitDocument document;
     /** The panel's holder behind the bottom edge: opaque, with the line on its top, as tall as the dock was. */
     private final JPanel edgeBar;
     private final Runnable dockListener = this::dockChanged;
     private final Runnable preferenceListener = this::update;
     private final Runnable stopFollowingTheLayout;
+    private final Runnable stopFollowingTheContent;
+    /** The pins of what the dock shows instead of the panel ({@link #addPin}); the panel's own is its toolbar's. */
+    private final List<PinToggle> otherPins = new ArrayList<>();
     /** The window's bars while this view is laid out for the mode; empty otherwise. */
     private Optional<EdgeBars> edgeBars = Optional.empty();
     /** The dock's height and state when this view was laid out for the mode, put back on leaving. */
@@ -59,7 +64,6 @@ final class WaveformsInFullScreen {
         this.panel = panel;
         this.preferences = preferences;
         this.dock = view.bottomDock();
-        this.document = view.openDocument().document();
         this.edgeBar = new JPanel(new BorderLayout()) {
             @Override
             public Dimension getPreferredSize() {
@@ -72,7 +76,24 @@ final class WaveformsInFullScreen {
         dock.addDockListener(dockListener);
         preferences.addListener(preferenceListener);
         this.stopFollowingTheLayout = view.addFullScreenLayoutListener(this::layoutChanged);
+        this.stopFollowingTheContent = dock.addContentListener(this::contentChanged);
         layoutChanged();
+    }
+
+    /**
+     * {@code pin} is the pin of what the dock shows instead of the panel (a machine's test table): the same pin as the
+     * panel's, shown only in the mode and remembered for every view; it follows the mode and the pin from now on.
+     * Returns what takes it away.
+     */
+    Runnable addPin(PinToggle pin) {
+        java.awt.event.ActionListener pressed = event -> pinPressed();
+        pin.addActionListener(pressed);
+        otherPins.add(pin);
+        update();
+        return () -> {
+            pin.removeActionListener(pressed);
+            otherPins.remove(pin);
+        };
     }
 
     /**
@@ -106,6 +127,7 @@ final class WaveformsInFullScreen {
     }
 
     void dispose() {
+        stopFollowingTheContent.run();
         stopFollowingTheLayout.run();
         preferences.removeListener(preferenceListener);
         dock.removeDockListener(dockListener);
@@ -183,8 +205,9 @@ final class WaveformsInFullScreen {
         return preferences.fullScreenWaveformsPinned() && !unpinnedForNow;
     }
 
+    /** Whether the panel has rows: the document's probes, or in a machine tab its copy's own channels. */
     private boolean hasProbes() {
-        return !document.probes().isEmpty();
+        return panel.hasChannels();
     }
 
     /** Puts the pin and the panel where the mode, the probes, the dock and the pin say. */
@@ -196,6 +219,10 @@ final class WaveformsInFullScreen {
         try {
             panel.showPinned(isPinned());
             panel.pinButton().setVisible(edgeBars.isPresent());
+            for (PinToggle other : otherPins) {
+                other.showPinned(isPinned());
+                other.setVisible(edgeBars.isPresent());
+            }
             boolean available = edgeBars.isPresent() && (hasProbes() || dock.isDockShowing());
             if (available && isPinned()) {
                 dock.showDock();
@@ -211,14 +238,30 @@ final class WaveformsInFullScreen {
         }
     }
 
+    /**
+     * The dock shows another component (a machine's test table instead of its strip, or the strip again): behind the
+     * edge, the new one takes the old one's place.
+     */
+    private void contentChanged() {
+        if (unregister != null) {
+            moveToTheDock();
+            update();
+        }
+    }
+
     private void moveToTheEdge() {
         Optional<JLayeredPane> stage = view.fullScreenStage();
-        if (stage.isEmpty() || edgeBars.isEmpty() || dock.lendContent().isEmpty()) {
+        if (stage.isEmpty() || edgeBars.isEmpty()) {
+            return;
+        }
+        Optional<JComponent> lent = dock.lendContent();
+        if (lent.isEmpty()) {
             return;
         }
         heightOnTheEdge = dock.dockHeight();
         edgeBar.updateUI(); // outside the tree while docked: a theme change since then never reached it
-        edgeBar.add(panel, BorderLayout.CENTER);
+        // what the dock shows: the panel, or what shows instead of it (BottomDock.contentInstead)
+        edgeBar.add(lent.get(), BorderLayout.CENTER);
         stage.get().add(edgeBar, JLayeredPane.PALETTE_LAYER);
         unregister = edgeBars.get().register(EdgeBars.Edge.BOTTOM, edgeBar, () -> false);
         stage.get().revalidate();

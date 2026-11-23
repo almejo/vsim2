@@ -41,6 +41,7 @@ import javax.swing.JComboBox;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -62,6 +63,9 @@ public final class EditorActions {
 
     /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
     public static final String SPEED_ICON = "speed";
+
+    /** Longer names of what a view shows are cut with «…» in «Nueva vista de «X»». */
+    private static final int NEW_VIEW_NAME_LIMIT = 32;
 
     private final OpenDocument openDocument;
     /** The active pane, resolved whenever an action runs (the window may be split). */
@@ -117,6 +121,16 @@ public final class EditorActions {
     private final Action reopenClosedTab;
     private final Action about;
     private final Action reportProblem;
+    /** What the zoom actions act on instead of the active pane (a machine's diagram); empty for a circuit. */
+    private Optional<ContentZoom> contentZoom = Optional.empty();
+    /** What «Borrar» deletes instead of the circuit's selection (a machine's diagram); empty for a circuit. */
+    private Optional<ContentDeletion> contentDeletion = Optional.empty();
+    /** The history Deshacer and Rehacer follow instead of the circuit's (a test's draft); empty for the circuit's. */
+    private Optional<StepSource> stepSource = Optional.empty();
+    private Runnable stopFollowingStepSource = () -> { };
+    /** Deshacer's and Rehacer's tooltips before a step source was installed, given back when it goes. */
+    private Object usualUndoDescription;
+    private Object usualRedoDescription;
 
     /**
      * The actions of one window: {@code activePane} (its active pane) is resolved each time an action runs (zoom, centre,
@@ -158,7 +172,7 @@ public final class EditorActions {
         exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
         undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), this::undoStep);
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
-                () -> steps.redo());
+                this::redoStep);
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
         rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
         rotateCounterClockwise = Actions.of(Messages.text("action.rotateCounterClockwise"), null,
@@ -179,18 +193,20 @@ public final class EditorActions {
         panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
         zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
         zoomTool.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.toolZoom"));
-        zoomIn = Actions.of(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), 
-                () -> activePane.get().zoomIn());
+        zoomIn = Actions.of(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0),
+                () -> zoom(ContentZoom::zoomIn, CircuitCanvas::zoomIn));
         zoomOut = Actions.of(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0),
-                () -> activePane.get().zoomOut());
+                () -> zoom(ContentZoom::zoomOut, CircuitCanvas::zoomOut));
         zoomReset = Actions.of(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
-                () -> activePane.get().resetZoom());
-        zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null, this::zoomToCircuit);
+                () -> zoom(ContentZoom::resetZoom, CircuitCanvas::resetZoom));
+        zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null,
+                () -> zoom(ContentZoom::zoomToFit, pane -> zoomToCircuit()));
         AcceleratorTooltip.install(zoomToFit, () -> Messages.text("tooltip.zoomToFit"));
         zoomToSelection = Actions.of(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
         AcceleratorTooltip.install(zoomToSelection, () -> Messages.text("tooltip.zoomToSelection"));
         Actions.disabledBecause(zoomToSelection, () -> Messages.text("reason.needsSelection"));
-        centerView = Actions.of(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
+        centerView = Actions.of(Messages.text("action.centerView"), null,
+                () -> zoom(ContentZoom::center, CircuitCanvas::centerCircuit));
         start = Actions.of(Messages.text("action.start"), null, openDocument::resume);
         pause = Actions.of(Messages.text("action.pause"), null, openDocument::pause);
         startOrPause = Actions.of(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
@@ -279,6 +295,81 @@ public final class EditorActions {
     /** Deshacer and Rehacer run their step through {@code runner} from now on. */
     public void runStepsWith(StepRunner runner) {
         steps = Objects.requireNonNull(runner, "runner");
+    }
+
+    /**
+     * Another history Deshacer and Rehacer follow while it is installed with {@link #stepsInstead} (plan 2026-11-14,
+     * hito 4 task 3: the test mode's draft, whose steps never reach the circuit's history). EDT only.
+     */
+    public interface StepSource {
+
+        /** Whether there is a step to undo: Deshacer is enabled. */
+        boolean canUndo();
+
+        /** Whether there is a step to redo: Rehacer is enabled. */
+        boolean canRedo();
+
+        /**
+         * Deshacer's whole text while there is a step to undo, already translated («Deshacer (prueba): mover
+         * estado»); empty for the plain «Deshacer».
+         */
+        Optional<String> undoName();
+
+        /** Rehacer's whole text while there is a step to redo, already translated; empty for the plain «Rehacer». */
+        Optional<String> redoName();
+
+        /** Why Deshacer is disabled, as its tooltip, while {@link #canUndo()} is false; empty for none. */
+        default Optional<String> cannotUndoReason() {
+            return Optional.empty();
+        }
+
+        /** Why Rehacer is disabled, as its tooltip, while {@link #canRedo()} is false; empty for none. */
+        default Optional<String> cannotRedoReason() {
+            return Optional.empty();
+        }
+
+        /** Undoes the last step (Deshacer, Ctrl+Z, the toolbar button). */
+        void undo();
+
+        /** Redoes the last undone step (Rehacer, Ctrl+Mayús+Z). */
+        void redo();
+
+        /**
+         * Runs {@code listener} after every change of the answers above (a step made, undone or redone); returns its
+         * removal.
+         */
+        Runnable addListener(Runnable listener);
+    }
+
+    /**
+     * Deshacer and Rehacer follow {@code source} instead of the circuit's history until the returned runnable runs:
+     * their names, whether they are enabled, their tooltips while disabled ({@link StepSource#cannotUndoReason()})
+     * and what they run. The circuit's history keeps changing meanwhile (the simulation, another tab) without
+     * changing them. Installing another source replaces this one; then this one's runnable does nothing. Running the
+     * runnable gives them back to the circuit's history (through the view's {@link StepRunner}, as before) and their
+     * usual tooltips; running it twice does nothing more. A tool drawing between clicks (a continuous wire) still
+     * drops its last corner first, as with the circuit's history.
+     */
+    public Runnable stepsInstead(StepSource source) {
+        Objects.requireNonNull(source, "source");
+        stopFollowingStepSource.run();
+        if (stepSource.isEmpty()) {
+            usualUndoDescription = undo.getValue(Action.SHORT_DESCRIPTION);
+            usualRedoDescription = redo.getValue(Action.SHORT_DESCRIPTION);
+        }
+        stepSource = Optional.of(source);
+        stopFollowingStepSource = source.addListener(this::refresh);
+        refresh();
+        return () -> {
+            if (stepSource.filter(installed -> installed == source).isPresent()) {
+                stopFollowingStepSource.run();
+                stopFollowingStepSource = () -> { };
+                stepSource = Optional.empty();
+                undo.putValue(Action.SHORT_DESCRIPTION, usualUndoDescription);
+                redo.putValue(Action.SHORT_DESCRIPTION, usualRedoDescription);
+                refresh();
+            }
+        };
     }
 
     public Action undo() { return undo; }
@@ -397,8 +488,11 @@ public final class EditorActions {
         JMenu logic = tagged(new JMenu(Messages.text("menu.logic")), MenuId.LOGIC);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
         windowMenu.add(newEmptyTab);
-        windowMenu.add(newView);
-        windowMenu.add(newWindowWithCircuit);
+        // people look for them as a new tab, a new window or a duplicate: the name now says «vista»
+        JMenuItem newViewItem = windowMenu.add(newView);
+        newViewItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("action.newWindow.searchTerms"));
+        JMenuItem newWindowItem = windowMenu.add(newWindowWithCircuit);
+        newWindowItem.putClientProperty(Actions.SEARCH_TERMS, Messages.text("action.newWindowWithCircuit.searchTerms"));
         windowMenu.add(moveGroup);
         windowMenu.add(foldGroup);
         windowMenu.addSeparator();
@@ -497,7 +591,12 @@ public final class EditorActions {
         if (pane != null && pane.dropLastToolStep()) {
             return;
         }
-        steps.undo();
+        stepSource.ifPresentOrElse(StepSource::undo, steps::undo);
+    }
+
+    /** Rehacer: the installed step source's step, or the history's. */
+    private void redoStep() {
+        stepSource.ifPresentOrElse(StepSource::redo, steps::redo);
     }
 
     /** True while a tool of the active pane's window draws between clicks (a continuous wire's path). */
@@ -506,10 +605,38 @@ public final class EditorActions {
         return pane != null && pane.drawsBetweenClicks();
     }
 
+    /**
+     * «Nueva vista de «X»» and its other-window twin: X is what this view shows, the machine's or component's name
+     * inside one, the circuit's otherwise, cut with «…» when long.
+     */
+    private void refreshNewViewNames() {
+        String shown = openDocument.isBody() ? openDocument.definitionName() : openDocument.circuitName();
+        String cut = shown.length() <= NEW_VIEW_NAME_LIMIT ? shown
+                : shown.substring(0, NEW_VIEW_NAME_LIMIT - 1).stripTrailing() + "…";
+        newView.putValue(Action.NAME, Messages.format("action.newWindow", cut));
+        newWindowWithCircuit.putValue(Action.NAME, Messages.format("action.newWindowWithCircuit", cut));
+    }
+
     public void refresh() {
-        History history = openDocument.history();
+        refreshNewViewNames();
         save.setEnabled(openDocument.canSave());
         boolean dropsACorner = drawsBetweenClicks();
+        stepSource.ifPresentOrElse(source -> refreshSteps(source, dropsACorner),
+                () -> refreshHistorySteps(dropsACorner));
+        Set<ElementId> selected = selection.ids();
+        // while a path is drawn the keys that act on the selection do nothing
+        boolean actsOnSelection = !selected.isEmpty() && !dropsACorner;
+        delete.setEnabled(contentDeletion.map(ContentDeletion::canDelete).orElse(actsOnSelection));
+        rotateClockwise.setEnabled(actsOnSelection);
+        rotateCounterClockwise.setEnabled(actsOnSelection);
+        moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
+        zoomToSelection.setEnabled(!selected.isEmpty());
+        configure.setEnabled(singleConfigurable().isPresent());
+    }
+
+    /** Deshacer and Rehacer as the circuit's history says, naming the step and where it was made. */
+    private void refreshHistorySteps(boolean dropsACorner) {
+        History history = openDocument.history();
         undo.setEnabled(dropsACorner || history.canUndo());
         // while a wire is drawn Deshacer drops its last corner, not the history's step its name would announce
         undo.putValue(Action.NAME, dropsACorner ? Messages.text("action.undo") : history.undoCommand()
@@ -520,15 +647,65 @@ public final class EditorActions {
         redo.putValue(Action.NAME, history.redoCommand()
                 .map(command -> stepName(command, "action.redoNamed", "action.redoInside"))
                 .orElse(Messages.text("action.redo")));
-        Set<ElementId> selected = selection.ids();
-        // while a path is drawn the keys that act on the selection do nothing
-        boolean actsOnSelection = !selected.isEmpty() && !dropsACorner;
-        delete.setEnabled(actsOnSelection);
-        rotateClockwise.setEnabled(actsOnSelection);
-        rotateCounterClockwise.setEnabled(actsOnSelection);
-        moveActions.values().forEach(move -> move.setEnabled(actsOnSelection));
-        zoomToSelection.setEnabled(!selected.isEmpty());
-        configure.setEnabled(singleConfigurable().isPresent());
+    }
+
+    /** Deshacer and Rehacer as {@code source} says: its names, and its reasons as tooltips while disabled. */
+    private void refreshSteps(StepSource source, boolean dropsACorner) {
+        boolean canUndo = source.canUndo();
+        undo.setEnabled(dropsACorner || canUndo);
+        undo.putValue(Action.NAME, dropsACorner ? Messages.text("action.undo")
+                : source.undoName().orElse(Messages.text("action.undo")));
+        undo.putValue(Action.SHORT_DESCRIPTION, dropsACorner || canUndo ? usualUndoDescription
+                : descriptionOr(source.cannotUndoReason(), usualUndoDescription));
+        boolean canRedo = !dropsACorner && source.canRedo();
+        redo.setEnabled(canRedo);
+        redo.putValue(Action.NAME, source.redoName().orElse(Messages.text("action.redo")));
+        redo.putValue(Action.SHORT_DESCRIPTION, canRedo ? usualRedoDescription
+                : descriptionOr(source.cannotRedoReason(), usualRedoDescription));
+    }
+
+    private static Object descriptionOr(Optional<String> reason, Object usual) {
+        return reason.isPresent() ? reason.get() : usual;
+    }
+
+    /**
+     * The zoom actions («Acercar», «Alejar», «Zoom 100 %», «Ver todo el circuito», «Centrar circuito») act on
+     * {@code content} instead of the active pane until the returned runnable runs: the view shows it in place of its
+     * circuit panes (a machine's diagram).
+     */
+    public Runnable zoomContentInstead(ContentZoom content) {
+        Optional<ContentZoom> zoomed = Optional.of(Objects.requireNonNull(content, "content"));
+        contentZoom = zoomed;
+        return () -> {
+            if (contentZoom.equals(zoomed)) {
+                contentZoom = Optional.empty();
+            }
+        };
+    }
+
+    /**
+     * «Borrar» deletes from {@code content} instead of the circuit's selection, and is enabled as {@code content}
+     * says at each {@link #refresh()}, until the returned runnable runs (a machine's diagram).
+     */
+    public Runnable deleteContentInstead(ContentDeletion content) {
+        Optional<ContentDeletion> deleting = Optional.of(Objects.requireNonNull(content, "content"));
+        contentDeletion = deleting;
+        refresh();
+        return () -> {
+            if (contentDeletion.equals(deleting)) {
+                contentDeletion = Optional.empty();
+                refresh();
+            }
+        };
+    }
+
+    /** The content the zoom actions act on now, when the view shows one instead of its panes. */
+    public Optional<ContentZoom> contentZoom() {
+        return contentZoom;
+    }
+
+    private void zoom(Consumer<ContentZoom> onContent, Consumer<CircuitCanvas> onPane) {
+        contentZoom.ifPresentOrElse(onContent, () -> onPane.accept(activePane.get()));
     }
 
     public void refreshSimulationButtons(boolean running) {
@@ -548,6 +725,10 @@ public final class EditorActions {
     }
 
     private void deleteSelection() {
+        if (contentDeletion.isPresent()) {
+            contentDeletion.get().delete();
+            return;
+        }
         Set<ElementId> selected = selection.effectiveIds();
         if (!selected.isEmpty()) {
             deleteListeners.forEach(listener -> listener.accept(selected));

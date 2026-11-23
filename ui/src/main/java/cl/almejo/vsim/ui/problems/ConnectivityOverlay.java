@@ -5,6 +5,9 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -29,7 +32,8 @@ import java.util.function.Supplier;
 /**
  * The red marks of structural faults (never colour only: a glow and a warning triangle): a component broken inside, at
  * any depth, glows as a whole; an outer terminal whose interface element is unconnected inside, and a pin loosened by
- * a shape change, glow on the pin. Colours are read from the scheme at every paint.
+ * a shape change, glow on the pin; a «Máquina de estados» piece whose machine has an error (two arrows true at once, no
+ * initial state…) glows as a whole too, its warnings only listed. Colours are read from the scheme at every paint.
  */
 final class ConnectivityOverlay implements CanvasOverlay {
 
@@ -83,6 +87,11 @@ final class ConnectivityOverlay implements CanvasOverlay {
             state.document().component(memoryId).filter(component -> glowing.add(memoryId))
                     .ifPresent(component -> glowPiece(graphics, component, colors));
         }
+        for (Component component : state.document().components()) {
+            if (hasMachineError(component) && glowing.add(component.id())) {
+                glowPiece(graphics, component, colors);
+            }
+        }
         for (PinRef pin : openDocument.loosenedPins()) {
             state.document().component(pin.componentId()).ifPresent(component -> {
                 ComponentType type = openDocument.registry().typeOf(component);
@@ -91,6 +100,15 @@ final class ConnectivityOverlay implements CanvasOverlay {
                 }
             });
         }
+    }
+
+    /** Whether {@code component} is a machine's piece and its machine has an error ({@link MachineChecks}, cached). */
+    private boolean hasMachineError(Component component) {
+        return openDocument.registry().findTypeOf(component)
+                .flatMap(SubcircuitTypes::definitionOf)
+                .flatMap(ComponentDefinition::machine)
+                .map(machine -> MachineChecks.check(machine).stream().anyMatch(finding -> !finding.isWarning()))
+                .orElse(false);
     }
 
     private void glowPiece(Graphics2D graphics, Component component, ColorScheme colors) {

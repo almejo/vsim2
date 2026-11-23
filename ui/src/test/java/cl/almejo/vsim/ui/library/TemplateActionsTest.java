@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
@@ -15,6 +16,8 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineDefinitions;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.value.Value;
@@ -401,6 +404,72 @@ class TemplateActionsTest {
         fixture.dialogs.acceptForm(form -> form.setName("Negador"));
         perform(fixture.features.actions().createComponent());
         inverterWithLinkedRam();
+    }
+
+    @Test
+    void aMachinesContextMenuShowsDesarmarDisabledWithItsReason() {
+        Component machine = placedMachine();
+        fixture.select(machine);
+
+        JMenuItem disassemble = itemCalled(contribute(machine), Messages.text("action.disassemble"));
+
+        assertThat(disassemble.isEnabled()).isFalse();
+        assertThat(disassemble.getToolTipText()).isEqualTo(Messages.text("machine.refused.disassemble"));
+        assertThat(cl.almejo.vsim.ui.actions.Actions.disabledReason(disassemble.getAction()))
+                .contains(Messages.text("machine.refused.disassemble"));
+    }
+
+    @Test
+    void disassemblingAMachineIsRefusedWithItsReasonAndNothingChanges() {
+        Component machine = placedMachine();
+        List<Component> before = fixture.openDocument.document().components();
+
+        fixture.features.actions().disassemble(machine);
+
+        assertThat(fixture.dialogs.messages).containsExactly(Messages.text("machine.refused.disassemble"));
+        assertThat(fixture.openDocument.document().components()).isEqualTo(before);
+    }
+
+    @Test
+    void updatingAComponentNeverOffersAMachineAsTheOneToReplace() {
+        fixture.drawInverter(60, 0);
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+        perform(fixture.features.actions().createComponent());
+        placedMachine();
+        fixture.drawInverter(0, 40);
+        fixture.dialogs.acceptForm(form -> { });
+
+        perform(fixture.features.actions().updateComponent());
+
+        assertThat(fixture.dialogs.forms.get(1).targets()).extracting(ComponentDefinition::id)
+                .containsExactly("negador");
+    }
+
+    @Test
+    void updatingWhenTheOnlyComponentsAreMachinesSaysWhyAndOpensNothing() {
+        placedMachine();
+        fixture.drawInverter(0, 40);
+
+        perform(fixture.features.actions().updateComponent());
+
+        assertThat(fixture.dialogs.messages).containsExactly(Messages.text("machine.refused.update"));
+        assertThat(fixture.dialogs.forms).isEmpty();
+    }
+
+    /** A new state machine «Máquina 1» placed at (40, 0). */
+    private Component placedMachine() {
+        ComponentDefinition machine = MachineDefinitions.create("maquina-abc123", "Máquina 1");
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(machine)));
+        return fixture.place(SubcircuitTypes.typeIdOf(machine.id()), 40, 0, "");
+    }
+
+    private static JMenuItem itemCalled(JPopupMenu menu, String text) {
+        for (java.awt.Component child : menu.getComponents()) {
+            if (child instanceof JMenuItem item && text.equals(item.getText())) {
+                return item;
+            }
+        }
+        throw new AssertionError("no item " + text + " in " + texts(menu));
     }
 
     @Test

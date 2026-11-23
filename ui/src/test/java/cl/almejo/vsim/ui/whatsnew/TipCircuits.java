@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.whatsnew;
 
+import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.BreakpointTypes;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
@@ -19,10 +20,13 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.layout.CircuitTidy;
+import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.wiring.CanvasTextBoxes;
 
@@ -86,6 +90,7 @@ final class TipCircuits {
         builders.put("truth-table.vsim", TipCircuits::truthTable);
         builders.put("circuit-from-expressions.vsim", TipCircuits::circuitFromExpressions);
         builders.put("highlight-net.vsim", TipCircuits::highlightNet);
+        builders.put("state-machine.vsim", TipCircuits::stateMachine);
         return builders;
     }
 
@@ -567,6 +572,40 @@ final class TipCircuits {
         builder.document.add(new Frame(builder.document.newFrameId(), new GridPoint(9, 1), 11, 9, "A + B",
                 FrameTint.NONE, false));
         return builder.document;
+    }
+
+    /**
+     * «Máquinas de estado»: the «Semáforo» example without its sticky note, its title and its «Prueba:» line, so the
+     * picture is only the circuit (a clock, a reset and the machine with three lights), with neutral names like the
+     * other tips (RST, CLK, R, A, V; the machine «FSM», its states R, V and A) so it reads the same in any language.
+     */
+    private static CircuitDocument stateMachine() {
+        try {
+            CircuitDocument document = BundledExamples.open("semaforo", StandardComponentTypes.registry());
+            for (StickyNote note : List.copyOf(document.stickyNotes())) {
+                document.remove(note.id());
+            }
+            for (TextLabel label : List.copyOf(document.labels())) {
+                document.remove(label.id());
+            }
+            Map<String, String> neutralLabels = Map.of("Reiniciar", "RST", "Reloj", "CLK", "Rojo", "R",
+                    "Amarillo", "A", "Verde", "V");
+            for (Component component : List.copyOf(document.components())) {
+                String neutral = neutralLabels.get(component.label());
+                if (neutral != null) {
+                    document.replace(component.withLabel(neutral));
+                }
+            }
+            ComponentDefinition machine = document.definitions().get(0);
+            StateMachine states = machine.machine().orElseThrow();
+            for (MachineState state : states.states()) {
+                states = states.withState(state.id(), unchanged -> unchanged.withName(neutralLabels.get(state.name())));
+            }
+            document.putDefinition(machine.withName("FSM").withMachine(states));
+            return document;
+        } catch (CircuitFormatException exception) {
+            throw new IllegalStateException("the bundled example «semaforo» does not open", exception);
+        }
     }
 
     /** «Notas adhesivas»: a switch, a NOT and an LED with a yellow note beside them. */

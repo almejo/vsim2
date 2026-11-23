@@ -162,8 +162,9 @@ class EditorViewTest {
 
     @Test
     void theWindowMenuHasTheTabItemsInTheSpecsOrder() {
+        String name = openDocument.circuitName();
         assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva pestaña vacía",
-                "Nueva pestaña del mismo circuito", "Nueva ventana con este circuito",
+                "Nueva vista de «" + name + "»", "Nueva vista de «" + name + "» en otra ventana",
                 "Mover el grupo a una ventana nueva", "Plegar / desplegar el grupo", "---", "Pestaña siguiente",
                 "Pestaña anterior", "Cerrar pestaña", "Cerrar los componentes de este circuito", "Reabrir pestaña cerrada",
                 "---");
@@ -179,7 +180,8 @@ class EditorViewTest {
 
     @Test
     void theWindowMenuOffersNewViewAndHandsItToTheWindow() {
-        assertThat(view.menu(MenuId.WINDOW).getItem(1).getText()).isEqualTo("Nueva pestaña del mismo circuito");
+        assertThat(view.menu(MenuId.WINDOW).getItem(1).getText())
+                .isEqualTo("Nueva vista de «" + openDocument.circuitName() + "»");
         assertThat(view.actions().newView().getValue(Action.ACCELERATOR_KEY)).isNull();
         perform(view.actions().newView());
         assertThat(windowCalls).containsExactly("newView");

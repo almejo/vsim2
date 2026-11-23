@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.whatsnew;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.StickyNote;
@@ -11,7 +12,9 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.layout.CircuitTidy;
 import cl.almejo.vsim.core.layout.CircuitTidyPlan;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
@@ -98,6 +101,20 @@ class TipCircuitsTest {
         Bounds drawn = circuit.image(PainterRegistry.standard(), ColorScheme.LIGHT).orElseThrow().gridBounds();
 
         assertThat(drawn.x() + drawn.width()).isGreaterThanOrEqualTo(note.position().x() + note.width());
+    }
+
+    /** Like the other tips, the state machine picture shows neutral names, not Spanish words, in any language. */
+    @Test
+    void theStateMachineTipShowsNeutralNamesAndNoTitle() throws Exception {
+        CircuitDocument circuit = TipCircuit.read("state-machine.vsim");
+
+        assertThat(circuit.labels()).isEmpty();
+        assertThat(circuit.components()).extracting(Component::label)
+                .containsExactlyInAnyOrder("", "RST", "CLK", "R", "A", "V");
+        ComponentDefinition machine = circuit.definitions().get(0);
+        assertThat(machine.name()).isEqualTo("FSM");
+        assertThat(machine.machine().orElseThrow().states()).extracting(MachineState::name)
+                .containsExactlyInAnyOrder("R", "V", "A");
     }
 
     @Test

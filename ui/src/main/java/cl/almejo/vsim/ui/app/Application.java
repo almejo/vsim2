@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.ai.AiExtension;
 import cl.almejo.vsim.ui.ai.AiPlaceMarks;
 import cl.almejo.vsim.ui.ai.AiServerService;
@@ -36,6 +37,8 @@ import cl.almejo.vsim.ui.logisim.LogisimImportExtension;
 import cl.almejo.vsim.ui.capture.CaptureButtonExtension;
 import cl.almejo.vsim.ui.capture.WindowExportExtension;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
+import cl.almejo.vsim.ui.machine.MachineModeExtension;
+import cl.almejo.vsim.ui.machine.MachineTestRecovery;
 import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.print.PrintExtension;
@@ -268,7 +271,7 @@ public final class Application {
         this.recentFiles = new RecentFiles(preferences);
         this.sessionStore = new SessionStore(preferences);
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
-        this.autosave = AutosaveService.create(recoveryStore);
+        this.autosave = AutosaveService.create(recoveryStore, new MachineTestRecovery());
         CannotSaveNotices cannotSaveNotices = new CannotSaveNotices(this::statusBarsOf);
         autosave.onSerializationFailure(cannotSaveNotices::cannotSave);
         autosave.onSerializationRecovered(cannotSaveNotices::canSaveAgain);
@@ -366,6 +369,8 @@ public final class Application {
         editorExtensions.add(new LogisimImportExtension(startDirectory, chosen)); // the last item of Importar
         editorExtensions.add(new ShortcutEchoExtension()); // after every menu item and button, before the strokes
         editorExtensions.add(new ShortcutsExtension());
+        // a machine's tab: last, so it sees every menu item, button and shortcut it disables
+        editorExtensions.add(new MachineModeExtension());
         return List.copyOf(editorExtensions);
     }
 
@@ -465,11 +470,14 @@ public final class Application {
             // Every file opens once; then the session's windows come back with their tabs (spec §4.7).
             Map<Path, OpenDocument> opened = new LinkedHashMap<>();
             List<OpenDocument> untitled = new ArrayList<>();
+            Map<RecoveryCopy, OpenDocument> recoveredDocuments = new LinkedHashMap<>();
             StartupSteps.openEach(plan.openings(), opening -> {
                 switch (opening) {
-                    case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document ->
-                            copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
-                                    original -> opened.put(original, document), () -> untitled.add(document)));
+                    case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document -> {
+                        recoveredDocuments.put(copy.copy(), document);
+                        copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
+                                original -> opened.put(original, document), () -> untitled.add(document));
+                    });
                     case StartupSequence.FromSession session -> read(session.path(), null).ifPresent(document -> {
                         rememberDirectory(session.path());
                         opened.put(FileNames.normalized(session.path()), document);
@@ -487,6 +495,11 @@ public final class Application {
             StartupSteps.openEach(unplaced, document -> showViews(document,
                     document.path().flatMap(recentFiles::stateFor).stream().toList(),
                     Optional.ofNullable(unused.getAndSet(null))));
+            // A recovered machine test resumes once the start is done (its first-time help bubble is a start popup
+            // too: it must not show before the recovery question's stand-in window has gone).
+            List<Map.Entry<RecoveryCopy, OpenDocument>> testsToResume = List.copyOf(recoveredDocuments.entrySet());
+            startHold.whenReleased(() -> StartupSteps.openEach(testsToResume,
+                    entry -> resumeRecoveredTests(entry.getKey(), entry.getValue())));
             if (!notOpened.isEmpty()) {
                 JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
                         Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
@@ -563,14 +576,18 @@ public final class Application {
     }
 
     /**
-     * Ventana ▸ «Nueva ventana con este circuito»: a new window with a new main tab of the active tab's document, 30 px
-     * down-right of its source, same zoom and center.
+     * «Nueva vista en otra ventana»: a new window with a new main tab of the active tab's document and, when the active tab
+     * is a machine or a component, a tab of that too, 30 px down-right of its source, same zoom and center.
      */
     public CircuitWindow newWindow(CircuitWindow source) {
         NewViewPlacement placement = NewViewPlacement.after(source.getLocation(), source.viewState());
         // setLocation also cancels the platform placement of the constructor
-        return showInNewWindow(source.activeDocument(), window -> placement.applyTo(
-                state -> window.tabs().setInitialViewState(window.activeView(), state), window::setLocation));
+        return showInNewWindow(source.activeDocument(), window -> {
+            // inside a machine or a component, the new window shows that place too, not only the circuit
+            source.tabs().showActivePlaceIn(window.tabs());
+            placement.applyTo(state -> window.tabs().setInitialViewState(window.activeView(), state),
+                    window::setLocation);
+        });
     }
 
     /**
@@ -684,6 +701,7 @@ public final class Application {
         // a half-typed inline edit counts as a change, in whichever tab of the document it is open
         boolean confirmed = CloseSequence.confirm(windows.all().stream()
                         .flatMap(window -> window.inlineEditors().stream()).toList(),
+                windows.all().stream().flatMap(window -> window.drafts().stream()).toList(),
                 () -> windows.documents().stream()
                         .allMatch(document -> windows.windowsOf(document).get(0).confirmSave(document)));
         if (!confirmed) {
@@ -917,6 +935,18 @@ public final class Application {
             recoveryStore.discard(copy);
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn("Could not delete the recovery copy {}", copy.content(), exception);
+        }
+    }
+
+    /**
+     * The machines of a recovered {@code document} that were being tested when VSim stopped open in test mode, each on
+     * its draft as it was (fix round 2 of hito 4), in the first window that shows the document.
+     */
+    private void resumeRecoveredTests(RecoveryCopy copy, OpenDocument document) {
+        Map<String, StateMachine> drafts = MachineTestRecovery.draftsIn(copy.content());
+        if (!drafts.isEmpty()) {
+            windows.windowsOf(document).stream().findFirst()
+                    .ifPresent(window -> MachineTestRecovery.resume(window.tabs(), document, drafts));
         }
     }
 

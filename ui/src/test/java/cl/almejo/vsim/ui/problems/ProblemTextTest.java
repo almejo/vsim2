@@ -249,7 +249,7 @@ class ProblemTextTest {
                 new DriverRef("c9/c2", 1, Value.ZERO)), 4);
 
         assertThat(ProblemText.drivers(shortCircuit, nestedDocument())).isEqualTo(
-                "U1 › U3 (NOT) → 1 · Inversor › U3 (NOT) → 0 · D › Inversor 1 › U3 (NOT) → 1 · c9/c2 → 0");
+                "U1 › U3 (NOT) → 1 · Inversor › U3 (NOT) → 0 · D › Inversor · copia 1 › U3 (NOT) → 1 · c9/c2 → 0");
     }
 
     @Test

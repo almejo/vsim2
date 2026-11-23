@@ -141,6 +141,18 @@ public final class AppPreferences {
         put(NEWS_SHOWN_VERSION, version);
     }
 
+    /**
+     * Whether the user already ended the help bubble of a machine's test mode (the one the first test shows over the
+     * table); off on a first install. Ayuda ▸ «Ayuda del modo prueba» shows it again.
+     */
+    public boolean machineTestHelpSeen() {
+        return flag(MACHINE_TEST_HELP_SEEN, false);
+    }
+
+    public void setMachineTestHelpSeen(boolean seen) {
+        putFlag(MACHINE_TEST_HELP_SEEN, seen);
+    }
+
     /** The id of the group Archivo ▸ Preferencias… showed last, so it opens there next time; empty when never. */
     public Optional<String> lastPreferencesGroup() {
         return optional(PREFERENCES_LAST_GROUP);
@@ -297,6 +309,7 @@ public final class AppPreferences {
     static final String SHOW_SHEETS = "sheets.show";
     static final String SHOW_USED_SHORTCUTS = "shortcutEcho.show";
     static final String NEWS_SHOWN_VERSION = "whatsNew.shownVersion";
+    static final String MACHINE_TEST_HELP_SEEN = "machine.testHelpSeen";
     static final String PREFERENCES_LAST_GROUP = "preferences.lastGroup";
     static final String SHOW_TIP_AT_START = "tip.showAtStart";
     static final String TIP_SHOWN_DAY = "tip.shownDay";

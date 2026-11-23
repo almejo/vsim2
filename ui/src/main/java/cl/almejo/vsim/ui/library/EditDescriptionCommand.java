@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -18,15 +17,12 @@ import java.util.function.Function;
  *
  * <p>Only the library's own text changes (the rest of its version stays, newer or not). Undo and redo touch the
  * library only while it still holds what this command left there: if something else saved the component meanwhile,
- * that newer file wins and only the circuit changes.
+ * that newer file wins and only the circuit changes ({@link LibraryFollower}).
  */
 final class EditDescriptionCommand implements Command {
 
     private final ChangeDefinitionDescriptionCommand change;
-    private final Function<String, Optional<DefinitionBundle>> libraryFind;
-    private final Consumer<DefinitionBundle> librarySave;
-    private final Optional<DefinitionBundle> libraryBefore;
-    private final Optional<DefinitionBundle> libraryAfter;
+    private final LibraryFollower library;
 
     /**
      * @param libraryFind the library's bundle of a component id, as it is now
@@ -36,38 +32,24 @@ final class EditDescriptionCommand implements Command {
                            Function<String, Optional<DefinitionBundle>> libraryFind,
                            Consumer<DefinitionBundle> librarySave) {
         this.change = new ChangeDefinitionDescriptionCommand(definitionId, newDescription);
-        this.libraryFind = Objects.requireNonNull(libraryFind, "libraryFind");
-        this.librarySave = Objects.requireNonNull(librarySave, "librarySave");
-        this.libraryBefore = libraryFind.apply(definitionId);
-        this.libraryAfter = libraryBefore.map(bundle -> new DefinitionBundle(
-                bundle.root().withDescription(newDescription), bundle.dependencies()));
+        this.library = new LibraryFollower(definitionId, definition -> definition.withDescription(newDescription),
+                libraryFind, librarySave);
     }
 
     @Override
     public void apply(CircuitDocument document) {
         change.apply(document);
-        replaceInLibrary(libraryBefore, libraryAfter);
+        library.forward();
     }
 
     @Override
     public void revert(CircuitDocument document) {
         change.revert(document);
-        replaceInLibrary(libraryAfter, libraryBefore);
+        library.back();
     }
 
     @Override
     public String description() {
         return change.description();
-    }
-
-    /** Saves {@code replacement} when the library still holds {@code expected}; nothing when it has no such component. */
-    private void replaceInLibrary(Optional<DefinitionBundle> expected, Optional<DefinitionBundle> replacement) {
-        if (expected.isEmpty() || replacement.isEmpty()) {
-            return;
-        }
-        String id = expected.get().root().id();
-        if (libraryFind.apply(id).equals(expected)) {
-            librarySave.accept(replacement.get());
-        }
     }
 }

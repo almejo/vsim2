@@ -50,7 +50,7 @@ final class MagnifierPopup implements MagnifierPresenter {
     public void show(CircuitCanvas pane, Component instance, Point2D screenPoint) {
         close();
         Optional<String> definitionId = EnterableInstances.definitionOf(pane.openDocument(), instance);
-        if (definitionId.isEmpty()) {
+        if (definitionId.isEmpty() || !MagnifierHover.canLookInside(pane.openDocument(), instance)) {
             return;
         }
         place = pane.openDocument().openBody(definitionId.get(), EnterableInstances.contextOf(pane.openDocument(),
