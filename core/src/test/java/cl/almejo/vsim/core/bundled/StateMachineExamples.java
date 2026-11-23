@@ -154,20 +154,22 @@ public final class StateMachineExamples {
 
     private static StateMachine detectorMachine() {
         List<MachineState> states = List.of(
-                new MachineState("s0", "S0", new DiagramPoint(0, 110), List.of()),
-                new MachineState("s1", "S1", new DiagramPoint(260, 0), List.of()),
-                new MachineState("s2", "S2", new DiagramPoint(260, 220), List.of()));
+                // S1 and S2 side by side: their two curved arrows run level, so the wide «x / Z=1» sits above or
+                // below its curve instead of beside it (where it touched the other curve)
+                new MachineState("s0", "S0", new DiagramPoint(130, 0), List.of()),
+                new MachineState("s1", "S1", new DiagramPoint(0, 200), List.of()),
+                new MachineState("s2", "S2", new DiagramPoint(260, 200), List.of()));
         List<MachineTransition> transitions = List.of(
                 new MachineTransition("t1", "s0", "s1", "x", List.of()),
                 new MachineTransition("t2", "s0", "s0", "x'", List.of(), Optional.of(LoopSide.TOP)),
-                new MachineTransition("t3", "s1", "s1", "x", List.of(), Optional.of(LoopSide.RIGHT)),
+                new MachineTransition("t3", "s1", "s1", "x", List.of(), Optional.of(LoopSide.LEFT)),
                 new MachineTransition("t4", "s1", "s2", "x'", List.of()),
                 new MachineTransition("t5", "s2", "s1", "x", List.of(new OutputAssignment("Z", true))),
                 new MachineTransition("t6", "s2", "s0", "x'", List.of()));
         MachineTest overlapping = machineTest("p1", "101 con traslape", new int[]{1, 0, 1, 0, 1, 1, 0, 1},
                 new int[]{0, 0, 1, 0, 1, 0, 0, 1});
         MachineTest never = machineTest("p2", "Sin 101", new int[]{1, 1, 0, 0, 1, 0}, new int[6]);
-        MachineNote note = new MachineNote("n1", new DiagramPoint(420, 70), 250, 110, StickyColor.YELLOW,
+        MachineNote note = new MachineNote("n1", new DiagramPoint(360, 70), 250, 110, StickyColor.YELLOW,
                 "S0: nada útil todavía. S1: llegó un 1. S2: llegaron 1 y 0. Z sale en la flecha de S2 a S1 "
                         + "(x / Z=1): el 1 que completa 1-0-1.");
         return new StateMachine(states, transitions, Optional.of("s0"), List.of("x"), List.of("Z"), false, false,
