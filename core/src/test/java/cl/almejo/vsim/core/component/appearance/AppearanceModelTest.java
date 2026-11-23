@@ -69,6 +69,27 @@ class AppearanceModelTest {
     }
 
     @Test
+    void anAppearanceAppliedToItsDefinitionMovesThePinsAndTakesItsSizeAndDrawingAsANewRevision() {
+        ComponentDefinition definition = ExampleDefinitions.inverter();
+        GridSize wider = new GridSize(6, 4);
+        PinPlacement first = new PinPlacement(definition.pinout().get(0).source(), new GridPoint(0, 3));
+        PinPlacement last = new PinPlacement(definition.pinout().get(1).source(), new GridPoint(6, 3));
+        ComponentAppearance appearance = new ComponentAppearance(wider, Optional.of(SymbolDrawing.empty(wider)),
+                List.of(last, first));
+
+        ComponentDefinition shaped = appearance.appliedTo(definition);
+
+        assertThat(shaped.size()).isEqualTo(wider);
+        assertThat(shaped.appearance()).contains(SymbolDrawing.empty(wider));
+        assertThat(shaped.pinout()).extracting(pin -> pin.spec().position())
+                .containsExactly(new GridPoint(0, 3), new GridPoint(6, 3));
+        assertThat(shaped.pinout()).extracting(pin -> pin.spec().name())
+                .containsExactlyElementsOf(definition.pinout().stream().map(pin -> pin.spec().name()).toList());
+        assertThat(shaped.revision()).isEqualTo(definition.revision() + 1);
+        assertThat(ComponentAppearance.of(definition).appliedTo(definition)).isSameAs(definition);
+    }
+
+    @Test
     void componentEditsPreserveTheirAppearanceWithoutChangingTheirDefinitionRevision() {
         ComponentAppearance appearance = new ComponentAppearance(size, Optional.empty(), List.of());
         Component component = new Component(new ElementId("c1"), "subcircuit:box", new GridPoint(0, 0),

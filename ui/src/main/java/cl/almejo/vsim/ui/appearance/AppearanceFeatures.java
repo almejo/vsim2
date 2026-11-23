@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.appearance;
 
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
-import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -9,7 +8,6 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.AppearanceReconciler;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
-import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
@@ -184,7 +182,7 @@ final class AppearanceFeatures {
                 && latestBundle.filter(this::matchesCircuitBundle).isPresent();
         Optional<DefinitionBundle> expectedLibrary = library.library().find(definitionId);
         if (scope == ShapeEditScope.LIBRARY_DEFINITION && !appliesToCircuit) {
-            ComponentDefinition changed = withAppearance(starting, draft);
+            ComponentDefinition changed = draft.appliedTo(starting);
             DefinitionBundle preserved = new DefinitionBundle(changed, expectedLibrary.orElseThrow().dependencies());
             return saveLibrary(preserved, false, expectedLibrary);
         }
@@ -281,18 +279,6 @@ final class AppearanceFeatures {
         return planned.component(pin.componentId()).map(component -> new ConnectionsQuestion.Entry(pieceName(component),
                 PinNames.display(view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name()), ""))
                 .orElse(new ConnectionsQuestion.Entry(pin.componentId().value(), "", ""));
-    }
-
-    private static ComponentDefinition withAppearance(ComponentDefinition definition, ComponentAppearance appearance) {
-        ComponentAppearance canonical = appearance.canonical(definition.pinout());
-        List<DefinitionPin> pins = new ArrayList<>();
-        for (int index = 0; index < definition.pinout().size(); index++) {
-            DefinitionPin pin = definition.pinout().get(index);
-            PinSpec spec = pin.spec();
-            pins.add(new DefinitionPin(new PinSpec(spec.name(), canonical.pins().get(index).offset(),
-                    spec.direction(), spec.width()), pin.source()));
-        }
-        return definition.withGeometry(canonical.size(), pins, canonical.drawing());
     }
 
     private CircuitDocument document() {

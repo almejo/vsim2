@@ -1,20 +1,17 @@
 package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
-import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
-import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.core.wiring.ShapeChangePlanner;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,15 +58,7 @@ public final class ChangeAppearanceCommand implements Command, LoosensPins {
     public static ChangeAppearanceCommand forDefinition(CircuitDocument document, ComponentTypeRegistry registry,
                                                          String definitionId, ComponentAppearance appearance) {
         ComponentDefinition before = document.definition(definitionId).orElseThrow();
-        ComponentAppearance canonical = appearance.canonical(before.pinout());
-        List<DefinitionPin> pins = new ArrayList<>();
-        for (int index = 0; index < before.pinout().size(); index++) {
-            DefinitionPin original = before.pinout().get(index);
-            PinSpec spec = original.spec();
-            pins.add(new DefinitionPin(new PinSpec(spec.name(), canonical.pins().get(index).offset(),
-                    spec.direction(), spec.width()), original.source()));
-        }
-        ComponentDefinition replacement = before.withGeometry(canonical.size(), pins, canonical.drawing());
+        ComponentDefinition replacement = appearance.appliedTo(before);
         DefinitionUpdateSafety.requireSafe(document, replacement);
         CircuitDocument snapshot = document.copy();
         CircuitDocument after = snapshot.copy();

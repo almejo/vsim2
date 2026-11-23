@@ -1,7 +1,6 @@
 package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
-import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.document.ElementId;
@@ -34,15 +33,10 @@ public final class AppearanceReconciler {
         }
         ComponentAppearance appearance = reconcile(before, candidate, Optional.of(ComponentAppearance.of(before)))
                 .orElseGet(() -> ComponentAppearance.of(candidate));
-        List<DefinitionPin> pins = new ArrayList<>();
-        for (int index = 0; index < candidate.pinout().size(); index++) {
-            DefinitionPin original = candidate.pinout().get(index);
-            PinSpec spec = original.spec();
-            pins.add(new DefinitionPin(new PinSpec(spec.name(), appearance.pins().get(index).offset(),
-                    spec.direction(), spec.width()), original.source()));
-        }
+        // the candidate's own revision, not a new one: the caller assigns the accepted revision afterwards
         return new ComponentDefinition(candidate.id(), candidate.name(), candidate.description(), appearance.size(),
-                pins, candidate.body(), appearance.drawing(), candidate.revision(), candidate.machine());
+                appearance.placedPinout(candidate.pinout()), candidate.body(), appearance.drawing(),
+                candidate.revision(), candidate.machine());
     }
 
     /**
