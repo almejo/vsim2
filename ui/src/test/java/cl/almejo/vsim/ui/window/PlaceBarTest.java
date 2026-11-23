@@ -250,7 +250,7 @@ class PlaceBarTest {
 
     // --- fix round 4 (M): the bar's room and its contrast ---
 
-    /** The inverter's bar with a machine's «Probar…» and «Convertir a circuito…», laid out {@code width} wide. */
+    /** The inverter's bar with a machine's «Probar…», laid out {@code width} wide. */
     private PlaceBar machineLikeBarAt(ToIntFunction<PlaceBar> width) {
         inverterInThreePlaces();
         PlaceBar bar = barOf(INVERTER, Optional.of("c1"));
@@ -279,8 +279,9 @@ class PlaceBarTest {
 
         assertThat(bar.overflowShown()).isFalse();
         assertThat(bar.overflowTexts()).isEmpty();
-        assertThat(bar.shownActionTexts()).containsSubsequence("Ver la pieza ↗", "Probar…", "Convertir a circuito…",
+        assertThat(bar.shownActionTexts()).containsSubsequence("Ver la pieza ↗", "Probar…",
                 "Agregar a Mis componentes");
+        assertThat(bar.shownActionTexts()).doesNotContain("Convertir a circuito…");
     }
 
     @Test
@@ -289,12 +290,9 @@ class PlaceBarTest {
 
         assertThat(bar.overflowShown()).isTrue();
         assertThat(bar.crumbsShown()).as("the route stays on the bar").isTrue();
-        assertThat(bar.overflowTexts()).containsSubsequence("Probar…", "Convertir a circuito…",
+        assertThat(bar.overflowTexts()).containsSubsequence("Probar…",
                 "Agregar a Mis componentes");
-        JMenuItem convert = bar.overflowItems().stream()
-                .filter(item -> item.getText().equals("Convertir a circuito…")).findFirst().orElseThrow();
-        assertThat(convert.isEnabled()).isFalse();
-        assertThat(convert.getToolTipText()).isEqualTo(Messages.text("machine.comesLater"));
+        assertThat(bar.overflowTexts()).doesNotContain("Convertir a circuito…");
         JMenuItem test = bar.overflowItems().stream().filter(item -> item.getText().equals("Probar…"))
                 .findFirst().orElseThrow();
 

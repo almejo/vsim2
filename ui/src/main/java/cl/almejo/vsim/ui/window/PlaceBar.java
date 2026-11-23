@@ -37,7 +37,7 @@ import java.util.Optional;
 /**
  * The bar under the tab strip of a component tab (spec §5.1), tinted with its group's colour: the route of the
  * context as clickable crumbs, «Valores de» (every instance path that reaches the definition, plus «Sin valores»),
- * how many places use it, «Ver la pieza», a machine's «Probar…» and «Convertir a circuito…», the
+ * how many places use it, «Ver la pieza», a machine's «Probar…», the
  * library button, and the explanation of an edit refused inside, which
  * has no other place. One row that never wraps nor holds the side panels back: what follows the route leaves from the
  * right into a «»» menu, in order, as the toolbar's ({@link OverflowToolBarLayout}); the route is cut last, with «…».
@@ -102,9 +102,8 @@ public final class PlaceBar extends JPanel {
     private final JLabel useChip = new JLabel();
     private final JButton seePiece = new JButton(Messages.text("place.seePiece") + " ↗");
     private final JButton libraryButton = new JButton();
-    /** «Probar…» and «Convertir a circuito…»: a machine's tab shows them ({@link #showMachineActions}). */
+    /** «Probar…»: a machine's tab shows it ({@link #showMachineActions}). */
     private final JButton machineTestButton = new JButton(Messages.text("machine.palette.test"));
-    private final JButton machineConvertButton = new JButton(Messages.text("machine.palette.convert"));
     /** Why the library button is disabled now (a machine's test mode); empty while it works. */
     private Optional<String> libraryHold = Optional.empty();
     private final JLabel refusalLabel = new JLabel();
@@ -143,13 +142,9 @@ public final class PlaceBar extends JPanel {
         actions.add(useChip);
         actions.add(seePiece);
         actions.add(machineTestButton);
-        actions.add(machineConvertButton);
         actions.add(libraryButton);
         actions.add(overflowButton); // always the last child
         machineTestButton.setVisible(false);
-        machineConvertButton.setVisible(false);
-        machineConvertButton.setEnabled(false);
-        machineConvertButton.setToolTipText(Messages.text("machine.comesLater"));
         machineTestButton.setToolTipText(Messages.text("machine.palette.testHint"));
         add(refusalLabel, "newline, span, wmin 0");
         valuesCombo.addActionListener(action -> {
@@ -419,20 +414,18 @@ public final class PlaceBar extends JPanel {
     }
 
     /**
-     * A machine's tab: shows «Probar…», which calls {@code startTest}, and «Convertir a circuito…», disabled with its
-     * reason until it exists, before the library button. The returned runnable hides them again.
+     * A machine's tab: shows «Probar…», which calls {@code startTest}, before the library button. The returned runnable
+     * hides it again.
      */
     public Runnable showMachineActions(Runnable startTest) {
         ActionListener start = action -> startTest.run();
         machineTestButton.addActionListener(start);
         machineTestButton.setVisible(true);
-        machineConvertButton.setVisible(true);
         revalidate();
         repaint();
         return () -> {
             machineTestButton.removeActionListener(start);
             machineTestButton.setVisible(false);
-            machineConvertButton.setVisible(false);
             revalidate();
             repaint();
         };

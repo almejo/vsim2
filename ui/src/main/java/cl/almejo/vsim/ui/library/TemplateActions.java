@@ -265,7 +265,7 @@ public final class TemplateActions {
      * the body's top-left at the instance's top-left, and bridges each instance pin that had an outside connection to
      * its pasted interface pin ({@link Disassembly}); the pasted parts become the selection. When the body would land
      * on a foreign wire or pin nothing changes and a message says so; pins that cannot be bridged are named. A state
-     * machine is refused with its reason: its body is only its pins («Convertir a circuito» comes later).
+     * machine is refused with its reason: its body is only its pins.
      */
     public void disassemble(Component instance) {
         ComponentTypeRegistry registry = openDocument.registry();

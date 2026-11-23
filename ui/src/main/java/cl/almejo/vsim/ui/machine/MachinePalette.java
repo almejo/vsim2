@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 /**
  * The left palette of a machine's tab (spec 2026-11-14 §1, the mockup's «Paleta»), its rows drawn as the circuit
  * palette's are ({@link MachinePaletteRows}): the drawing tools only, «Estado», «Transición», «Nota» (a sticky
- * note) and «Texto» (a free text). The machine-wide actions («Probar…», «Convertir a circuito…», «Agregar a Mis
+ * note) and «Texto» (a free text). The machine-wide actions («Probar…», «Agregar a Mis
  * componentes») are in the top bar of the tab ({@code PlaceBar}). A tool is chosen here (one at a time, or none) and
  * used once on the diagram ({@link MachineTool}): a click places a state, a note or a text, a drag joins two
  * states.

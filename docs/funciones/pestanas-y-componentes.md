@@ -71,7 +71,7 @@ de circuito no la tienen.
   la selecciona, mueve la vista hasta ella y la hace brillar un momento (1,5 s, con el color de selección del tema;
   quieto, sin desvanecerse, con «Reducir movimiento») para que el ojo la encuentre. Lo mismo al llegar desde F8, la
   lista de Problemas o el árbol del circuito. Está apagado sin valores.
-- **Probar… y Convertir a circuito…** (solo en la pestaña de una máquina de estados): «Probar…» entra al modo prueba (es la misma entrada que la de Propiedades de la máquina y la de Lógica ▸ «Probar la máquina…»; mientras se prueba dice «Ya estás probando») y «Convertir a circuito…» está apagado, con su razón, hasta que exista.
+- **Probar…** (solo en la pestaña de una máquina de estados): «Probar…» entra al modo prueba (es la misma entrada que la de Propiedades de la máquina y la de Lógica ▸ «Probar la máquina…»; mientras se prueba dice «Ya estás probando»).
 - **Guardar en Mis componentes / Agregar a Mis componentes**: «Agregar» aparece cuando el componente no está en Mis componentes
   (pregunta lo mismo que la paleta si el id ya existe); «Guardar» aparece cuando la copia del circuito es distinta de
   la de Mis componentes y escribe el componente con los que usa. Después de guardar, el botón desaparece. Nada se escribe

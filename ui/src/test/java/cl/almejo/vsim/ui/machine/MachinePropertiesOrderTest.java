@@ -234,13 +234,11 @@ class MachinePropertiesOrderTest {
     }
 
     @Test
-    void theTopBarOffersProbarConvertirAndAgregarAMisComponentesInThatOrder() {
+    void theTopBarOffersProbarAndAgregarAMisComponentesInThatOrder() {
         List<String> texts = barButtons().stream().map(AbstractButton::getText)
                 .filter(text -> text.endsWith("…") || text.startsWith("Agregar")).toList();
 
-        assertThat(texts).containsExactly("Probar…", "Convertir a circuito…", "Agregar a Mis componentes");
-        assertThat(barButton("Convertir a circuito…").isEnabled()).isFalse();
-        assertThat(barButton("Convertir a circuito…").getToolTipText()).isEqualTo(Messages.text("machine.comesLater"));
+        assertThat(texts).containsExactly("Probar…", "Agregar a Mis componentes");
     }
 
     @Test
