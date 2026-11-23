@@ -696,7 +696,7 @@ final class EditPlanner {
         }
         ChangeAppearanceCommand command = operation.instance().isPresent()
                 ? shapeOfInstance(operation, operation.instance().get())
-                : shapeOfDefinition(operation, circuitDefinition(operation.definition().get()));
+                : shapeOfDefinition(operation, editableDefinition(operation.definition().get()));
         requireWiresFollow(command.plan());
         command.apply(candidate);
     }
@@ -802,6 +802,17 @@ final class EditPlanner {
                 + "without touching another net, so the user would have to connect by hand (the AI never loosens a "
                 + "pin). Loose pins: " + loose + (kept.isEmpty() ? "" : "; pieces that would keep their old shape: "
                 + kept) + ". Choose other pin places");
+    }
+
+    /** The circuit component {@code reference} names, refused plainly when it is a state machine (no AI tools yet). */
+    private ComponentDefinition editableDefinition(String reference) {
+        ComponentDefinition definition = circuitDefinition(reference);
+        if (definition.isMachine()) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "The AI cannot edit state machines yet: "
+                    + definition.name() + " is one. Place, move, connect and delete it as a whole, or ask the user "
+                    + "to change it in its own tab");
+        }
+        return definition;
     }
 
     private ComponentDefinition circuitDefinition(String reference) {
