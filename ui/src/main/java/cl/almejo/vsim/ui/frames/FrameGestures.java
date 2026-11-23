@@ -2,16 +2,13 @@ package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
-import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
-import cl.almejo.vsim.ui.tools.ElementDrag;
-import cl.almejo.vsim.ui.tools.SelectToolDelegate;
+import cl.almejo.vsim.ui.tools.ElementDragDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.Graphics2D;
@@ -20,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * What the select tool does with frames (spec §2, §3, §7): a press on the title bar selects the frame alone (locked
@@ -31,14 +27,13 @@ import java.util.Set;
  * follow mode, inverted by the configured key held while dragging). A move snaps like the select tool's (Ajustar,
  * before the walls of a locked frame, which still win) and draws its alignment lines; a resize does not snap (v1).
  */
-public final class FrameGestures implements SelectToolDelegate {
+public final class FrameGestures extends ElementDragDelegate {
 
     /** Side of a handle, in screen pixels. */
     static final double HANDLE_PIXELS = 6;
 
     private Frame grabbed;
     private FramePart part;
-    private final ElementDrag drag = new ElementDrag();
     private ElementId hovered;
 
     @Override
@@ -57,11 +52,7 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         Selection selection = context.selection();
         if (event.button() == CanvasMouseEvent.SECONDARY) {
-            if (!selection.contains(frame.id())) {
-                selection.select(frame.id());
-            }
-            context.showContextMenu(Optional.of(frame), event.screenPosition());
-            return Press.HANDLED;
+            return showMenu(context, event, frame);
         }
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return Press.IGNORED;
@@ -101,28 +92,6 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         context.selection().select(frame.id());
         context.showContextMenu(Optional.of(frame), event.screenPosition());
-    }
-
-    @Override
-    public void dragged(ToolContext context, CanvasMouseEvent event) {
-        drag.dragged(context, event);
-    }
-
-    /** Redoes the drag at the last pointer position with the new keys, so the wires preview follows them. */
-    @Override
-    public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
-        return drag.modifiersChanged(context, shiftDown, controlDown, altDown);
-    }
-
-    /** Redoes a move at the last pointer position after a snap preference, the zoom or the guides changed. */
-    @Override
-    public boolean refreshSnap(ToolContext context) {
-        return drag.refreshSnap(context);
-    }
-
-    @Override
-    public List<Guide> snappedGuides() {
-        return drag.snappedGuides();
     }
 
     @Override
@@ -170,22 +139,6 @@ public final class FrameGestures implements SelectToolDelegate {
             bottom = Math.max(bottom + drag.deltaY(), top + Frame.MINIMUM_HEIGHT);
         }
         return frame.withRectangle(new GridPoint(left, top), right - left, bottom - top);
-    }
-
-    @Override
-    public Set<ElementId> hiddenWires(ToolContext context) {
-        return drag.hiddenWires(context);
-    }
-
-    @Override
-    public List<DocumentElement> movingElements(ToolContext context) {
-        return drag.movingElements(context);
-    }
-
-    @Override
-    public void cancelled(ToolContext context) {
-        reset();
-        context.repaint();
     }
 
     @Override
@@ -292,7 +245,8 @@ public final class FrameGestures implements SelectToolDelegate {
         return handles;
     }
 
-    private void reset() {
+    @Override
+    protected void reset() {
         grabbed = null;
         part = null;
         drag.reset();

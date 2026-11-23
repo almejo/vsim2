@@ -1,24 +1,19 @@
 package cl.almejo.vsim.ui.sticky;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
-import cl.almejo.vsim.ui.tools.ElementDrag;
-import cl.almejo.vsim.ui.tools.SelectToolDelegate;
+import cl.almejo.vsim.ui.tools.ElementDragDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.Component;
 import java.awt.Graphics2D;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -34,14 +29,13 @@ import java.util.function.Supplier;
  * click do nothing (the note
  * still moves inside the frame).
  */
-public final class StickyNoteGestures implements SelectToolDelegate {
+public final class StickyNoteGestures extends ElementDragDelegate {
 
     private final Supplier<Component> parent;
     private final StickyCloseConfirmation confirmation;
 
     private StickyNote grabbed;
     private boolean resizing;
-    private final ElementDrag drag = new ElementDrag();
     /** A plain press on a folded paper: a release without moving unfolds it (a single click is enough). */
     private boolean unfoldOnRelease;
     /** The note a click has just unfolded: the second press of that double click is swallowed. */
@@ -72,11 +66,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         StickyNote note = document.stickyNote(hit.get().note()).orElseThrow();
         Selection selection = context.selection();
         if (event.button() == CanvasMouseEvent.SECONDARY) {
-            if (!selection.contains(note.id())) {
-                selection.select(note.id());
-            }
-            context.showContextMenu(Optional.of(note), event.screenPosition());
-            return Press.HANDLED;
+            return showMenu(context, event, note);
         }
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return Press.IGNORED;
@@ -150,26 +140,6 @@ public final class StickyNoteGestures implements SelectToolDelegate {
     }
 
     @Override
-    public void dragged(ToolContext context, CanvasMouseEvent event) {
-        drag.dragged(context, event);
-    }
-
-    @Override
-    public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
-        return drag.modifiersChanged(context, shiftDown, controlDown, altDown);
-    }
-
-    @Override
-    public boolean refreshSnap(ToolContext context) {
-        return drag.refreshSnap(context);
-    }
-
-    @Override
-    public List<Guide> snappedGuides() {
-        return drag.snappedGuides();
-    }
-
-    @Override
     public void released(ToolContext context, CanvasMouseEvent event) {
         if (grabbed == null) {
             return;
@@ -200,22 +170,6 @@ public final class StickyNoteGestures implements SelectToolDelegate {
 
     private int resizedHeight() {
         return Math.max(StickyNote.MINIMUM_HEIGHT, grabbed.height() + drag.deltaY());
-    }
-
-    @Override
-    public Set<ElementId> hiddenWires(ToolContext context) {
-        return drag.hiddenWires(context);
-    }
-
-    @Override
-    public List<DocumentElement> movingElements(ToolContext context) {
-        return drag.movingElements(context);
-    }
-
-    @Override
-    public void cancelled(ToolContext context) {
-        reset();
-        context.repaint();
     }
 
     @Override
@@ -283,7 +237,8 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         }
     }
 
-    private void reset() {
+    @Override
+    protected void reset() {
         grabbed = null;
         resizing = false;
         unfoldOnRelease = false;

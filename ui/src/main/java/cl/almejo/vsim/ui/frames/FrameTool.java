@@ -9,13 +9,12 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.snap.PointResolution;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
-import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.ElementDrawingTool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.BasicStroke;
 import java.awt.Cursor;
 import java.awt.Graphics2D;
-import java.awt.event.KeyEvent;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +29,7 @@ import java.util.List;
  * preview showed; {@link #refreshSnap} redoes the dragged corner. A guide counts as reached only when an edge of the
  * frame as it would be created (after the minimum size) lies on it.
  */
-public final class FrameTool implements Tool {
+public final class FrameTool extends ElementDrawingTool {
 
     private static final float OUTLINE_WIDTH = 1.5f;
     private static final float[] DASH = {4f, 3f};
@@ -60,9 +59,8 @@ public final class FrameTool implements Tool {
         context.repaint();
     }
 
-    /** A frame being drawn goes on over the other panes of the window. */
     @Override
-    public boolean crossesPanes() {
+    protected boolean drawing() {
         return start != null;
     }
 
@@ -140,29 +138,7 @@ public final class FrameTool implements Tool {
         Frame frame = new Frame(context.openDocument().document().newFrameId(),
                 new GridPoint((int) rectangle.getX(), (int) rectangle.getY()), (int) rectangle.getWidth(),
                 (int) rectangle.getHeight(), Messages.text("frames.defaultTitle"), FrameTint.NONE, false);
-        context.openDocument().execute(new CreateFrameCommand(frame));
-        context.selection().select(frame.id());
-        context.useDefaultTool();
-        context.editLabel(frame);
-    }
-
-    @Override
-    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode != KeyEvent.VK_ESCAPE) {
-            return false;
-        }
-        if (start != null) {
-            reset();
-            context.repaint();
-        } else {
-            context.useDefaultTool(); // like Cable and Mover vista
-        }
-        return true;
-    }
-
-    @Override
-    public void deactivated(ToolContext context) {
-        reset();
+        finish(context, new CreateFrameCommand(frame), frame);
     }
 
     /**
@@ -196,7 +172,8 @@ public final class FrameTool implements Tool {
         return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 
-    private void reset() {
+    @Override
+    protected void reset() {
         start = null;
         current = null;
         rawCurrent = null;

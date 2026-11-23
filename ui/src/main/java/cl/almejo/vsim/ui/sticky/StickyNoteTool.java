@@ -8,12 +8,11 @@ import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
-import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.ElementDrawingTool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
-import java.awt.event.KeyEvent;
 import java.util.List;
 
 /**
@@ -22,7 +21,7 @@ import java.util.List;
  * Both corners snap like the «Marco» tool's. The new note is yellow free text, created as one undo step; the tool
  * then returns to Selección with the note selected and its text editor open.
  */
-public final class StickyNoteTool implements Tool {
+public final class StickyNoteTool extends ElementDrawingTool {
 
     private GridPoint start;
     private GridPoint current;
@@ -46,9 +45,8 @@ public final class StickyNoteTool implements Tool {
         context.repaint();
     }
 
-    /** A note being drawn goes on over the other panes of the window, like a frame. */
     @Override
-    public boolean crossesPanes() {
+    protected boolean drawing() {
         return start != null;
     }
 
@@ -60,10 +58,7 @@ public final class StickyNoteTool implements Tool {
         current = context.snapper().snapPoint(context, event.snapped()).point();
         StickyNote note = noteBeingDrawn(context.openDocument().document().newStickyNoteId());
         reset();
-        context.openDocument().execute(new AddElementsCommand(List.of(note)));
-        context.selection().select(note.id());
-        context.useDefaultTool();
-        context.editLabel(note);
+        finish(context, new AddElementsCommand(List.of(note)), note);
     }
 
     /** The note the press and the pointer make now: the default size for a click, the dragged rectangle otherwise. */
@@ -75,25 +70,6 @@ public final class StickyNoteTool implements Tool {
         Bounds bounds = Bounds.dragged(start, current, StickyNote.MINIMUM_WIDTH, StickyNote.MINIMUM_HEIGHT);
         return new StickyNote(id, new GridPoint(bounds.x(), bounds.y()), bounds.width(), bounds.height(),
                 StickyColor.YELLOW, new StickyText(""), false);
-    }
-
-    @Override
-    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode != KeyEvent.VK_ESCAPE) {
-            return false;
-        }
-        if (start != null) {
-            reset();
-            context.repaint();
-        } else {
-            context.useDefaultTool();
-        }
-        return true;
-    }
-
-    @Override
-    public void deactivated(ToolContext context) {
-        reset();
     }
 
     /** The paper outline of the note the release would stick, while the button is held. */
@@ -111,7 +87,8 @@ public final class StickyNoteTool implements Tool {
         return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 
-    private void reset() {
+    @Override
+    protected void reset() {
         start = null;
         current = null;
     }
