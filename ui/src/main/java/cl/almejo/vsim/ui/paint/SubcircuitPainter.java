@@ -9,7 +9,6 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 
 import java.awt.BasicStroke;
 import java.awt.Graphics2D;
-import java.awt.FontMetrics;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Map;
@@ -117,7 +116,7 @@ public final class SubcircuitPainter implements ComponentPainter {
             Rectangle2D slot = new Rectangle2D.Double(left ? 1 : width / 2, pinY - gap / 2, width / 2 - 1, gap);
             double across = sideways ? gap - 2 : width / 2 - INSET;
             float size = fitted(graphics, text, PIN_NAME_SIZE, across);
-            double extent = sideways ? textHeight(graphics, size) : textWidth(graphics, text, size);
+            double extent = sideways ? PainterSupport.capHeight(graphics, size) : textWidth(graphics, text, size);
             double centerX = left ? INSET + extent / 2 : width - INSET - extent / 2;
             PainterSupport.centeredText(graphics, box.createIntersection(slot), text, centerX, pinY, size,
                     scheme.text());
@@ -147,11 +146,6 @@ public final class SubcircuitPainter implements ComponentPainter {
         double textWidth = textWidth(graphics, text, preferred);
         return textWidth <= available ? preferred
                 : (float) Math.max(MINIMUM_SIZE, preferred * available / textWidth);
-    }
-
-    private static double textHeight(Graphics2D graphics, float size) {
-        FontMetrics metrics = graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(size));
-        return metrics.getAscent() - metrics.getDescent();
     }
 
     private static double textWidth(Graphics2D graphics, String text, float size) {

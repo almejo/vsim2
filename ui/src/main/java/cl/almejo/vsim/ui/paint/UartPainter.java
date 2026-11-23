@@ -14,7 +14,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.geom.Line2D;
@@ -51,10 +50,6 @@ public final class UartPainter implements ComponentPainter {
     private static final double FIRST_ROW_MIDDLE = TITLE_HEIGHT + 6;
     private static final double ROW_STEP = 7.5;
     private static final float TABLE_TEXT_SIZE = 5.5f;
-    private static final double TITLE_PADDING = 6;
-    private static final double TITLE_GAP = 8;
-    private static final float TITLE_TEXT_SIZE = 8f;
-    private static final int CHIP_ALPHA = 170;
     private static final int NAME_ALPHA = 170;
     private static final int RULE_ALPHA = 40;
     private static final float PIN_NAME_SIZE = 5f;
@@ -316,37 +311,20 @@ public final class UartPainter implements ComponentPainter {
     private static void paintTitleBar(Graphics2D graphics, Shape outline, double width, Map<String, Object> resolved,
                                       String name, ColorScheme scheme, boolean capturing) {
         Color accent = scheme.selection();
-        Graphics2D clipped = (Graphics2D) graphics.create();
-        try {
-            clipped.clip(outline);
-            clipped.setColor(capturing ? accent : scheme.componentShade());
-            clipped.fill(new Rectangle2D.Double(0, 0, width, TITLE_HEIGHT));
-            clipped.setColor(scheme.componentStroke());
-            clipped.setStroke(DIVIDER);
-            clipped.draw(new Line2D.Double(0, TITLE_HEIGHT, width, TITLE_HEIGHT));
-        } finally {
-            clipped.dispose();
-        }
+        // capturing the keyboard, the bar takes the accent colour and says so instead of the name
+        ScreenTitleBar.paintBand(graphics, outline, width, TITLE_HEIGHT,
+                capturing ? accent : scheme.componentShade(), scheme);
         if (PainterSupport.turnedSideways(graphics)) {
             // upright text cannot fit the title bar turned into a narrow vertical strip
             return;
         }
-        double middle = TITLE_HEIGHT / 2;
-        boolean upsideDown = Math.abs(PainterSupport.quarterTurns(graphics)) % 4 == 2;
-        double start = upsideDown ? PainterSupport.ALIGN_RIGHT : PainterSupport.ALIGN_LEFT;
         if (capturing) {
-            PainterSupport.uprightText(graphics, Messages.text("keyboard.painter.capturing"), TITLE_PADDING, middle,
-                    TITLE_TEXT_SIZE, KeyboardPainter.textOn(accent), start);
+            PainterSupport.uprightText(graphics, Messages.text("keyboard.painter.capturing"), ScreenTitleBar.PADDING,
+                    TITLE_HEIGHT / 2, ScreenTitleBar.TEXT_SIZE, KeyboardPainter.textOn(accent),
+                    ScreenTitleBar.start(graphics));
             return;
         }
-        String chip = chip(resolved);
-        FontMetrics metrics = graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(TITLE_TEXT_SIZE));
-        double nameRoom = width - 2 * TITLE_PADDING - metrics.stringWidth(chip) - TITLE_GAP;
-        PainterSupport.uprightText(graphics, PainterSupport.ellipsized(name, metrics, nameRoom), TITLE_PADDING, middle,
-                TITLE_TEXT_SIZE, scheme.text(), start);
-        PainterSupport.uprightText(graphics, chip, width - TITLE_PADDING, middle, TITLE_TEXT_SIZE,
-                PainterSupport.withAlpha(scheme.text(), CHIP_ALPHA),
-                upsideDown ? PainterSupport.ALIGN_LEFT : PainterSupport.ALIGN_RIGHT);
+        ScreenTitleBar.paintNameAndChip(graphics, width, TITLE_HEIGHT, name, chip(resolved), scheme);
     }
 
     /** Each pin's name inside the part, next to its stub. */

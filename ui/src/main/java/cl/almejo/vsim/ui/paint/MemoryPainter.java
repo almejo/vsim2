@@ -345,7 +345,7 @@ public final class MemoryPainter implements ComponentPainter {
         boolean right = false;
         boolean bottom = false;
         for (PinSpec pin : type.pins()) {
-            switch (side(type, pin)) {
+            switch (PinSide.of(type, pin)) {
                 case LEFT -> left = true;
                 case RIGHT -> right = true;
                 case BOTTOM -> bottom = true;
@@ -360,33 +360,13 @@ public final class MemoryPainter implements ComponentPainter {
                 type.size().height() * UNIT - MARGIN - bottomEdge);
     }
 
-    private enum Side { LEFT, RIGHT, TOP, BOTTOM, NONE }
-
-    private static Side side(ComponentType type, PinSpec pin) {
-        int x = pin.position().x();
-        int y = pin.position().y();
-        if (x <= 0) {
-            return Side.LEFT;
-        }
-        if (x >= type.size().width()) {
-            return Side.RIGHT;
-        }
-        if (y <= 0) {
-            return Side.TOP;
-        }
-        if (y >= type.size().height()) {
-            return Side.BOTTOM;
-        }
-        return Side.NONE;
-    }
-
     private static void paintLeads(Graphics2D graphics, ComponentType type, Rectangle2D box, ColorScheme scheme) {
         for (PinSpec pin : type.pins()) {
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
             double endX = pinX;
             double endY = pinY;
-            switch (side(type, pin)) {
+            switch (PinSide.of(type, pin)) {
                 case LEFT -> endX = box.getX();
                 case RIGHT -> endX = box.getMaxX();
                 case TOP -> endY = box.getY();
@@ -710,7 +690,7 @@ public final class MemoryPainter implements ComponentPainter {
             }
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
-            switch (side(type, pin)) {
+            switch (PinSide.of(type, pin)) {
                 case LEFT -> drawText(graphics, pin.name(), box.getX() + 2, pinY, PIN_NAME_SIZE, SIDE_ROOM - 2,
                         PainterSupport.ALIGN_LEFT, scheme.text());
                 case RIGHT -> drawText(graphics, pin.name(), box.getMaxX() - 2, pinY, PIN_NAME_SIZE, SIDE_ROOM - 2,
@@ -726,7 +706,7 @@ public final class MemoryPainter implements ComponentPainter {
     /** The clock triangle on the bottom edge, at the CLK pin. */
     private static void paintClockMark(Graphics2D graphics, ComponentType type, Rectangle2D box, ColorScheme scheme) {
         for (PinSpec pin : type.pins()) {
-            if (pin.name().equals(CLOCK_PIN) && side(type, pin) == Side.BOTTOM) {
+            if (pin.name().equals(CLOCK_PIN) && PinSide.of(type, pin) == PinSide.BOTTOM) {
                 double pinX = pin.position().x() * UNIT;
                 Path2D mark = new Path2D.Double();
                 mark.moveTo(pinX - 4, box.getMaxY());

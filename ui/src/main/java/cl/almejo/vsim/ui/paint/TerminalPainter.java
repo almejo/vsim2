@@ -10,13 +10,10 @@ import cl.almejo.vsim.core.terminal.TerminalFrame;
 import cl.almejo.vsim.core.terminal.TerminalGeometry;
 import cl.almejo.vsim.ui.i18n.Messages;
 
-import java.awt.BasicStroke;
-import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.List;
@@ -40,17 +37,10 @@ public final class TerminalPainter implements ComponentPainter {
     private static final double CORNER = 4;
     private static final double TITLE_HEIGHT = TerminalGeometry.TITLE_BAR_UNITS * UNIT;
     private static final double MARGIN = TerminalGeometry.MARGIN_UNITS * UNIT;
-    private static final double TITLE_PADDING = 6;
-    /** Room kept between the label and the chip. */
-    private static final double TITLE_GAP = 8;
-    private static final float TITLE_TEXT_SIZE = 8f;
-    /** The chip is quieter than the label: the mockup's muted colour. */
-    private static final int CHIP_ALPHA = 170;
     private static final float PIN_NAME_SIZE = 5f;
     private static final double PIN_NAME_INSET = 4.5;
     /** A right-edge name ends this far inside the edge, where a centred D name starts on the left. */
     private static final double RIGHT_PIN_NAME_INSET = 2.5;
-    private static final BasicStroke DIVIDER = new BasicStroke(1f);
     private static final String CHIP_KEY_PREFIX = "terminal.chip.";
     private static final int OPAQUE = 255;
     /** How far the body's shadow and outline reach out of its shape (and its rounded corners in), rounded up. */
@@ -255,32 +245,12 @@ public final class TerminalPainter implements ComponentPainter {
 
     private static void paintTitleBar(Graphics2D graphics, Shape outline, double width, Map<String, Object> resolved,
                                       String name, ColorScheme scheme) {
-        Graphics2D clipped = (Graphics2D) graphics.create();
-        try {
-            clipped.clip(outline);
-            clipped.setColor(scheme.componentShade());
-            clipped.fill(new Rectangle2D.Double(0, 0, width, TITLE_HEIGHT));
-            clipped.setColor(scheme.componentStroke());
-            clipped.setStroke(DIVIDER);
-            clipped.draw(new Line2D.Double(0, TITLE_HEIGHT, width, TITLE_HEIGHT));
-        } finally {
-            clipped.dispose();
-        }
+        ScreenTitleBar.paintBand(graphics, outline, width, TITLE_HEIGHT, scheme.componentShade(), scheme);
         if (PainterSupport.turnedSideways(graphics)) {
             // upright text cannot fit the title bar turned into a narrow vertical strip
             return;
         }
-        double middle = TITLE_HEIGHT / 2;
-        // turned upside down the part's left is the screen's right: the texts keep their side of the bar
-        boolean upsideDown = Math.abs(PainterSupport.quarterTurns(graphics)) % 4 == 2;
-        String chip = chip(resolved);
-        FontMetrics metrics = graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(TITLE_TEXT_SIZE));
-        double nameRoom = width - 2 * TITLE_PADDING - metrics.stringWidth(chip) - TITLE_GAP;
-        PainterSupport.uprightText(graphics, PainterSupport.ellipsized(name, metrics, nameRoom), TITLE_PADDING, middle,
-                TITLE_TEXT_SIZE, scheme.text(), upsideDown ? PainterSupport.ALIGN_RIGHT : PainterSupport.ALIGN_LEFT);
-        PainterSupport.uprightText(graphics, chip, width - TITLE_PADDING, middle, TITLE_TEXT_SIZE,
-                PainterSupport.withAlpha(scheme.text(), CHIP_ALPHA),
-                upsideDown ? PainterSupport.ALIGN_LEFT : PainterSupport.ALIGN_RIGHT);
+        ScreenTitleBar.paintNameAndChip(graphics, width, TITLE_HEIGHT, name, chip(resolved), scheme);
     }
 
     /**

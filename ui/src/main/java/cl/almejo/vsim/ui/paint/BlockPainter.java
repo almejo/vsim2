@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 
 import java.awt.BasicStroke;
-import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.geom.Area;
@@ -84,8 +83,6 @@ public final class BlockPainter implements ComponentPainter {
     private static final BiFunction<VisibleState, Map<String, Object>, Optional<String>> NO_LIVE_TEXT =
             (state, parameters) -> Optional.empty();
 
-    private enum Side { LEFT, RIGHT, TOP, BOTTOM, NONE }
-
     private final String symbol;
     private final Body body;
     private final BiFunction<VisibleState, Map<String, Object>, Optional<String>> liveText;
@@ -140,7 +137,7 @@ public final class BlockPainter implements ComponentPainter {
         boolean sideways = PainterSupport.turnedSideways(graphics);
         for (PinSpec pin : shaped.pins()) {
             if (pin.name().equals(CLOCK_PIN)) {
-                paintClockMark(graphics, pin, side(shaped, pin), box, scheme);
+                paintClockMark(graphics, pin, PinSide.of(shaped, pin), box, scheme);
             }
         }
         Optional<String> live = liveText.apply(state, resolved);
@@ -159,34 +156,16 @@ public final class BlockPainter implements ComponentPainter {
 
     /** The rectangle the body fits in: half a grid unit in from each side that has pins, one pixel from the others. */
     private static Rectangle2D bodyBox(ComponentType type) {
-        boolean[] hasPins = new boolean[Side.values().length];
+        boolean[] hasPins = new boolean[PinSide.values().length];
         for (PinSpec pin : type.pins()) {
-            hasPins[side(type, pin).ordinal()] = true;
+            hasPins[PinSide.of(type, pin).ordinal()] = true;
         }
-        double left = hasPins[Side.LEFT.ordinal()] ? LEAD : MARGIN;
-        double right = hasPins[Side.RIGHT.ordinal()] ? LEAD : MARGIN;
-        double top = hasPins[Side.TOP.ordinal()] ? LEAD : MARGIN;
-        double bottom = hasPins[Side.BOTTOM.ordinal()] ? LEAD : MARGIN;
+        double left = hasPins[PinSide.LEFT.ordinal()] ? LEAD : MARGIN;
+        double right = hasPins[PinSide.RIGHT.ordinal()] ? LEAD : MARGIN;
+        double top = hasPins[PinSide.TOP.ordinal()] ? LEAD : MARGIN;
+        double bottom = hasPins[PinSide.BOTTOM.ordinal()] ? LEAD : MARGIN;
         return new Rectangle2D.Double(left, top, type.size().width() * UNIT - left - right,
                 type.size().height() * UNIT - top - bottom);
-    }
-
-    private static Side side(ComponentType type, PinSpec pin) {
-        int x = pin.position().x();
-        int y = pin.position().y();
-        if (x <= 0) {
-            return Side.LEFT;
-        }
-        if (x >= type.size().width()) {
-            return Side.RIGHT;
-        }
-        if (y <= 0) {
-            return Side.TOP;
-        }
-        if (y >= type.size().height()) {
-            return Side.BOTTOM;
-        }
-        return Side.NONE;
     }
 
     private Shape outline(Rectangle2D box) {
@@ -239,7 +218,7 @@ public final class BlockPainter implements ComponentPainter {
             for (PinSpec pin : type.pins()) {
                 double pinX = pin.position().x() * UNIT;
                 double pinY = pin.position().y() * UNIT;
-                Line2D lead = switch (side(type, pin)) {
+                Line2D lead = switch (PinSide.of(type, pin)) {
                     case LEFT, RIGHT -> new Line2D.Double(pinX, pinY, box.getCenterX(), pinY);
                     case TOP, BOTTOM -> new Line2D.Double(pinX, pinY, pinX, box.getCenterY());
                     case NONE -> null;
@@ -261,7 +240,7 @@ public final class BlockPainter implements ComponentPainter {
     }
 
     /** The clock triangle: its base on the body's edge across the pin, its tip pointing into the body. */
-    private void paintClockMark(Graphics2D graphics, PinSpec pin, Side side, Rectangle2D box, ColorScheme scheme) {
+    private void paintClockMark(Graphics2D graphics, PinSpec pin, PinSide side, Rectangle2D box, ColorScheme scheme) {
         double pinX = pin.position().x() * UNIT;
         double pinY = pin.position().y() * UNIT;
         Point2D base;
@@ -310,8 +289,8 @@ public final class BlockPainter implements ComponentPainter {
         }
         String text = live.get();
         float liveSize = fitted(graphics, text, LIVE_TEXT_SIZE, across, LIVE_TEXT_MINIMUM_SIZE);
-        double symbolHeight = textHeight(graphics, symbolSize);
-        double liveHeight = textHeight(graphics, liveSize);
+        double symbolHeight = PainterSupport.capHeight(graphics, symbolSize);
+        double liveHeight = PainterSupport.capHeight(graphics, liveSize);
         double total = symbolHeight + TEXT_GAP * 2 + liveHeight;
         Point2D down = screenDown(graphics);
         double symbolOffset = -total / 2 + symbolHeight / 2;
@@ -331,7 +310,7 @@ public final class BlockPainter implements ComponentPainter {
                                            String live, boolean sideways, ColorScheme scheme) {
         float symbolSize = fitted(graphics, symbol, CORNER_SYMBOL_SIZE, box.getWidth() / 2);
         double symbolWidth = textWidth(graphics, symbol, symbolSize);
-        double symbolHeight = textHeight(graphics, symbolSize);
+        double symbolHeight = PainterSupport.capHeight(graphics, symbolSize);
         double localSymbolWidth = sideways ? symbolHeight : symbolWidth;
         double localSymbolHeight = sideways ? symbolWidth : symbolHeight;
         // Upright the symbol takes a band over the value; turned sideways it sits after the left pins' names (on
@@ -355,10 +334,10 @@ public final class BlockPainter implements ComponentPainter {
         for (String line : lines) {
             size = Math.min(size, fitted(graphics, line, CORNER_LIVE_TEXT_SIZE, across, LIVE_TEXT_MINIMUM_SIZE));
         }
-        double lineHeight = textHeight(graphics, size) + TEXT_GAP * 2;
+        double lineHeight = PainterSupport.capHeight(graphics, size) + TEXT_GAP * 2;
         if (lines.length * lineHeight > along && lineHeight > 0) {
             size = (float) Math.max(LIVE_TEXT_MINIMUM_SIZE, size * along / (lines.length * lineHeight));
-            lineHeight = textHeight(graphics, size) + TEXT_GAP * 2;
+            lineHeight = PainterSupport.capHeight(graphics, size) + TEXT_GAP * 2;
         }
         Point2D down = screenDown(graphics);
         for (int index = 0; index < lines.length; index++) {
@@ -375,40 +354,40 @@ public final class BlockPainter implements ComponentPainter {
      */
     private static Rectangle2D valueArea(Graphics2D graphics, ComponentType type, Rectangle2D box, double topBand,
                                          boolean sideways) {
-        double[] bands = new double[Side.values().length];
+        double[] bands = new double[PinSide.values().length];
         Arrays.fill(bands, INSET);
-        bands[Side.TOP.ordinal()] = Math.max(INSET, topBand);
+        bands[PinSide.TOP.ordinal()] = Math.max(INSET, topBand);
         for (PinSpec pin : type.pins()) {
-            Side side = side(type, pin);
-            if (side == Side.NONE || pin.name().isBlank()) {
+            PinSide side = PinSide.of(type, pin);
+            if (side == PinSide.NONE || pin.name().isBlank()) {
                 continue;
             }
             double depth = CLOCK_DEPTH;
             if (!pin.name().equals(CLOCK_PIN)) {
-                boolean runsAcrossTheEdge = (side == Side.LEFT || side == Side.RIGHT) != sideways;
+                boolean runsAcrossTheEdge = (side == PinSide.LEFT || side == PinSide.RIGHT) != sideways;
                 depth = runsAcrossTheEdge ? textWidth(graphics, pin.name(), PIN_NAME_SIZE)
-                        : textHeight(graphics, PIN_NAME_SIZE);
+                        : PainterSupport.capHeight(graphics, PIN_NAME_SIZE);
             }
             bands[side.ordinal()] = Math.max(bands[side.ordinal()], INSET + depth + TEXT_GAP);
         }
-        double left = box.getX() + bands[Side.LEFT.ordinal()];
-        double top = box.getY() + bands[Side.TOP.ordinal()];
-        double right = box.getMaxX() - bands[Side.RIGHT.ordinal()];
-        double bottom = box.getMaxY() - bands[Side.BOTTOM.ordinal()];
+        double left = box.getX() + bands[PinSide.LEFT.ordinal()];
+        double top = box.getY() + bands[PinSide.TOP.ordinal()];
+        double right = box.getMaxX() - bands[PinSide.RIGHT.ordinal()];
+        double bottom = box.getMaxY() - bands[PinSide.BOTTOM.ordinal()];
         return new Rectangle2D.Double(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
     }
 
     /** A pin's name inside the body, next to its pin. */
     private void paintPinName(Graphics2D graphics, ComponentType type, PinSpec pin, Rectangle2D box, Shape outline,
                               boolean sideways, ColorScheme scheme) {
-        Side side = side(type, pin);
-        if (side == Side.NONE) {
+        PinSide side = PinSide.of(type, pin);
+        if (side == PinSide.NONE) {
             return;
         }
         String name = pin.name();
         double pinX = pin.position().x() * UNIT;
         double pinY = pin.position().y() * UNIT;
-        boolean horizontalSide = side == Side.LEFT || side == Side.RIGHT;
+        boolean horizontalSide = side == PinSide.LEFT || side == PinSide.RIGHT;
         double gap = gapToNeighbours(type, pin, side, horizontalSide ? box.getHeight() : box.getWidth());
         // The text runs along local x unless the component is turned sideways.
         boolean runsAcrossTheEdge = horizontalSide != sideways;
@@ -416,9 +395,9 @@ public final class BlockPainter implements ComponentPainter {
                 ? (horizontalSide ? box.getWidth() : box.getHeight()) / 2 - INSET
                 : gap - 2 * TEXT_GAP;
         float size = fitted(graphics, name, PIN_NAME_SIZE, available);
-        double extent = runsAcrossTheEdge ? textWidth(graphics, name, size) : textHeight(graphics, size);
+        double extent = runsAcrossTheEdge ? textWidth(graphics, name, size) : PainterSupport.capHeight(graphics, size);
         // On a slanted top or bottom edge, the text clears the edge along its whole span, not only under the pin.
-        double halfSpan = (runsAcrossTheEdge ? textHeight(graphics, size) : textWidth(graphics, name, size)) / 2;
+        double halfSpan = (runsAcrossTheEdge ? PainterSupport.capHeight(graphics, size) : textWidth(graphics, name, size)) / 2;
         double centerX = pinX;
         double centerY = pinY;
         switch (side) {
@@ -436,11 +415,11 @@ public final class BlockPainter implements ComponentPainter {
     }
 
     /** The distance to the nearest other pin on the same side ({@code fallback} when there is none). */
-    private static double gapToNeighbours(ComponentType type, PinSpec pin, Side side, double fallback) {
-        boolean horizontalSide = side == Side.LEFT || side == Side.RIGHT;
+    private static double gapToNeighbours(ComponentType type, PinSpec pin, PinSide side, double fallback) {
+        boolean horizontalSide = side == PinSide.LEFT || side == PinSide.RIGHT;
         double gap = fallback;
         for (PinSpec other : type.pins()) {
-            if (other == pin || side(type, other) != side) {
+            if (other == pin || PinSide.of(type, other) != side) {
                 continue;
             }
             double distance = horizontalSide
@@ -478,11 +457,6 @@ public final class BlockPainter implements ComponentPainter {
             size = Math.max(minimum, size - 0.25f);
         }
         return size;
-    }
-
-    private static double textHeight(Graphics2D graphics, float size) {
-        FontMetrics metrics = graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(size));
-        return metrics.getAscent() - metrics.getDescent();
     }
 
     private static double textWidth(Graphics2D graphics, String text, float size) {
