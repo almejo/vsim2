@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  VSim's PMD rules (run by `pmdMain` of the four modules as part of `./gradlew test`).
+
+  Rules are added one by one by the calidad-codigo rounds, each with a comment saying why it is on (which convention
+  of conventions.md it checks). Never a whole category: a <rule ref="category/java/xxx.xml"/> without a rule name is
+  not allowed. An exception is explicit in place: @SuppressWarnings("PMD.RuleName") with the reason beside it.
+-->
+<ruleset name="vsim-rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>VSim 2 source rules, added one at a time.</description>
+
+    <!-- Rules go here, each preceded by a comment with its reason, e.g.:
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
+    -->
+</ruleset>

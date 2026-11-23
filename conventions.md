@@ -73,7 +73,9 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 - Javadoc on every public and package-level type and on non-obvious methods: say **what and why**, with the domain
   example when it helps (`«Faltan 2 unos por agrupar»`). Comments explain intent and decisions, not what the next line
   plainly does. Match the comment density of the surrounding code.
-- Compilation runs with `-Xlint:all`: new code introduces no warnings.
+- Compilation runs with `-Xlint:all`: new code introduces no warnings. The build also runs PMD
+  (`config/pmd/vsim-rules.xml`) and CPD; every rule in this file with an automatic check names it, and an exception is
+  explicit in place (`@SuppressWarnings("PMD.<Rule>")` or `// CPD-OFF`, with the reason beside it).
 
 ## 6. Errors and logging
 

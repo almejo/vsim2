@@ -15,6 +15,9 @@ mcp = "2.1.0"
 # IA.1: the servlet container the SDK's HTTP server transport needs (Jakarta Servlet 6.1 = Jetty 12.1 EE11).
 jetty = "12.1.14"
 
+# PMD and CPD (calidad-codigo T0), the latest 7.x on Maven Central on 2026-11-23; used by the root build only.
+pmd = "7.29.0"
+
 [libraries]
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
