@@ -41,7 +41,7 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 - **No duplication**: reuse the existing helper (find it before writing one); extract when the same rule appears twice.
   Name the shared piece by what it is in the domain, and where the copies differed on purpose (a colour, an offset, a
   null case) keep that difference visible as a parameter. CPD (`cpdMain`, run by `./gradlew test`) fails the build on
-  any run of **70 tokens or more** (about 7–10 lines) repeated in `src/main` of the four modules, also across modules;
+  any run of **70 tokens or more** (about 5–10 lines) repeated in `src/main` of the four modules, also across modules;
   names and literals count as written (no `--ignore-identifiers`: with it, every Swing layout and switch table looks
   alike). The threshold is `vsim.cpd.minimumTokens` in `gradle.properties`. The exception, only when unifying would be
   worse than the copy (say, two classes on purpose independent, or code another branch owns), is explicit in place:
