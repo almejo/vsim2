@@ -182,7 +182,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Ejemplos
 
-- [Ejemplos](docs/funciones/ejemplos.md#ejemplos) clásicos en Archivo ▸ Ejemplos, que se explican solos, con «Hola, terminal» (un mensaje en una ROM que se imprime en un Terminal y un Teclado que se repite en la misma pantalla), «Punto de parada» (un contador que se detiene solo en 9), «Formatos de valor» (una cuenta vista en binario, hexa, octal, decimal, con signo, carácter y punto fijo, y una Constante en flotante), «Matriz LED» (un corazón en una matriz de 8 × 8) y «Marquesina» (un texto que pasa por una matriz).
+- [Ejemplos](docs/funciones/ejemplos.md#ejemplos) clásicos en Archivo ▸ Ejemplos, que se explican solos, con «Hola, terminal» (un mensaje en una ROM que se imprime en un Terminal y un Teclado que se repite en la misma pantalla), «Punto de parada» (un contador que se detiene solo en 9), «Formatos de valor» (una cuenta vista en binario, hexa, octal, decimal, con signo, carácter y punto fijo, y una Constante en flotante), «Matriz LED» (un corazón en una matriz de 8 × 8) y «Marquesina» (un texto que pasa por una matriz); en el submenú «Máquinas de estado», «Semáforo» (una máquina de Moore de tres luces) y «Detector de secuencia» (una máquina de Mealy que enciende `Z` con 1-0-1), cada uno con su nota y su prueba ✓.
 
 ## Para desarrolladores
 

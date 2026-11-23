@@ -135,14 +135,14 @@ class ExamplesEndToEndTest {
     }
 
     @Test
-    void theExamplesMenuListsTheTwentyOneExamples() {
+    void theExamplesMenuListsTheTwentyOneExamplesAndTheStateMachinesSubmenu() {
         OpenDocument empty = track(OpenDocument.createEmpty(registry));
         EditorView view = new EditorView(empty, services, NO_WINDOW);
         try {
-            assertThat(texts(examplesMenu(view))).hasSize(21)
+            assertThat(texts(examplesMenu(view))).hasSize(22)
                     .contains("Sumador de 4 bits", "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM",
                             "RAM que se llena", "Hola, terminal", "Punto de parada", "Formatos de valor",
-                            "Matriz LED", "Marquesina");
+                            "Matriz LED", "Marquesina", "Máquinas de estado");
         } finally {
             view.dispose();
         }

@@ -1,0 +1,319 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.8",
+  "formatVersion" : 7,
+  "kind" : "circuit",
+  "name" : "Semáforo",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "subcircuit:semaforo",
+    "x" : 30,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : { }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 14,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "Reiniciar",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c6",
+    "type" : "clock",
+    "x" : 16,
+    "y" : 18,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 1000,
+      "time-up" : 1000
+    }
+  }, {
+    "id" : "c10",
+    "type" : "led",
+    "x" : 53,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "Rojo",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c14",
+    "type" : "led",
+    "x" : 53,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Amarillo",
+    "parameters" : {
+      "color" : "yellow"
+    }
+  }, {
+    "id" : "c16",
+    "type" : "led",
+    "x" : 53,
+    "y" : 17,
+    "rotation" : 0,
+    "label" : "Verde",
+    "parameters" : {
+      "color" : "green"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 18,
+    "y1" : 8,
+    "x2" : 24,
+    "y2" : 8
+  }, {
+    "id" : "w4",
+    "x1" : 24,
+    "y1" : 8,
+    "x2" : 24,
+    "y2" : 12
+  }, {
+    "id" : "w5",
+    "x1" : 24,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w7",
+    "x1" : 18,
+    "y1" : 20,
+    "x2" : 26,
+    "y2" : 20
+  }, {
+    "id" : "w8",
+    "x1" : 26,
+    "y1" : 14,
+    "x2" : 26,
+    "y2" : 20
+  }, {
+    "id" : "w9",
+    "x1" : 26,
+    "y1" : 14,
+    "x2" : 30,
+    "y2" : 14
+  }, {
+    "id" : "w11",
+    "x1" : 42,
+    "y1" : 12,
+    "x2" : 46,
+    "y2" : 12
+  }, {
+    "id" : "w12",
+    "x1" : 46,
+    "y1" : 8,
+    "x2" : 46,
+    "y2" : 12
+  }, {
+    "id" : "w13",
+    "x1" : 46,
+    "y1" : 8,
+    "x2" : 54,
+    "y2" : 8
+  }, {
+    "id" : "w15",
+    "x1" : 42,
+    "y1" : 14,
+    "x2" : 54,
+    "y2" : 14
+  }, {
+    "id" : "w17",
+    "x1" : 42,
+    "y1" : 16,
+    "x2" : 50,
+    "y2" : 16
+  }, {
+    "id" : "w18",
+    "x1" : 50,
+    "y1" : 16,
+    "x2" : 50,
+    "y2" : 20
+  }, {
+    "id" : "w19",
+    "x1" : 50,
+    "y1" : 20,
+    "x2" : 54,
+    "y2" : 20
+  } ],
+  "labels" : [ {
+    "id" : "l20",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Semáforo"
+  } ],
+  "definitions" : [ {
+    "id" : "semaforo",
+    "name" : "Semáforo",
+    "description" : "",
+    "width" : 12,
+    "height" : 8,
+    "pinout" : [ {
+      "name" : "RST",
+      "x" : 0,
+      "y" : 2,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-reset"
+    }, {
+      "name" : "CLK",
+      "x" : 0,
+      "y" : 4,
+      "direction" : "INPUT",
+      "width" : 1,
+      "source" : "machine-clock"
+    }, {
+      "name" : "R",
+      "x" : 12,
+      "y" : 2,
+      "direction" : "OUTPUT",
+      "width" : 1,
+      "source" : "machine-output-R"
+    }, {
+      "name" : "A",
+      "x" : 12,
+      "y" : 4,
+      "direction" : "OUTPUT",
+      "width" : 1,
+      "source" : "machine-output-A"
+    }, {
+      "name" : "V",
+      "x" : 12,
+      "y" : 6,
+      "direction" : "OUTPUT",
+      "width" : 1,
+      "source" : "machine-output-V"
+    } ],
+    "components" : [ {
+      "id" : "machine-reset",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "RST",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-clock",
+      "type" : "input-pin",
+      "x" : 0,
+      "y" : 4,
+      "rotation" : 0,
+      "label" : "CLK",
+      "parameters" : {
+        "value" : "0",
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-output-R",
+      "type" : "output-pin",
+      "x" : 10,
+      "y" : 0,
+      "rotation" : 0,
+      "label" : "R",
+      "parameters" : {
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-output-A",
+      "type" : "output-pin",
+      "x" : 10,
+      "y" : 4,
+      "rotation" : 0,
+      "label" : "A",
+      "parameters" : {
+        "width" : 1
+      }
+    }, {
+      "id" : "machine-output-V",
+      "type" : "output-pin",
+      "x" : 10,
+      "y" : 8,
+      "rotation" : 0,
+      "label" : "V",
+      "parameters" : {
+        "width" : 1
+      }
+    } ],
+    "wires" : [ ],
+    "labels" : [ ],
+    "revision" : 1,
+    "machine" : {
+      "states" : [ {
+        "id" : "rojo",
+        "name" : "Rojo",
+        "x" : 0.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "R",
+          "value" : 1
+        } ]
+      }, {
+        "id" : "verde",
+        "name" : "Verde",
+        "x" : 260.0,
+        "y" : 0.0,
+        "outputs" : [ {
+          "output" : "V",
+          "value" : 1
+        } ]
+      }, {
+        "id" : "amarillo",
+        "name" : "Amarillo",
+        "x" : 130.0,
+        "y" : 200.0,
+        "outputs" : [ {
+          "output" : "A",
+          "value" : 1
+        } ]
+      } ],
+      "transitions" : [ {
+        "id" : "t1",
+        "from" : "rojo",
+        "to" : "verde",
+        "condition" : ""
+      }, {
+        "id" : "t2",
+        "from" : "verde",
+        "to" : "amarillo",
+        "condition" : ""
+      }, {
+        "id" : "t3",
+        "from" : "amarillo",
+        "to" : "rojo",
+        "condition" : ""
+      } ],
+      "initialState" : "rojo",
+      "outputs" : [ "R", "A", "V" ],
+      "edge" : "falling",
+      "tests" : [ {
+        "id" : "p1",
+        "name" : "Un ciclo completo",
+        "columns" : 7,
+        "expected" : {
+          "R" : "1001001",
+          "A" : "0010010",
+          "V" : "0100100"
+        }
+      } ],
+      "notes" : [ {
+        "id" : "n1",
+        "x" : 340.0,
+        "y" : 120.0,
+        "width" : 230.0,
+        "height" : 100.0,
+        "color" : "yellow",
+        "text" : "Máquina de Moore: cada estado enciende su luz (R, V o A) y las flechas no tienen condición: con cada bajada del reloj pasa al siguiente."
+      } ]
+    }
+  } ]
+}
