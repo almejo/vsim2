@@ -298,8 +298,7 @@ Cambiar el formato de un pin, un Registro, un Contador o una Constante no cambia
   debajo, [la onda de la copia](#la-onda-de-la-máquina); ahí las acciones de piezas y cables están apagadas y dicen
   por qué. Editar el diagrama cambia todas las copias.
 - **Lo que no se le hace**: su interior no se edita con piezas ni cables desde ningún lado (tampoco la IA: recibe el
-  motivo). En el menú contextual de la pieza, «Desarmar» aparece apagado y dice por qué (convertirla a circuito llega en
-  una próxima versión), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
+  motivo). En el menú contextual de la pieza, «Desarmar» aparece apagado y dice por qué (no tiene piezas por dentro), y «Actualizar componente…» no ofrece las máquinas como el componente a reemplazar: si las
   únicas del circuito son máquinas, un mensaje lo explica. «Mirar adentro» no se ofrece sobre una máquina, y el árbol
   del circuito y Buscar no muestran ni encuentran los pines que lleva por dentro: la máquina es una hoja.
 - **Archivos**: los circuitos se guardan en el formato 7, tengan o no máquinas; una versión anterior de VSim no puede abrirlos.
