@@ -163,13 +163,13 @@ public final class PainterSupport {
         }
     }
 
-    /** Draws {@code text} centered on the local point, but always upright on screen whatever the rotation. */
-    /** The height of the base font's capitals at {@code size}, as {@code graphics} measures them (ascent minus descent). */
+    /** The height of the base font's capitals at {@code size}, as {@code graphics} measures them (ascent - descent). */
     static double capHeight(Graphics2D graphics, float size) {
         FontMetrics metrics = graphics.getFontMetrics(BASE_FONT.deriveFont(size));
         return metrics.getAscent() - metrics.getDescent();
     }
 
+    /** Draws {@code text} centered on the local point, but always upright on screen whatever the rotation. */
     static void centeredText(Graphics2D graphics, String text, double centerX, double centerY, float size, Color color) {
         uprightText(graphics, text, centerX, centerY, size, color, ALIGN_CENTER);
     }

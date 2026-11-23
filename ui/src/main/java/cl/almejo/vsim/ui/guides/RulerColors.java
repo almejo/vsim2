@@ -18,7 +18,8 @@ record RulerColors(Color background, Color tick, Color border) {
         Color foreground = ThemeColors.ui("Label.foreground", Color.BLACK);
         Color tick = ThemeColors.ui("Label.disabledForeground", Color.GRAY);
         Color border = ThemeColors.ui("Component.borderColor", ThemeColors.ui("Separator.foreground", Color.LIGHT_GRAY));
-        return new RulerColors(hovered ? ThemeColors.mix(background, foreground, HOVER_SHADE) : background, tick, border);
+        Color shown = hovered ? ThemeColors.mix(background, foreground, HOVER_SHADE) : background;
+        return new RulerColors(shown, tick, border);
     }
 
 }

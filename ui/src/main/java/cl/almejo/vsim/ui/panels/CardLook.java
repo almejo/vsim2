@@ -38,7 +38,7 @@ public final class CardLook {
         return FontFloor.smaller(textFont(), shrink);
     }
 
-    /** Paints with {@code paint} on a copy of {@code graphics} that is {@code opacity} opaque: a card fading in or out. */
+    /** Paints with {@code paint} on a copy of {@code graphics}, {@code opacity} opaque: a card fading in or out. */
     public static void paintFaded(Graphics graphics, float opacity, Consumer<Graphics> paint) {
         Graphics2D painter = (Graphics2D) graphics.create();
         try {

@@ -11,7 +11,7 @@ public final class Steps {
     private Steps() {
     }
 
-    /** Runs every step; the first failure comes back with the later ones suppressed in it, or empty when none failed. */
+    /** Runs every step; the first failure comes back with the later ones suppressed in it (empty when none failed). */
     public static Optional<RuntimeException> runEach(Iterable<? extends Runnable> steps) {
         RuntimeException failure = null;
         for (Runnable step : steps) {

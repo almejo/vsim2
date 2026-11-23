@@ -172,13 +172,13 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         this.noticeSink = sink;
     }
 
+    // CPD-OFF the machine inspector (MachineInspectorRows) scrolls the same way; it is on the state-machine branch
     /**
      * {@code panel} in a vertical scroll pane (never a horizontal one: the form follows the pane's width): a form
      * taller than the inspector, like the Teclado's, scrolls instead of being clipped. A text area inside the form that
      * needs no scrolling of its own hands the mouse wheel to this pane (Swing forwards the wheel from a scroll pane
      * whose bar is hidden).
      */
-    // CPD-OFF the machine inspector (MachineInspectorRows) scrolls the same way; it is on the state-machine branch
     public static JScrollPane inScrollPane(PropertiesPanel panel) {
         JScrollPane scroll = new JScrollPane(panel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);

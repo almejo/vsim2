@@ -56,8 +56,8 @@ subprojects {
 
 // CPD (copy/paste detector) from the same PMD distribution, over src/main/java of the four modules together (a
 // duplicate between two modules counts). No third-party plugin: a JavaExec of the PMD 7 command line.
-// Switch: `vsim.cpd.failOnViolation` in gradle.properties (on since the calidad-codigo duplication round); the threshold
-// is `vsim.cpd.minimumTokens` (conventions.md §3 «No duplication»). Exceptions in the source: `// CPD-OFF` ..
+// Switch: `vsim.cpd.failOnViolation` in gradle.properties (on since the calidad-codigo duplication round); the
+// threshold is `vsim.cpd.minimumTokens` (conventions.md §3 «No duplication»). Exceptions in the source: `// CPD-OFF` ..
 // `// CPD-ON` with the reason. A duplicate fails the build with the report's text; a CPD run that breaks (any exit
 // value but 0 and 4, PMD's «violations found») fails it whatever the switch says.
 repositories { mavenCentral() }
@@ -92,8 +92,8 @@ tasks.register<JavaExec>("cpdMain") {
         val exitValue = executionResult.get().exitValue
         val reportFile = report.get().asFile
         if (exitValue == violationsFound && failOnViolation.get()) {
-            throw GradleException("CPD found duplicated code (conventions.md §3 «No duplication»); report: $reportFile\n"
-                    + reportFile.readText())
+            throw GradleException("CPD found duplicated code (conventions.md §3 «No duplication»); report: "
+                    + "$reportFile\n" + reportFile.readText())
         }
         if (exitValue != 0 && exitValue != violationsFound) {
             throw GradleException("CPD did not run (exit value $exitValue); see the output above")

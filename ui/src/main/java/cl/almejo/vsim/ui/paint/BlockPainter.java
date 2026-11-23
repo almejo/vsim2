@@ -397,7 +397,8 @@ public final class BlockPainter implements ComponentPainter {
         float size = fitted(graphics, name, PIN_NAME_SIZE, available);
         double extent = runsAcrossTheEdge ? textWidth(graphics, name, size) : PainterSupport.capHeight(graphics, size);
         // On a slanted top or bottom edge, the text clears the edge along its whole span, not only under the pin.
-        double halfSpan = (runsAcrossTheEdge ? PainterSupport.capHeight(graphics, size) : textWidth(graphics, name, size)) / 2;
+        double halfSpan = (runsAcrossTheEdge ? PainterSupport.capHeight(graphics, size)
+                : textWidth(graphics, name, size)) / 2;
         double centerX = pinX;
         double centerY = pinY;
         switch (side) {

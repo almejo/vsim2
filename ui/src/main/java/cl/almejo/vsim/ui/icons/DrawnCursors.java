@@ -77,8 +77,8 @@ public final class DrawnCursors {
     }
 
     /**
-     * A round badge centred at ({@code centreX}, {@code centreY}): {@code fill} with an {@code outline} rim, and a white
-     * «−», or «+» unless {@code minus}, with arms of {@code armLength}.
+     * A round badge centred at ({@code centreX}, {@code centreY}): {@code fill} with an {@code outline} rim, and a
+     * white «−», or «+» unless {@code minus}, with arms of {@code armLength}.
      */
     public static void paintBadge(Graphics2D graphics, double centreX, double centreY, Color outline, Color fill,
                                   double armLength, boolean minus) {
