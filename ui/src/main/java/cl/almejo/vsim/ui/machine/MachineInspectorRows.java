@@ -37,10 +37,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.Scrollable;
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Rectangle;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -71,7 +73,7 @@ import java.util.function.UnaryOperator;
  * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
  * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
-final class MachineInspectorRows extends JPanel {
+final class MachineInspectorRows extends JPanel implements Scrollable {
 
     private static final long serialVersionUID = 1L;
     private static final String WIDE = "span 2, growx, wmin 0";
@@ -94,7 +96,7 @@ final class MachineInspectorRows extends JPanel {
     private transient Optional<JTextField> mealyOutputsField = Optional.empty();
     private transient Optional<JLabel> kindLabel = Optional.empty();
     private transient Optional<JLabel> statesLabel = Optional.empty();
-    private transient Optional<JLabel> testsLabel = Optional.empty();
+    private transient Optional<JTextArea> testsLabel = Optional.empty();
     private transient Optional<JButton> testButton = Optional.empty();
     private transient Runnable startTest = () -> { };
     private boolean testing;
@@ -165,6 +167,34 @@ final class MachineInspectorRows extends JPanel {
         scroll.setBorder(null);
         scroll.getVerticalScrollBar().setUnitIncrement(UNIT_INCREMENT);
         return scroll;
+    }
+
+    // --- Scrollable: the rows take the panel's width (fix round 4: at 150 % and 200 % they stuck out on the right,
+    // cut, since the pane never scrolls sideways); only the height scrolls ---
+
+    @Override
+    public Dimension getPreferredScrollableViewportSize() {
+        return getPreferredSize();
+    }
+
+    @Override
+    public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+        return UNIT_INCREMENT;
+    }
+
+    @Override
+    public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+        return Math.max(UNIT_INCREMENT, visible.height - UNIT_INCREMENT);
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportWidth() {
+        return true;
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportHeight() {
+        return false;
     }
 
     /** A condition's problem as the user reads it: «Falta cerrar un paréntesis (posición 3)». */
@@ -627,7 +657,8 @@ final class MachineInspectorRows extends JPanel {
         pinRows = Optional.of(pins);
         refreshers.add(pins::refresh);
         addHeader(Messages.text("machine.tests.row"));
-        JLabel tests = new JLabel(MachineTestsText.of(machine));
+        // wrapped: «2 pruebas: 2 sin valores esperados» was cut at 150 % and 200 % (fix round 4)
+        JTextArea tests = new Hint(MachineTestsText.of(machine), false);
         add(tests, WIDE);
         testsLabel = Optional.of(tests);
         refreshers.add(() -> canvas.machine().ifPresent(machineNow -> tests.setText(MachineTestsText.of(machineNow))));
@@ -641,7 +672,7 @@ final class MachineInspectorRows extends JPanel {
 
     /** «1 prueba: falla ✗» in the machine's own rows; empty when another element is selected. */
     Optional<String> testsText() {
-        return testsLabel.map(JLabel::getText);
+        return testsLabel.map(JTextArea::getText);
     }
 
     /** «Probar…» in the machine's own rows; empty when another element is selected. */

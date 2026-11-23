@@ -119,7 +119,9 @@ final class MachinePinTable extends JPanel {
 
     /** The pin list of {@code side}, editing through {@code host}. */
     MachinePinTable(Side side, Host host) {
-        super(new MigLayout("wrap 4, insets 0, gapy 1lp, hidemode 3", "[][grow, fill, 40lp::][right][]"));
+        // the name field may be narrow (32lp, was 40lp): at 150 % the row fits the panel (fix round 4)
+        super(new MigLayout("wrap 4, insets 0, gapy 1lp, hidemode 3",
+                "[][grow, fill, 32lp::][right][]"));
         this.side = Objects.requireNonNull(side, "side");
         this.host = Objects.requireNonNull(host, "host");
         setOpaque(false);
@@ -345,8 +347,9 @@ final class MachinePinTable extends JPanel {
         // always in its cell, empty when not a bus: a hidden cell would shift the rows under it
         busLabel.setText(busBox.isSelected() && count > 0
                 ? MachinePieceRows.busText(MachineBody.busName(machine, side), count) : "");
-        add(busBox, "span 2");
-        add(busLabel, "span 2, left");
+        // one cell across the row: «Como un bus» must not widen the name column (fix round 4, 150 % and 200 %)
+        add(busBox, "span 4, split 2");
+        add(busLabel, "gapleft 8lp");
         boolean full = count >= limit();
         addButton.setEnabled(!full);
         addButton.setToolTipText(full
