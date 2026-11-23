@@ -24,6 +24,7 @@ import cl.almejo.vsim.core.machine.MachinePinEdits;
 import cl.almejo.vsim.core.machine.MachineTest;
 import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.MachineTransition;
+import cl.almejo.vsim.core.machine.MachinesBeyondTheLimits;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -147,6 +148,25 @@ class MachineFilesTest {
     }
 
     /** The detector with a Mealy output, the rising edge, a bus flag and a saved test: every field of the model. */
+    /**
+     * A hand-made file with more states, inputs, outputs and tests than the editor allows is read whole: nothing is
+     * dropped (the machine's problems say what is beyond its limits).
+     */
+    @Test
+    void aHandMadeMachineBeyondItsLimitsIsReadWhole() throws CircuitFormatException {
+        StateMachine machine = MachinesBeyondTheLimits.everyLimit();
+        String json = format.write(circuitWith(MachineDefinitions.create("maquina-1", "Máquina 1")
+                .withMachine(machine)));
+
+        StateMachine read = format.read(json).definition("maquina-1").orElseThrow().machine().orElseThrow();
+
+        assertThat(read).isEqualTo(machine);
+        assertThat(read.states()).hasSize(MachinesBeyondTheLimits.STATES);
+        assertThat(read.inputs()).hasSize(MachinesBeyondTheLimits.INPUTS);
+        assertThat(read.outputs()).hasSize(MachinesBeyondTheLimits.OUTPUTS);
+        assertThat(read.tests()).hasSize(MachinesBeyondTheLimits.TESTS);
+    }
+
     private static ComponentDefinition richMachine() {
         StateMachine detector = MachineExamples.twoOnesDetector();
         List<MachineTransition> transitions = new ArrayList<>(detector.transitions());

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.machine.MachineConditions;
 import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.MachineTransition;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
@@ -76,6 +77,14 @@ public final class MachineProblemText {
             case READS_OUTPUT_OR_RESERVED -> arrowWords(machine, finding, prefix + "readsOutputOrReserved",
                     String.join(LIST_SEPARATOR, finding.names()));
             case TOO_MANY_NAMES -> tooManyNames(finding, machine, prefix);
+            case TOO_MANY_STATES -> Messages.format(prefix + "overStates", machine.states().size(),
+                    MachineLimits.MAXIMUM_STATES);
+            case TOO_MANY_INPUTS -> Messages.format(prefix + "overInputs", machine.inputs().size(),
+                    MachineLimits.MAXIMUM_INPUTS);
+            case TOO_MANY_OUTPUTS -> Messages.format(prefix + "overOutputs", machine.outputs().size(),
+                    MachineLimits.MAXIMUM_OUTPUTS);
+            case TOO_MANY_TESTS -> Messages.format(prefix + "overTests", machine.tests().size(),
+                    MachineTests.MAXIMUM_TESTS);
             case UNREACHABLE_STATE -> Messages.format(prefix + "unreachable", stateName(machine, finding));
             case STAYS_FOR_SOME_INPUT -> finding.witness().isEmpty()
                     ? Messages.format(prefix + "staysAlways", stateName(machine, finding))

@@ -131,12 +131,32 @@ public final class MachineChecks {
             }
             readsOutputOrReserved();
             tooManyNames();
+            beyondTheLimits();
             unreachable();
             findings.addAll(stays);
             outputsNeverAssigned();
             unusedInputs();
             mooreMealyClashes();
             return List.copyOf(findings);
+        }
+
+        /**
+         * Each limit a hand-made file passes (the editor never does): everything is kept and works, and nothing more
+         * of that kind can be added.
+         */
+        private void beyondTheLimits() {
+            if (machine.states().size() > MachineLimits.MAXIMUM_STATES) {
+                findings.add(MachineFinding.about(Kind.TOO_MANY_STATES, List.of(), List.of()));
+            }
+            if (machine.inputs().size() > MachineLimits.MAXIMUM_INPUTS) {
+                findings.add(MachineFinding.about(Kind.TOO_MANY_INPUTS, List.of(), List.of()));
+            }
+            if (machine.outputs().size() > MachineLimits.MAXIMUM_OUTPUTS) {
+                findings.add(MachineFinding.about(Kind.TOO_MANY_OUTPUTS, List.of(), List.of()));
+            }
+            if (machine.tests().size() > MachineTests.MAXIMUM_TESTS) {
+                findings.add(MachineFinding.about(Kind.TOO_MANY_TESTS, List.of(), List.of()));
+            }
         }
 
         private void badConditions() {
@@ -296,6 +316,11 @@ public final class MachineChecks {
                 }
                 hasOtherwise = otherwise;
                 variables = List.copyOf(names);
+                if (variables.size() > MachineLimits.MAXIMUM_INPUTS) {
+                    // more inputs than a table can hold, only from a hand-made file: TOO_MANY_INPUTS says so, and
+                    // this state's arrows are not compared (2^17 rows and more)
+                    conditional.clear();
+                }
                 for (MachineTransition transition : conditional) {
                     tables.add(TruthTable.of(conditions.get(transition.id()).expression().orElseThrow(), variables));
                 }

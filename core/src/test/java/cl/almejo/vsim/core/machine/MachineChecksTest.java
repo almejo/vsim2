@@ -11,6 +11,7 @@ import java.util.Optional;
 import static cl.almejo.vsim.core.machine.MachineExamples.arrow;
 import static cl.almejo.vsim.core.machine.MachineExamples.state;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.entry;
 
 /** The problems of a machine's diagram (hito 2): one test per kind, with the mockup's examples. */
@@ -281,6 +282,22 @@ class MachineChecksTest {
             transitions.add(arrow("c" + index, "s" + index, "s" + index, ""));
         }
         return machine(states, transitions, Optional.of("s0"), inputs, List.of());
+    }
+
+    /**
+     * A hand-made file can hold more than the editor allows: the checks read it whole without failing (17 inputs read
+     * by the arrows of one state made the truth tables throw), and each limit passed is an error.
+     */
+    @Test
+    void aMachineBeyondItsLimitsSaysEachLimitItPassesWithoutFailing() {
+        StateMachine machine = MachinesBeyondTheLimits.everyLimit();
+
+        assertThatCode(() -> MachineChecks.check(machine)).doesNotThrowAnyException();
+        assertThat(MachineChecks.check(machine)).extracting(MachineFinding::kind)
+                .contains(Kind.TOO_MANY_STATES, Kind.TOO_MANY_INPUTS, Kind.TOO_MANY_OUTPUTS, Kind.TOO_MANY_TESTS);
+        assertThat(List.of(Kind.TOO_MANY_STATES, Kind.TOO_MANY_INPUTS, Kind.TOO_MANY_OUTPUTS, Kind.TOO_MANY_TESTS))
+                .noneMatch(Kind::isWarning);
+        assertThat(MachineChecks.check(MachineExamples.twoOnesDetector())).isEmpty();
     }
 
     private static StateMachine machine(List<MachineState> states, List<MachineTransition> transitions,

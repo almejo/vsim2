@@ -31,6 +31,26 @@ class MachineTestRunAgreesWithSimulationTest {
         assertAgreement(MachineExamples.twoOnesDetector());
     }
 
+    /** A hand-made machine beyond every limit still simulates: its 17 inputs and 17 outputs are pins that work. */
+    @Test
+    void aMachineBeyondItsLimitsStillSimulates() {
+        StateMachine machine = MachinesBeyondTheLimits.everyLimit();
+        MachineBench bench = new MachineBench(machine);
+        Map<String, Boolean> allOn = new LinkedHashMap<>();
+        machine.inputNames().forEach(name -> allOn.put(name, true));
+
+        bench.setInputs(allOn);
+        assertThat(bench.stateId()).isEqualTo("s0");
+        assertThat(bench.outputs()).hasSize(MachinesBeyondTheLimits.OUTPUTS).doesNotContainValue(false);
+        bench.pulse();
+        assertThat(bench.stateId()).isEqualTo("s1");
+        allOn.put("i16", false);
+        bench.setInputs(allOn);
+        bench.pulse();
+        bench.pulse();
+        assertThat(bench.stateId()).as("back to S0, and i16 = 0 keeps it there").isEqualTo("s0");
+    }
+
     @Test
     void aMooreMachineAgreesOnTheRisingEdge() {
         assertAgreement(MachineExamples.twoOnesDetector().withEdge(StateMachine.EDGE_RISING));

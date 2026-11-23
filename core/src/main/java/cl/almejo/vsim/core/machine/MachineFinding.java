@@ -34,6 +34,17 @@ public record MachineFinding(Kind kind, List<String> stateIds, List<String> tran
         READS_OUTPUT_OR_RESERVED,
         /** A name beyond the 16 inputs or 16 outputs a machine can have: not a pin, read as 0. */
         TOO_MANY_NAMES,
+        /**
+         * More states than {@link MachineLimits#MAXIMUM_STATES}, which only a hand-made file can hold: all kept, none
+         * can be added. The same for the next three limits.
+         */
+        TOO_MANY_STATES,
+        /** More input pins than {@link MachineLimits#MAXIMUM_INPUTS} (a hand-made file). */
+        TOO_MANY_INPUTS,
+        /** More output pins than {@link MachineLimits#MAXIMUM_OUTPUTS} (a hand-made file). */
+        TOO_MANY_OUTPUTS,
+        /** More tests than {@link MachineTests#MAXIMUM_TESTS} (a hand-made file). */
+        TOO_MANY_TESTS,
         /** No arrow leads to the state from the initial one. */
         UNREACHABLE_STATE,
         /** A state with conditional arrows and no «otherwise» one stays for some inputs. */
@@ -53,7 +64,8 @@ public record MachineFinding(Kind kind, List<String> stateIds, List<String> tran
         public boolean isWarning() {
             return switch (this) {
                 case NO_STATES, NO_INITIAL_STATE, BAD_CONDITION, TWO_OTHERWISE, NONDETERMINISTIC,
-                     READS_OUTPUT_OR_RESERVED, TOO_MANY_NAMES -> false;
+                     READS_OUTPUT_OR_RESERVED, TOO_MANY_NAMES, TOO_MANY_STATES, TOO_MANY_INPUTS, TOO_MANY_OUTPUTS,
+                     TOO_MANY_TESTS -> false;
                 case UNREACHABLE_STATE, STAYS_FOR_SOME_INPUT, OUTPUT_NEVER_ASSIGNED, UNUSED_INPUT, MOORE_MEALY_CLASH,
                      INPUT_UNDEFINED_AT_EDGE, CLOCK_UNDEFINED -> true;
             };

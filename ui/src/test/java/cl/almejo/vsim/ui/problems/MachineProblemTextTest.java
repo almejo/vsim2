@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.machine.MachineFinding;
 import cl.almejo.vsim.core.machine.MachineFinding.Kind;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineTransition;
+import cl.almejo.vsim.core.machine.MachinesBeyondTheLimits;
 import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
@@ -152,6 +153,22 @@ class MachineProblemTextTest {
         List<Problem> ordered = ProblemText.ordered(List.of(warning, error));
 
         assertThat(ordered).containsExactly(error, warning);
+    }
+
+    /** A hand-made file beyond the limits: each limit says how many there are, the maximum, and that all are kept. */
+    @Test
+    void aMachineBeyondItsLimitsSaysHowManyAndTheMaximum() {
+        Messages.initialize(Messages.SPANISH);
+        StateMachine machine = MachinesBeyondTheLimits.everyLimit();
+
+        assertThat(sentenceOf(machine, Kind.TOO_MANY_STATES)).isEqualTo(
+                "La máquina tiene 70 estados y el máximo es 64: se guardan todos, pero no puedes agregar más.");
+        assertThat(sentenceOf(machine, Kind.TOO_MANY_INPUTS)).isEqualTo(
+                "La máquina tiene 17 entradas y el máximo es 16: se guardan todas, pero no puedes agregar más.");
+        assertThat(sentenceOf(machine, Kind.TOO_MANY_OUTPUTS)).isEqualTo(
+                "La máquina tiene 17 salidas y el máximo es 16: se guardan todas, pero no puedes agregar más.");
+        assertThat(sentenceOf(machine, Kind.TOO_MANY_TESTS)).isEqualTo(
+                "La máquina tiene 17 pruebas y el máximo es 16: se guardan todas, pero no puedes agregar más.");
     }
 
     private static String sentenceOf(StateMachine machine, Kind kind) {

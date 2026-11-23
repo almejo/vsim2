@@ -3,7 +3,9 @@ package cl.almejo.vsim.automation.read;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.machine.MachineCopies;
 import cl.almejo.vsim.core.machine.MachineFinding;
+import cl.almejo.vsim.core.machine.MachineLimits;
 import cl.almejo.vsim.core.machine.MachineState;
+import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 
@@ -53,6 +55,11 @@ final class MachineProblemViews {
             case READS_OUTPUT_OR_RESERVED -> "the condition of " + arrows + " reads " + names
                     + ", which is not an input; it reads as 0";
             case TOO_MANY_NAMES -> names + " is not a pin: the machine already has 16 inputs or 16 outputs";
+            case TOO_MANY_STATES -> beyondTheLimit(machine.states().size(), "states", MachineLimits.MAXIMUM_STATES);
+            case TOO_MANY_INPUTS -> beyondTheLimit(machine.inputs().size(), "inputs", MachineLimits.MAXIMUM_INPUTS);
+            case TOO_MANY_OUTPUTS -> beyondTheLimit(machine.outputs().size(), "outputs",
+                    MachineLimits.MAXIMUM_OUTPUTS);
+            case TOO_MANY_TESTS -> beyondTheLimit(machine.tests().size(), "tests", MachineTests.MAXIMUM_TESTS);
             case UNREACHABLE_STATE -> "state " + states + " cannot be reached from the initial state";
             case STAYS_FOR_SOME_INPUT -> "state " + states + " says nothing for " + values(finding.witness())
                     + ", so it stays there";
@@ -63,6 +70,12 @@ final class MachineProblemViews {
             case INPUT_UNDEFINED_AT_EDGE -> names + " was Z or in conflict at the last clock edge and read as 0";
             case CLOCK_UNDEFINED -> "CLK is Z or in conflict: the machine does not advance";
         };
+    }
+
+    /** A limit a hand-made file passes: everything is kept, nothing more of it can be added. */
+    private static String beyondTheLimit(int count, String what, int maximum) {
+        return "it has " + count + " " + what + ", more than the maximum of " + maximum
+                + ": all are kept, but no more can be added";
     }
 
     private static String stateName(StateMachine machine, String stateId) {
