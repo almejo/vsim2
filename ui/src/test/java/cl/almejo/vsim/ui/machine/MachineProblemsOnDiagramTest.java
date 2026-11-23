@@ -347,6 +347,29 @@ class MachineProblemsOnDiagramTest {
         assertThat(mode.selection().stateIds()).containsExactly("d");
     }
 
+    /**
+     * Fix round 4 (hand test 2026-11-22): the user pressed «Ver» and saw nothing. Two causes: a problem that is about
+     * neither a state nor an arrow (here the copy's own «CLK sin 0 ni 1») had nothing to show and the link did
+     * nothing, and the blink began with an unlit half, so the first moments showed nothing. Now such a link is off
+     * with its reason, and the others select what they name and light it at once.
+     */
+    @Test
+    void aProblemAboutNoStateOrArrowHasItsVerOffWithTheReasonAndTheOthersLightAtOnce() {
+        mode.selection().clear();
+        List<AbstractButton> links = mode.inspectorRows().problemLinks();
+
+        AbstractButton nothingToShow = links.getLast();
+        assertThat(nothingToShow.isEnabled()).isFalse();
+        assertThat(nothingToShow.getToolTipText()).contains("no es de un estado ni de una flecha");
+        links.stream().limit(links.size() - 1L).forEach(link -> assertThat(link.isEnabled()).isTrue());
+
+        links.getFirst().doClick();
+
+        assertThat(mode.selection().count()).isPositive();
+        assertThat(canvas.isBlinking()).isTrue();
+        assertThat(canvas.isFlashLit()).as("lit from the first moment, not after the first tick").isTrue();
+    }
+
     /** Hand test U: «Ver» is the same blue link as the «en N flechas» of the pin list, not a framed button. */
     @Test
     void eachProblemsVerIsTheSameLinkAsThePinListsUses() {

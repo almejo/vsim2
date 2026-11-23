@@ -448,11 +448,22 @@ final class MachineInspectorRows extends JPanel {
         show.setToolTipText(Messages.text("machine.properties.problem.showTooltip"));
         show.getAccessibleContext().setAccessibleDescription(sentence);
         show.addActionListener(event -> reveal.accept(finding));
+        if (!hasSomethingToShow(machine, finding)) {
+            show.setEnabled(false);
+            show.setToolTipText(Messages.text("machine.properties.problem.showNothing"));
+        }
         problemList.add(text, "wmin 0");
         problemList.add(show, "top");
         problemLines.add(line);
         problemTips.add(sentence);
         problemLinks.add(show);
+    }
+
+    /** Whether {@code finding} names a state or an arrow of {@code machine} that «Ver» can select and light. */
+    private static boolean hasSomethingToShow(StateMachine machine, MachineFinding finding) {
+        return MachineGlows.statesOf(finding).stream().anyMatch(stateId -> machine.state(stateId).isPresent())
+                || MachineGlows.transitionsOf(finding).stream()
+                .anyMatch(transitionId -> machine.transition(transitionId).isPresent());
     }
 
     private void showSelected(StateMachine machine) {

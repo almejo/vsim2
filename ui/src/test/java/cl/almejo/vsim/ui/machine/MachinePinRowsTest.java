@@ -260,20 +260,20 @@ class MachinePinRowsTest {
     }
 
     @Test
-    void aClickOnTheUsesMakesThoseArrowsBlinkAndKeepsThePinList() {
+    void aClickOnTheUsesSelectsThoseArrowsAndLightsThemAtOnce() {
         EditorView view = tabOf(MachineFixtures.detector());
         MachineMode mode = MachineMode.of(view).orElseThrow();
-        MachinePinRows before = pins(view);
         mode.canvas().setBounds(0, 0, 900, 600);
 
-        before.table(Side.INPUT).usesLink("x").orElseThrow().doClick();
+        pins(view).table(Side.INPUT).usesLink("x").orElseThrow().doClick();
 
-        assertThat(mode.selection().transitionIds()).as("nothing chosen: the list stays in Propiedades").isEmpty();
+        assertThat(mode.selection().transitionIds()).as("the arrows it names are chosen")
+                .containsExactlyInAnyOrder("t1", "t2", "t3", "t4");
         assertThat(mode.selection().stateIds()).isEmpty();
-        assertThat(pins(view)).isSameAs(before);
         assertThat(mode.canvas().shownUses()).hasValueSatisfying(uses ->
                 assertThat(uses.transitionIds()).containsExactlyInAnyOrder("t1", "t2", "t3", "t4"));
         assertThat(mode.canvas().isBlinking()).isTrue();
+        assertThat(mode.canvas().isFlashLit()).as("lit from the first moment").isTrue();
     }
 
     @Test
@@ -284,7 +284,7 @@ class MachinePinRowsTest {
 
         pins(view).table(Side.INPUT).usesLink("x").orElseThrow().doClick();
 
-        assertThat(mode.selection().transitionIds()).isEmpty();
+        assertThat(mode.selection().transitionIds()).containsExactlyInAnyOrder("t1", "t2", "t3", "t4");
         assertThat(mode.canvas().isBlinking()).isFalse();
         assertThat(mode.canvas().isLightingUses()).isTrue();
         assertThat(mode.canvas().shownUses()).isPresent();

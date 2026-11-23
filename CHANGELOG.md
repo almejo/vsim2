@@ -76,6 +76,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Máquinas de estado: «Ver» (de un problema) y el «en 7 flechas» de la lista de pines ahora se notan: eligen lo que nombran, lo ponen a la vista y lo hacen parpadear desde el primer instante (antes el parpadeo empezaba apagado y el de los pines no elegía nada). Un problema que no es de un estado ni de una flecha tiene su «Ver» apagado, con la razón en su ayuda, en vez de no hacer nada.
 - Máquinas de estado: los textos pequeños se leen bien con los temas claro y oscuro (contraste de al menos 4,5:1): los enlaces «en 7 flechas» y «Ver», las condiciones de las flechas y «inicio» del diagrama con el tema claro, la píldora apagada de «Moore» o «Mealy» (se sigue viendo apagada, pero se lee), «RST» y «CLK» de la lista de pines y el «· estado inicial» gris del árbol del circuito.
 - Máquinas de estado: los textos de segundo plano de la pestaña de la máquina (el contador y los encabezados de la lista de pines, las ayudas de Propiedades) usan el gris legible de la interfaz, y las separaciones de Propiedades y de la lista de pines siguen el tamaño de la interfaz (100–200 %); la ayuda de «Escribir el nombre, la condición o la nota» ya no escribe la tecla F2 (cambia si la reasignas).
 - Máquinas de estado: el «en ninguna flecha» de los pines que ninguna flecha usa se lee bien también con el tema oscuro: usa el dorado legible de los avisos de la interfaz, el mismo en todas partes.
