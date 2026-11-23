@@ -365,7 +365,7 @@ class PaintersTest {
             List<String> offenders = sources
                     .filter(path -> !path.getFileName().toString().equals("PainterSupport.java"))
                     // a Graphics2D that passes text on, not a painter
-                    .filter(path -> !path.getFileName().toString().equals("MonochromeGraphics.java"))
+                    .filter(path -> !path.getFileName().toString().equals("ForwardingGraphics.java"))
                     // draws a text in place, with borrowed glyphs; the upright helper calls it
                     .filter(path -> !path.getFileName().toString().equals("FallbackText.java"))
                     .filter(path -> {
