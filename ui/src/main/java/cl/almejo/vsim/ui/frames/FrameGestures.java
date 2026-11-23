@@ -8,15 +8,11 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.Selection;
-import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
-import cl.almejo.vsim.ui.snap.MatchedGuides;
-import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.ElementDrag;
 import cl.almejo.vsim.ui.tools.SelectToolDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
-import cl.almejo.vsim.ui.wiring.MovePreview;
-import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
@@ -42,19 +38,7 @@ public final class FrameGestures implements SelectToolDelegate {
 
     private Frame grabbed;
     private FramePart part;
-    private GridPoint pressPoint;
-    private boolean narrowOnRelease;
-    /** A Shift press on the title bar of a selected frame: a release without moving takes it out. */
-    private boolean removeOnRelease;
-    /** Whether the pointer left the press point: a drag a wall stopped is still not a click. */
-    private boolean pointerMoved;
-    private int deltaX;
-    private int deltaY;
-    private boolean followWires;
-    /** The last drag event, so a modifier key pressed or released without moving can redo it. */
-    private CanvasMouseEvent lastDrag;
-    private final MovePreview movePreview = new MovePreview();
-    private SnappedMove snappedMove = SnappedMove.unsnapped(0, 0);
+    private final ElementDrag drag = new ElementDrag();
     private ElementId hovered;
 
     @Override
@@ -84,14 +68,8 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         if (event.shiftDown() && !event.controlDown() && hitPart == FramePart.TITLE_BAR) {
             // Shift+click toggles the frame; Shift+drag moves the selection with it (the key inverts the mode)
-            if (selection.contains(frame.id())) {
-                removeOnRelease = true;
-            } else {
-                selection.add(frame.id());
-            }
-            grabbed = frame;
-            part = hitPart;
-            pressPoint = event.snapped();
+            grab(frame, hitPart, event);
+            drag.toggleOnPress(selection, frame.id());
             return Press.GRABBED;
         }
         if (event.shiftDown() || event.controlDown()) {
@@ -104,15 +82,15 @@ public final class FrameGestures implements SelectToolDelegate {
             context.editLabel(frame);
             return Press.HANDLED;
         }
+        grab(frame, hitPart, event);
+        drag.selectOnPress(selection, frame.id());
+        return Press.GRABBED;
+    }
+
+    private void grab(Frame frame, FramePart hitPart, CanvasMouseEvent event) {
         grabbed = frame;
         part = hitPart;
-        pressPoint = event.snapped();
-        if (!selection.contains(frame.id())) {
-            selection.select(frame.id());
-        } else if (!part.resizes()) {
-            narrowOnRelease = selection.size() > 1;
-        }
-        return Press.GRABBED;
+        drag.start(event, hitPart.resizes());
     }
 
     /** The padlock toggles the lock; the ⋯ button opens the frame menu. */
@@ -127,50 +105,24 @@ public final class FrameGestures implements SelectToolDelegate {
 
     @Override
     public void dragged(ToolContext context, CanvasMouseEvent event) {
-        if (grabbed == null) {
-            return;
-        }
-        lastDrag = event;
-        deltaX = event.snapped().x() - pressPoint.x();
-        deltaY = event.snapped().y() - pressPoint.y();
-        pointerMoved |= deltaX != 0 || deltaY != 0;
-        if (!part.resizes()) {
-            Set<ElementId> moved = context.selection().effectiveIds();
-            snappedMove = SnappedMove.of(context, moved, false, deltaX, deltaY);
-            // a frame inside a locked frame stops at its border, like any content
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, snappedMove.deltaX(),
-                    snappedMove.deltaY());
-            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
-            deltaX = limited.x();
-            deltaY = limited.y();
-        }
-        followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
-        context.repaint();
+        drag.dragged(context, event);
     }
 
     /** Redoes the drag at the last pointer position with the new keys, so the wires preview follows them. */
     @Override
     public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
-        if (grabbed == null || lastDrag == null) {
-            return false;
-        }
-        dragged(context, lastDrag.withModifiers(shiftDown, controlDown, altDown));
-        return true;
+        return drag.modifiersChanged(context, shiftDown, controlDown, altDown);
     }
 
     /** Redoes a move at the last pointer position after a snap preference, the zoom or the guides changed. */
     @Override
     public boolean refreshSnap(ToolContext context) {
-        if (grabbed == null || lastDrag == null || part.resizes()) {
-            return false;
-        }
-        dragged(context, lastDrag);
-        return true;
+        return drag.refreshSnap(context);
     }
 
     @Override
     public List<Guide> snappedGuides() {
-        return grabbed == null || part.resizes() ? List.of() : MatchedGuides.of(snappedMove.matches());
+        return drag.snappedGuides();
     }
 
     @Override
@@ -178,18 +130,11 @@ public final class FrameGestures implements SelectToolDelegate {
         if (grabbed == null) {
             return;
         }
-        dragged(context, event);
+        drag.dragged(context, event);
         if (part.resizes()) {
             finishResize(context);
-        } else if (deltaX != 0 || deltaY != 0) {
-            context.selectionMoves().move(context.openDocument(), context.selection(),
-                    context.selection().effectiveIds(), deltaX, deltaY, followWires);
-        } else if (pointerMoved) {
-            // a drag stopped by a locked frame's wall moved nothing, and it was no click either
-        } else if (removeOnRelease) {
-            context.selection().remove(grabbed.id());
-        } else if (narrowOnRelease) {
-            context.selection().select(grabbed.id());
+        } else {
+            drag.releaseMove(context, grabbed.id());
         }
         reset();
         context.repaint();
@@ -213,34 +158,28 @@ public final class FrameGestures implements SelectToolDelegate {
         int right = left + frame.width();
         int bottom = top + frame.height();
         if (part.movesWest()) {
-            left = Math.min(left + deltaX, right - Frame.MINIMUM_WIDTH);
+            left = Math.min(left + drag.deltaX(), right - Frame.MINIMUM_WIDTH);
         }
         if (part.movesEast()) {
-            right = Math.max(right + deltaX, left + Frame.MINIMUM_WIDTH);
+            right = Math.max(right + drag.deltaX(), left + Frame.MINIMUM_WIDTH);
         }
         if (part.movesNorth()) {
-            top = Math.min(top + deltaY, bottom - Frame.MINIMUM_HEIGHT);
+            top = Math.min(top + drag.deltaY(), bottom - Frame.MINIMUM_HEIGHT);
         }
         if (part.movesSouth()) {
-            bottom = Math.max(bottom + deltaY, top + Frame.MINIMUM_HEIGHT);
+            bottom = Math.max(bottom + drag.deltaY(), top + Frame.MINIMUM_HEIGHT);
         }
         return frame.withRectangle(new GridPoint(left, top), right - left, bottom - top);
     }
 
     @Override
     public Set<ElementId> hiddenWires(ToolContext context) {
-        if (grabbed == null || part.resizes() || !followWires) {
-            return Set.of();
-        }
-        return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
+        return drag.hiddenWires(context);
     }
 
     @Override
     public List<DocumentElement> movingElements(ToolContext context) {
-        if (grabbed == null || part.resizes()) {
-            return List.of();
-        }
-        return MovePreview.movedElements(context, context.selection().effectiveIds(), deltaX, deltaY);
+        return drag.movingElements(context);
     }
 
     @Override
@@ -284,9 +223,7 @@ public final class FrameGestures implements SelectToolDelegate {
             if (part.resizes()) {
                 context.paintGhost(graphics, resized(grabbed));
             } else {
-                movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY,
-                        followWires, false, Optional.ofNullable(lastDrag).map(CanvasMouseEvent::gridPosition));
-                AlignmentLinesPainter.paint(graphics, context, snappedMove.movedBox(), snappedMove.matches());
+                drag.paintMove(graphics, context);
             }
         }
         double pixelsPerGrid = context.viewport().pixelsPerUnit();
@@ -310,10 +247,10 @@ public final class FrameGestures implements SelectToolDelegate {
      * place or size. Empty with no gesture or before the pointer has moved a grid unit.
      */
     Optional<Rectangle2D> veil() {
-        if (grabbed == null || (deltaX == 0 && deltaY == 0)) {
+        if (grabbed == null || !drag.displaced()) {
             return Optional.empty();
         }
-        Frame shown = part.resizes() ? resized(grabbed) : grabbed.translate(deltaX, deltaY);
+        Frame shown = part.resizes() ? resized(grabbed) : grabbed.translate(drag.deltaX(), drag.deltaY());
         return Optional.of(FramePainter.bounds(shown));
     }
 
@@ -323,7 +260,7 @@ public final class FrameGestures implements SelectToolDelegate {
      */
     List<Frame> framesWithHandles(ToolContext context) {
         List<Frame> frames = new ArrayList<>();
-        boolean dragging = grabbed != null && (deltaX != 0 || deltaY != 0);
+        boolean dragging = grabbed != null && drag.displaced();
         if (dragging) {
             if (part.resizes()) {
                 frames.add(resized(grabbed));
@@ -358,15 +295,6 @@ public final class FrameGestures implements SelectToolDelegate {
     private void reset() {
         grabbed = null;
         part = null;
-        pressPoint = null;
-        narrowOnRelease = false;
-        removeOnRelease = false;
-        pointerMoved = false;
-        deltaX = 0;
-        deltaY = 0;
-        followWires = false;
-        lastDrag = null;
-        snappedMove = SnappedMove.unsnapped(0, 0);
-        movePreview.clear();
+        drag.reset();
     }
 }

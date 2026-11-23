@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.snap.PointResolution;
@@ -172,11 +173,8 @@ public final class FrameTool implements Tool {
         if (start == null || (start.equals(current))) {
             return null;
         }
-        int width = Math.max(Frame.MINIMUM_WIDTH, Math.abs(current.x() - start.x()));
-        int height = Math.max(Frame.MINIMUM_HEIGHT, Math.abs(current.y() - start.y()));
-        int left = current.x() < start.x() ? start.x() - width : start.x();
-        int top = current.y() < start.y() ? start.y() - height : start.y();
-        return new Rectangle2D.Double(left, top, width, height);
+        Bounds bounds = Bounds.dragged(start, current, Frame.MINIMUM_WIDTH, Frame.MINIMUM_HEIGHT);
+        return new Rectangle2D.Double(bounds.x(), bounds.y(), bounds.width(), bounds.height());
     }
 
     @Override

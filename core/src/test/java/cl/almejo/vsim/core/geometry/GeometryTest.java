@@ -54,6 +54,14 @@ class GeometryTest {
     }
 
     @Test
+    void aDraggedRectangleKeepsItsStartCornerAndGrowsToTheMinimumAwayFromIt() {
+        GridPoint start = new GridPoint(10, 10);
+        assertThat(Bounds.dragged(start, new GridPoint(20, 14), 4, 6)).isEqualTo(new Bounds(10, 10, 10, 6));
+        assertThat(Bounds.dragged(start, new GridPoint(2, 9), 4, 6)).isEqualTo(new Bounds(2, 4, 8, 6));
+        assertThat(Bounds.dragged(start, new GridPoint(11, 11), 4, 6)).isEqualTo(new Bounds(10, 10, 4, 6));
+    }
+
+    @Test
     void rotatedBoundsCoverTheRotatedRectangle() {
         Bounds bounds = Bounds.rotated(new GridPoint(10, 10), new GridSize(4, 2), Rotation.R90);
         assertThat(bounds).isEqualTo(new Bounds(8, 10, 2, 4));

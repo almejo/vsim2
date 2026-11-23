@@ -5,18 +5,13 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.StickyNote;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.Selection;
-import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
-import cl.almejo.vsim.ui.snap.MatchedGuides;
-import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.ElementDrag;
 import cl.almejo.vsim.ui.tools.SelectToolDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
-import cl.almejo.vsim.ui.wiring.MovePreview;
-import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Component;
 import java.awt.Graphics2D;
@@ -46,23 +41,13 @@ public final class StickyNoteGestures implements SelectToolDelegate {
 
     private StickyNote grabbed;
     private boolean resizing;
-    private GridPoint pressPoint;
-    private boolean narrowOnRelease;
-    /** A Shift press on a selected note: a release without moving takes it out of the selection. */
-    private boolean removeOnRelease;
-    private boolean pointerMoved;
+    private final ElementDrag drag = new ElementDrag();
     /** A plain press on a folded paper: a release without moving unfolds it (a single click is enough). */
     private boolean unfoldOnRelease;
     /** The note a click has just unfolded: the second press of that double click is swallowed. */
     private ElementId justUnfolded;
     /** The checkbox a click has just toggled: the second press of that double click is swallowed. */
     private StickyNoteHit justToggled;
-    private int deltaX;
-    private int deltaY;
-    private boolean followWires;
-    private CanvasMouseEvent lastDrag;
-    private final MovePreview movePreview = new MovePreview();
-    private SnappedMove snappedMove = SnappedMove.unsnapped(0, 0);
     /** The note whose ✕ is under the pointer, drawn at full strength. */
     private ElementId closeHovered;
 
@@ -134,12 +119,8 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         Selection selection = context.selection();
         if (event.shiftDown() && !event.controlDown()) {
             // Shift+click toggles the note; Shift+drag moves the selection with it (the key inverts the mode)
-            if (selection.contains(note.id())) {
-                removeOnRelease = true;
-            } else {
-                selection.add(note.id());
-            }
             grab(note, false, event);
+            drag.toggleOnPress(selection, note.id());
             return Press.GRABBED;
         }
         if (event.controlDown()) {
@@ -158,64 +139,34 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         }
         grab(note, resize, event);
         unfoldOnRelease = note.folded();
-        if (!selection.contains(note.id())) {
-            selection.select(note.id());
-        } else if (!resize) {
-            narrowOnRelease = selection.size() > 1;
-        }
+        drag.selectOnPress(selection, note.id());
         return Press.GRABBED;
     }
 
     private void grab(StickyNote note, boolean resize, CanvasMouseEvent event) {
         grabbed = note;
         resizing = resize;
-        pressPoint = event.snapped();
+        drag.start(event, resize);
     }
 
     @Override
     public void dragged(ToolContext context, CanvasMouseEvent event) {
-        if (grabbed == null) {
-            return;
-        }
-        lastDrag = event;
-        deltaX = event.snapped().x() - pressPoint.x();
-        deltaY = event.snapped().y() - pressPoint.y();
-        pointerMoved |= deltaX != 0 || deltaY != 0;
-        if (!resizing) {
-            Set<ElementId> moved = context.selection().effectiveIds();
-            snappedMove = SnappedMove.of(context, moved, false, deltaX, deltaY);
-            // a note inside a locked frame stops at its border, like any content
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, snappedMove.deltaX(),
-                    snappedMove.deltaY());
-            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
-            deltaX = limited.x();
-            deltaY = limited.y();
-        }
-        followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
-        context.repaint();
+        drag.dragged(context, event);
     }
 
     @Override
     public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
-        if (grabbed == null || lastDrag == null) {
-            return false;
-        }
-        dragged(context, lastDrag.withModifiers(shiftDown, controlDown, altDown));
-        return true;
+        return drag.modifiersChanged(context, shiftDown, controlDown, altDown);
     }
 
     @Override
     public boolean refreshSnap(ToolContext context) {
-        if (grabbed == null || lastDrag == null || resizing) {
-            return false;
-        }
-        dragged(context, lastDrag);
-        return true;
+        return drag.refreshSnap(context);
     }
 
     @Override
     public List<Guide> snappedGuides() {
-        return grabbed == null || resizing ? List.of() : MatchedGuides.of(snappedMove.matches());
+        return drag.snappedGuides();
     }
 
     @Override
@@ -223,8 +174,8 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         if (grabbed == null) {
             return;
         }
-        dragged(context, event);
-        if (unfoldOnRelease && !pointerMoved) {
+        drag.dragged(context, event);
+        if (unfoldOnRelease && !drag.pointerMoved()) {
             ElementId unfolded = grabbed.id();
             new StickyNoteEdits(context.openDocument()).setFolded(unfolded, false);
             if (context.openDocument().document().stickyNote(unfolded).filter(note -> !note.folded()).isPresent()) {
@@ -236,42 +187,29 @@ public final class StickyNoteGestures implements SelectToolDelegate {
             int width = resizedWidth();
             int height = resizedHeight();
             new StickyNoteEdits(context.openDocument()).change(id, note -> note.withSize(width, height));
-        } else if (deltaX != 0 || deltaY != 0) {
-            context.selectionMoves().move(context.openDocument(), context.selection(),
-                    context.selection().effectiveIds(), deltaX, deltaY, followWires);
-        } else if (pointerMoved) {
-            // a drag stopped by a locked frame's wall moved nothing, and it was no click either
-        } else if (removeOnRelease) {
-            context.selection().remove(grabbed.id());
-        } else if (narrowOnRelease) {
-            context.selection().select(grabbed.id());
+        } else {
+            drag.releaseMove(context, grabbed.id());
         }
         reset();
         context.repaint();
     }
 
     private int resizedWidth() {
-        return Math.max(StickyNote.MINIMUM_WIDTH, grabbed.width() + deltaX);
+        return Math.max(StickyNote.MINIMUM_WIDTH, grabbed.width() + drag.deltaX());
     }
 
     private int resizedHeight() {
-        return Math.max(StickyNote.MINIMUM_HEIGHT, grabbed.height() + deltaY);
+        return Math.max(StickyNote.MINIMUM_HEIGHT, grabbed.height() + drag.deltaY());
     }
 
     @Override
     public Set<ElementId> hiddenWires(ToolContext context) {
-        if (grabbed == null || resizing || !followWires) {
-            return Set.of();
-        }
-        return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
+        return drag.hiddenWires(context);
     }
 
     @Override
     public List<DocumentElement> movingElements(ToolContext context) {
-        if (grabbed == null || resizing) {
-            return List.of();
-        }
-        return MovePreview.movedElements(context, context.selection().effectiveIds(), deltaX, deltaY);
+        return drag.movingElements(context);
     }
 
     @Override
@@ -317,13 +255,11 @@ public final class StickyNoteGestures implements SelectToolDelegate {
 
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
-        if (grabbed != null && (deltaX != 0 || deltaY != 0)) {
+        if (grabbed != null && drag.displaced()) {
             if (resizing) {
                 context.paintGhost(graphics, grabbed.withSize(resizedWidth(), resizedHeight()));
             } else {
-                movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY,
-                        followWires, false, Optional.ofNullable(lastDrag).map(CanvasMouseEvent::gridPosition));
-                AlignmentLinesPainter.paint(graphics, context, snappedMove.movedBox(), snappedMove.matches());
+                drag.paintMove(graphics, context);
             }
         }
         if (closeHovered != null && grabbed == null) {
@@ -350,16 +286,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
     private void reset() {
         grabbed = null;
         resizing = false;
-        pressPoint = null;
-        narrowOnRelease = false;
-        removeOnRelease = false;
-        pointerMoved = false;
         unfoldOnRelease = false;
-        deltaX = 0;
-        deltaY = 0;
-        followWires = false;
-        lastDrag = null;
-        snappedMove = SnappedMove.unsnapped(0, 0);
-        movePreview.clear();
+        drag.reset();
     }
 }

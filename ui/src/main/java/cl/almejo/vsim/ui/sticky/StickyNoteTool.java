@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
@@ -71,12 +72,9 @@ public final class StickyNoteTool implements Tool {
             return new StickyNote(id, start, StickyNote.DEFAULT_WIDTH, StickyNote.DEFAULT_HEIGHT, StickyColor.YELLOW,
                     new StickyText(""), false);
         }
-        int width = Math.max(StickyNote.MINIMUM_WIDTH, Math.abs(current.x() - start.x()));
-        int height = Math.max(StickyNote.MINIMUM_HEIGHT, Math.abs(current.y() - start.y()));
-        int left = current.x() < start.x() ? start.x() - width : start.x();
-        int top = current.y() < start.y() ? start.y() - height : start.y();
-        return new StickyNote(id, new GridPoint(left, top), width, height, StickyColor.YELLOW, new StickyText(""),
-                false);
+        Bounds bounds = Bounds.dragged(start, current, StickyNote.MINIMUM_WIDTH, StickyNote.MINIMUM_HEIGHT);
+        return new StickyNote(id, new GridPoint(bounds.x(), bounds.y()), bounds.width(), bounds.height(),
+                StickyColor.YELLOW, new StickyText(""), false);
     }
 
     @Override

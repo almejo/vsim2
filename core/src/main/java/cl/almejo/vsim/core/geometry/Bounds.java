@@ -19,6 +19,18 @@ public record Bounds(int x, int y, int width, int height) {
                 Math.abs(first.x() - second.x()), Math.abs(first.y() - second.y()));
     }
 
+    /**
+     * The rectangle a drag from {@code start} to {@code current} draws, never under the minimum size: the start corner
+     * stays fixed and the minimum pushes the opposite edges away from it (a new frame or sticky note being drawn).
+     */
+    public static Bounds dragged(GridPoint start, GridPoint current, int minimumWidth, int minimumHeight) {
+        int width = Math.max(minimumWidth, Math.abs(current.x() - start.x()));
+        int height = Math.max(minimumHeight, Math.abs(current.y() - start.y()));
+        int left = current.x() < start.x() ? start.x() - width : start.x();
+        int top = current.y() < start.y() ? start.y() - height : start.y();
+        return new Bounds(left, top, width, height);
+    }
+
     public static Bounds rotated(GridPoint origin, GridSize size, Rotation rotation) {
         GridPoint farCorner = rotation.apply(new GridPoint(size.width(), size.height()));
         return of(origin, origin.plus(farCorner));
