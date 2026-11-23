@@ -71,10 +71,6 @@ public final class PreferenceLayer {
         return Collections.unmodifiableMap(new LinkedHashMap<>(values));
     }
 
-    public boolean isEmpty() {
-        return values.isEmpty();
-    }
-
     /** Drops every layered value: the window reads the saved preferences again. */
     public void clear() {
         if (!values.isEmpty()) {

@@ -29,12 +29,10 @@ public final class TunnelColorSwatches {
     private TunnelColorSwatches() {
     }
 
-    /** Swatches for the palette colours 0 .. {@link Tunnels#COLOR_COUNT} - 1, with {@code selectedColor} chosen. */
-    public static ColorSwatches<Integer> create(int selectedColor) {
-        return create(selectedColor, THEME_SCHEME);
-    }
-
-    /** Like {@link #create(int)}, painted with {@code scheme}, the colours the canvas uses now (read at every paint). */
+    /**
+     * Swatches for the palette colours 0 .. {@link Tunnels#COLOR_COUNT} - 1, with {@code selectedColor} chosen,
+     * painted with {@code scheme}, the colours the canvas uses now (read at every paint).
+     */
     public static ColorSwatches<Integer> create(int selectedColor, Supplier<ColorScheme> scheme) {
         List<Integer> colors = IntStream.range(0, Tunnels.COLOR_COUNT).boxed().toList();
         return new ColorSwatches<>(colors, selectedColor, color -> Messages.text(COLOR_NAME_KEYS.get(color)),

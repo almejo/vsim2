@@ -30,7 +30,6 @@ public final class BusValuesFeatures {
     private final AppPreferences preferences;
     private final Action toggle;
     private final Runnable menuRemover;
-    private final JCheckBoxMenuItem menuItem;
     private final Runnable toolButtonRemover;
     private final Runnable shortcutRemover;
     private final Runnable paneInstallation;
@@ -48,7 +47,7 @@ public final class BusValuesFeatures {
         };
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.busValues"));
         Icons.install(toggle, BusValuesIcons.BUS_VALUES);
-        this.menuItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         this.menuRemover = MenuSlots.add(view, MenuSlot.BUS_VALUES, menuItem);
         this.toolButtonRemover = view.addToolbarToggleAfterTools(new JToggleButton(toggle));
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);

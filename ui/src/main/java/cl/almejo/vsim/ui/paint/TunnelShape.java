@@ -77,10 +77,6 @@ public final class TunnelShape {
         return rotation.quarterTurns() % 2 == 1;
     }
 
-    public TunnelKind kind() {
-        return kind;
-    }
-
     /**
      * The local x of a point {@code distance} pixels in from the wire's side: from the left edge for an entrada, from
      * the right edge for a salida.

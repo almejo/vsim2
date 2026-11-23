@@ -175,8 +175,8 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
             return boxes;
         }
 
-        /** The width of row {@code row} counted from {@code indent}. */
-        private double widthOfRow(int row, double indent) {
+        /** The width of a row counted from {@code indent}. */
+        private double widthOfRow(double indent) {
             return paper.getWidth() - 2 * PADDING - indent;
         }
 
@@ -223,7 +223,7 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
                 rows.removeLast();
             }
             Line last = rows.removeLast();
-            rows.add(new Line(ellipsized(last.text(), widthOfRow(rows.size(), indent)), last.x(), last.baseline(),
+            rows.add(new Line(ellipsized(last.text(), widthOfRow(indent)), last.x(), last.baseline(),
                     last.itemIndex()));
         }
 
@@ -235,7 +235,7 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
                 result.add("");
                 return result;
             }
-            IntToDoubleFunction width = row -> widthOfRow(firstRow + row, indent);
+            IntToDoubleFunction width = row -> widthOfRow(indent);
             while (!remaining.isEmpty() && firstRow + result.size() <= capacity) {
                 int fit = fittingCharacters(remaining, width.applyAsDouble(result.size()));
                 if (fit >= remaining.length()) {

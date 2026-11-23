@@ -24,10 +24,6 @@ final class SwitchBehavior implements Behavior {
         };
     }
 
-    static Value parse(String text) {
-        return parse(text, 1);
-    }
-
     /** Whether {@code text} is the Z of a one-bit Switch (any case, as old files and typed values write it). */
     static boolean isHighImpedanceText(String text) {
         return text.strip().equalsIgnoreCase("Z");

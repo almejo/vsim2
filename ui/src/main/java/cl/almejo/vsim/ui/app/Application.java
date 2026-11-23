@@ -124,7 +124,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import java.awt.Component;
 import java.awt.Frame;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
@@ -188,22 +187,21 @@ public final class Application {
     // IA.2: the API the server and «Presentar» share, the panel's buttons over it, and the watcher that tells the
     // API when a window's mode changes or a circuit closes.
     private final AutomationApi automationApi;
-    private final PresentationControls presentationControls;
     private final PresentationModeWatcher presentationWatcher;
     /** IA.2: «Presentar» in every window; the AI asks for it through {@link PresentationExtension#aiAskedForPresenting}. */
     private final PresentationExtension presentation;
     /** Each window reads the preferences through its own layer: the AI's temporary settings (spec §7). */
     private final Map<CircuitWindow, AppPreferences> windowPreferences = new WeakHashMap<>();
-    /** What the AI's host may do with the windows; stateless, one for the whole application. */
-    private final ApplicationWindows applicationWindows = new ApplicationWindows();
-    /** Where each document's print sheets are anchored while some view shows them; one for the whole application. */
-    private final SheetAnchors sheetAnchors = new SheetAnchors();
     /** Where the AI works now: the robot on the tabs of every window (fix round D, item 5n). */
     private final AiPlaceMarks placeMarks = new AiPlaceMarks();
     /** What «Reabrir pestaña cerrada» brings back, for every window; empty at every start (card «ctrl-t»). */
     private final ClosedTabs closedTabs = new ClosedTabs();
 
     public Application(AppPreferences preferences) {
+        // What the AI's host may do with the windows; stateless, one for the whole application.
+        ApplicationWindows applicationWindows = new ApplicationWindows();
+        // Where each document's print sheets are anchored while some view shows them; one for the whole application.
+        SheetAnchors sheetAnchors = new SheetAnchors();
         this.preferences = preferences;
         this.libraryService = new LibraryService(preferences, library, registry);
         this.proposals = new PreferenceProposals(preferences);
@@ -211,7 +209,7 @@ public final class Application {
                 document -> ShownWindow.activeFirst(windows.windowsOf(document)), applicationWindows, proposals,
                 sheetAnchors);
         this.automationApi = new AutomationApi(automationHost);
-        this.presentationControls = new AutomationPresentationControls(automationApi);
+        PresentationControls presentationControls = new AutomationPresentationControls(automationApi);
         this.presentationWatcher = new PresentationModeWatcher(windows::documents,
                 applicationWindows::presentationSettings, automationHost::documentId,
                 PresentationModeWatcher.Target.of(automationApi), presentationModeThread());
@@ -374,20 +372,8 @@ public final class Application {
         return List.copyOf(editorExtensions);
     }
 
-    public EditorServices services() {
-        return services;
-    }
-
     public AppPreferences preferences() {
         return preferences;
-    }
-
-    public Appearance appearance() {
-        return appearance;
-    }
-
-    public ComponentLibrary library() {
-        return library;
     }
 
     public LibraryService libraryService() {
@@ -396,14 +382,6 @@ public final class Application {
 
     public AiServerService aiServer() {
         return aiServer;
-    }
-
-    public PresentationExtension presentation() {
-        return presentation;
-    }
-
-    public ComponentTypeRegistry registry() {
-        return registry;
     }
 
     /**

@@ -12,7 +12,24 @@
          xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
     <description>VSim 2 source rules, added one at a time.</description>
 
-    <!-- Rules go here, each preceded by a comment with its reason, e.g.:
+    <!-- conventions.md §3 «No dead code»: a field used only in the constructor or in one method is a local variable. -->
+    <rule ref="category/java/design.xml/SingularField"/>
+    <!-- «No dead code»: no unused fields. -->
     <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
-    -->
+    <!-- «No dead code»: no unused private methods (non-private ones are checked by hand, see the git history). -->
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+    <!-- «No dead code»: no unused parameters (private methods only: PMD's default; interface/override ones are legitimate). -->
+    <rule ref="category/java/bestpractices.xml/UnusedFormalParameter"/>
+    <!-- OFF: UnusedLocalVariable. «No dead code»: no unused local variables. In PMD 7.29 on Java 21 it flags every switch
+         pattern binding that is not read (`case Wire wire ->`, 98 of its 100 findings) and Java 21 has no unnamed `_`
+         without preview, so it can not be satisfied. Revisit when the project moves to Java 22+ (`case Wire _ ->`). -->
+    <!-- <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/> -->
+    <!-- «No dead code»: no local variable that is only returned (or thrown); replaces UnnecessaryLocalBeforeReturn, deprecated since PMD 7.17. -->
+    <rule ref="category/java/codestyle.xml/VariableCanBeInlined"/>
+    <!-- OFF: UnusedAssignment. «No dead code»: no assignment whose value is never read. All 40 findings in PMD 7.29 are
+         false positives: guard flags (`updating = true`, a try block, then `updating = false` in its finally) whose reads happen
+         in listeners the analysis does not see, and a counter reset before early returns. -->
+    <!-- <rule ref="category/java/bestpractices.xml/UnusedAssignment"/> -->
+    <!-- «No dead code»: no unused import. -->
+    <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
 </ruleset>

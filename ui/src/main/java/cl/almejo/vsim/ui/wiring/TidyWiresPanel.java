@@ -115,11 +115,6 @@ public final class TidyWiresPanel extends JPanel {
         return new TidyChoice(options(), selectionOnly());
     }
 
-    /** The plan behind the summary. */
-    public CircuitTidyPlan plan() {
-        return plan;
-    }
-
     public String summaryText() {
         return summaryPlainText;
     }

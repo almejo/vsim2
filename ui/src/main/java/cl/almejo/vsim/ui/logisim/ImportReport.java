@@ -78,9 +78,8 @@ record ImportReport(List<CircuitGroup> circuits) {
         return build(notes, host::describe, host, mainCircuit);
     }
 
-    private static ImportReport build(List<ImportNote> allNotes, Function<ElementId, String> describer,
+    private static ImportReport build(List<ImportNote> notes, Function<ElementId, String> describer,
                                       ReportHost host, String mainCircuit) {
-        List<ImportNote> notes = allNotes;
         Map<String, List<ImportNote>> byCircuit = new LinkedHashMap<>();
         byCircuit.put("", new ArrayList<>());
         for (ImportNote note : notes) {

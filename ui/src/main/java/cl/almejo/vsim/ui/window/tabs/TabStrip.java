@@ -1179,7 +1179,7 @@ public final class TabStrip extends JComponent implements Accessible {
         int squareX = bounds.x + (bounds.width - side) / 2;
         int squareY = bounds.y + (bounds.height - side) / 2;
         boolean isPressed = pressed instanceof NewTabButton && hoveredNewTab;
-        if (hoveredNewTab || isPressed) {
+        if (hoveredNewTab) {
             graphics.setColor(mix(stripBackground(), textColor(),
                     isPressed ? NEW_TAB_PRESSED_SHARE : NEW_TAB_HOVER_SHARE));
             graphics.fillRoundRect(squareX, squareY, side, side, UIScale.scale(CORNER), UIScale.scale(CORNER));

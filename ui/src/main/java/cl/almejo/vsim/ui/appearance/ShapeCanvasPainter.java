@@ -36,7 +36,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
-import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.HashMap;
@@ -210,7 +209,7 @@ final class ShapeCanvasPainter {
                 double y = point.y() * UNIT;
                 boolean onSide = point.x() == 0 || point.x() == size.width();
                 boolean corner = onSide && (point.y() == 0 || point.y() == size.height());
-                if (onSide || corner) {
+                if (onSide) {
                     guide.draw(new Line2D.Double(x - notch, y, x + notch, y));
                 }
                 if (!onSide || corner) {

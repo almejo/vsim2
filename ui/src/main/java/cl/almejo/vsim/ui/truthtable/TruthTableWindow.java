@@ -45,7 +45,6 @@ import java.util.OptionalInt;
 final class TruthTableWindow extends JDialog implements TruthTableDisplay {
 
     private final EditorView view;
-    private final Controls controls;
     /** The warning; its color is read from the look and feel at each paint, so a theme change applies at once. */
     private final JLabel banner = new JLabel(TruthTableMessages.feedbackBanner()) {
         @Override
@@ -70,7 +69,6 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     private TruthTableWindow(EditorView view, String title, Controls controls) {
         super(SwingUtilities.getWindowAncestor(view), title, ModalityType.MODELESS);
         this.view = view;
-        this.controls = controls;
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         JPanel content = new JPanel(new MigLayout("insets dialog, fill, wrap 1", "[grow, fill]",
                 "[][][][grow, fill][][]"));

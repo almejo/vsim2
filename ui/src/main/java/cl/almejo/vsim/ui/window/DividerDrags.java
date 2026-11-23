@@ -28,7 +28,6 @@ final class DividerDrags {
             List.of("negativeIncrement", "positiveIncrement", "selectMin", "selectMax");
 
     private final JSplitPane split;
-    private final IntConsumer moved;
     private final MouseAdapter mouse;
     private final PropertyChangeListener uiChange;
     private final PropertyChangeListener locationChange;
@@ -39,7 +38,7 @@ final class DividerDrags {
     /** Calls {@code moved} with the divider's new location after each move by the user; {@link #dispose()} stops. */
     DividerDrags(JSplitPane split, IntConsumer moved) {
         this.split = Objects.requireNonNull(split, "split");
-        this.moved = Objects.requireNonNull(moved, "moved");
+        Objects.requireNonNull(moved, "moved");
         this.mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent event) {

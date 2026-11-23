@@ -25,7 +25,6 @@ import java.awt.Component;
 import java.awt.KeyEventDispatcher;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -65,12 +64,11 @@ final class ShortcutEchoFeatures {
     private final ShortcutEchoExtension.Seams seams;
     private final Action toggle;
     private final Runnable menuRemover;
-    private final JCheckBoxMenuItem menuItem;
     private final Runnable shortcutRemover;
     private final CanvasNoticeStack chips;
     private final KeyEventDispatcher keyDispatcher = this::keyPressed;
     private final Runnable preferencesListener = this::refresh;
-    private final PropertyChangeListener hiddenListener = this::hiddenChanged;
+    private final PropertyChangeListener hiddenListener = event -> hiddenChanged();
     private final ActionListener buttonListener = this::buttonPressed;
     private final Set<AbstractButton> hooked = Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<Runnable> menuListenerRemovers = new ArrayList<>();
@@ -86,7 +84,7 @@ final class ShortcutEchoFeatures {
                 MAXIMUM_CHIPS, seams.tickers(), seams.clock(), () -> seams.animations().test(preferences));
         this.toggle = Actions.of(Messages.text("action.showUsedShortcuts"),
                 () -> preferences.setShowUsedShortcuts(!preferences.showUsedShortcuts()));
-        this.menuItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         this.menuRemover = MenuSlots.add(view, MenuSlot.SHOW_USED_SHORTCUTS, menuItem);
         this.shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, toggle);
         hookAll();
@@ -104,7 +102,7 @@ final class ShortcutEchoFeatures {
         return Boolean.TRUE.equals(view.getClientProperty(ShortcutEchoExtension.CHIPS_HIDDEN_PROPERTY));
     }
 
-    private void hiddenChanged(PropertyChangeEvent event) {
+    private void hiddenChanged() {
         if (chipsHidden()) {
             chips.clear();
         }

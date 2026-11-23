@@ -95,11 +95,6 @@ public final class ResizeComponentCommand implements Command {
         return resize.parametersWith(component.parameters(), values);
     }
 
-    /** How the wires follow this resize. */
-    public FollowPlan plan() {
-        return change.plan();
-    }
-
     @Override
     public void apply(CircuitDocument document) {
         change.apply(document);

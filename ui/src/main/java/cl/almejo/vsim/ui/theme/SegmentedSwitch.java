@@ -24,7 +24,6 @@ import java.awt.geom.RoundRectangle2D;
 public final class SegmentedSwitch extends JPanel {
 
     private static final int ARC = 8;
-    private final ButtonGroup group = new ButtonGroup();
 
     public SegmentedSwitch(JToggleButton... segments) {
         this(new GridLayout(1, segments.length, 2, 0), segments);
@@ -39,6 +38,7 @@ public final class SegmentedSwitch extends JPanel {
         super(layout);
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+        ButtonGroup group = new ButtonGroup();
         for (JToggleButton segment : segments) {
             group.add(segment);
             add(segment);

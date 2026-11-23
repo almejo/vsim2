@@ -47,8 +47,6 @@ public final class SnapFeatures {
     private final Action parts;
     private final Action guides;
     private final Action gridLines;
-    private final JCheckBoxMenuItem toggleItem;
-    private final JMenu snapToMenu;
     private final List<Runnable> removals = new ArrayList<>();
     private SnapState lastState;
     private boolean disposed;
@@ -66,8 +64,8 @@ public final class SnapFeatures {
         this.lastState = SnapState.of(preferences);
 
         removals.add(view.addToolbarToggleAfterTools(new JToggleButton(toggle)));
-        this.toggleItem = new JCheckBoxMenuItem(toggle);
-        this.snapToMenu = new JMenu(Messages.text("menu.view.snapTo"));
+        JCheckBoxMenuItem toggleItem = new JCheckBoxMenuItem(toggle);
+        JMenu snapToMenu = new JMenu(Messages.text("menu.view.snapTo"));
         snapToMenu.add(new JCheckBoxMenuItem(parts));
         snapToMenu.add(new JCheckBoxMenuItem(guides));
         snapToMenu.add(new JCheckBoxMenuItem(gridLines));

@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 
@@ -21,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class KeyboardCapture {
 
     private final CircuitDocument document;
-    private final DocumentListener documentListener = this::documentChanged;
+    private final DocumentListener documentListener = (changedDocument, change) -> documentChanged(changedDocument);
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private String capturedId;
 
@@ -55,11 +54,6 @@ public final class KeyboardCapture {
         return Optional.ofNullable(capturedId);
     }
 
-    /** Whether {@code componentId} has the keyboard now (its painter shows «Escribiendo… Esc para salir»). */
-    public boolean isCapturing(String componentId) {
-        return componentId.equals(capturedId);
-    }
-
     /** {@code listener} runs after every capture or release; the returned runnable removes it. */
     public Runnable addListener(Runnable listener) {
         listeners.add(Objects.requireNonNull(listener, "listener"));
@@ -73,7 +67,7 @@ public final class KeyboardCapture {
         listeners.clear();
     }
 
-    private void documentChanged(CircuitDocument changedDocument, DocumentChange change) {
+    private void documentChanged(CircuitDocument changedDocument) {
         if (capturedId != null && changedDocument.component(new ElementId(capturedId)).isEmpty()) {
             release();
         }

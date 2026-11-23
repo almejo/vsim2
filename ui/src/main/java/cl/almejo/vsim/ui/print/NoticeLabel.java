@@ -6,7 +6,6 @@ import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
-import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;

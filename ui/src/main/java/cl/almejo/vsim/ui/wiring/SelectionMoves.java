@@ -122,11 +122,6 @@ public final class SelectionMoves {
         move(openDocument, selection, Set.of(wireId), deltaX, deltaY, true, false);
     }
 
-    /** {@link #moveSegment(OpenDocument, Selection, ElementId, int, int)} for a host without a selection. */
-    public void moveSegment(OpenDocument openDocument, ElementId wireId, int deltaX, int deltaY) {
-        moveSegment(openDocument, null, wireId, deltaX, deltaY);
-    }
-
     private void move(OpenDocument openDocument, Selection selection, Collection<ElementId> ids, int deltaX,
                       int deltaY, boolean follow, boolean mayHint) {
         if (ids.isEmpty()) {

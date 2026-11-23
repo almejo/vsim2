@@ -23,13 +23,13 @@ import java.util.Optional;
 final class MemoryKindDialog extends JPanel {
 
     private final JRadioButton ram = new JRadioButton(Messages.componentName(MemoryKind.RAM.id()));
-    private final JRadioButton rom = new JRadioButton(Messages.componentName(MemoryKind.ROM.id()));
     private final JComboBox<String> words = new JComboBox<>();
     private final JSpinner width;
     private final JTextField name;
 
     MemoryKindDialog(MemoryFileImport.Proposal proposal) {
         super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
+        JRadioButton rom = new JRadioButton(Messages.componentName(MemoryKind.ROM.id()));
         ButtonGroup kinds = new ButtonGroup();
         kinds.add(ram);
         kinds.add(rom);

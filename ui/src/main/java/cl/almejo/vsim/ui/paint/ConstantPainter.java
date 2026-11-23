@@ -98,12 +98,10 @@ public final class ConstantPainter implements ComponentPainter {
         }
     }
 
-    /** The width in pixels of the widest text the box can ever show at this width and format. */
-    static double widestTextWidth(int width, String format) {
-        return widestTextWidth(width, format, 0);
-    }
-
-    /** As {@link #widestTextWidth(int, String)}, with the fixed format's bits after the point. */
+    /**
+     * The width in pixels of the widest text the box can ever show at this width and format, with the fixed format's
+     * bits after the point.
+     */
     static double widestTextWidth(int width, String format, int fractionBits) {
         Graphics2D graphics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
         try {

@@ -46,12 +46,10 @@ public final class MultiBitReadout {
         };
     }
 
-    /** The tooltip: the value (when known) and the bit under the pointer (when over one); empty if neither. */
-    public static Optional<String> text(Optional<Value> value, OptionalInt bit) {
-        return text(value, bit, Numbers.BOTH);
-    }
-
-    /** As {@link #text(Optional, OptionalInt)}, with the decimal(s) {@code decimals} says. */
+    /**
+     * The tooltip: the value (when known, with the decimal(s) {@code decimals} says) and the bit under the pointer
+     * (when over one); empty if neither.
+     */
     public static Optional<String> text(Optional<Value> value, OptionalInt bit, Numbers decimals) {
         Optional<String> numbers = value.map(found -> numbers(found, decimals));
         Optional<String> bitName = bit.isPresent()

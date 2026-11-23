@@ -51,10 +51,6 @@ record MemoryPinout(MemoryKind kind, int addressBits, int width, boolean loose, 
         return isRam() ? wordPins() : 0;
     }
 
-    int outputPins() {
-        return shared ? 0 : wordPins();
-    }
-
     private int wordPins() {
         return loose ? width : 1;
     }

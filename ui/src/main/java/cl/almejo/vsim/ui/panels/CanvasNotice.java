@@ -118,12 +118,6 @@ public final class CanvasNotice extends JComponent {
                 () -> Animations.enabled(preferences));
     }
 
-    /** Like the full overload, with the system clock and fading on. */
-    public static Runnable show(JComponent over, String text, Position position, Duration duration,
-                                FrameTicker ticker) {
-        return show(over, text, position, duration, ticker, System::currentTimeMillis, true);
-    }
-
     /**
      * Shows {@code text} over {@code over} for {@code duration}, driven by {@code ticker} (one frame repositions and
      * fades it; the frame past the duration removes it and stops the ticker).

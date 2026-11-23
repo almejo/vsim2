@@ -146,7 +146,7 @@ public final class KeyboardPainter implements ComponentPainter {
             graphics.draw(outline);
         }
         paintBody(graphics, outline, width, scheme, accent, capturing);
-        paintTitle(graphics, type, resolved, keyboard, capacity, width, scheme, accent, label, capturing);
+        paintTitle(graphics, type, keyboard, capacity, width, scheme, accent, label, capturing);
         paintKeys(graphics, keyboard, utf8, visibleKeys(type.size().width()), scheme, accent, capturing);
         paintFillBar(graphics, keyboard.size(), capacity, width, scheme);
         paintPins(graphics, type, keyboard.size() > 0, scheme);
@@ -248,7 +248,7 @@ public final class KeyboardPainter implements ComponentPainter {
         graphics.draw(new Line2D.Double(0, TITLE_HEIGHT, width, TITLE_HEIGHT));
     }
 
-    private static void paintTitle(Graphics2D graphics, ComponentType type, Map<String, Object> resolved,
+    private static void paintTitle(Graphics2D graphics, ComponentType type,
                                    VisibleState.KeyboardState keyboard, int capacity, double width,
                                    ColorScheme scheme, Color accent, String label, boolean capturing) {
         Color onTitle = capturing ? textOn(accent) : scheme.text();

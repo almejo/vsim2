@@ -105,14 +105,6 @@ public final class MoveWithWiresCommand implements Command {
         return cleanUp == null ? Map.of() : cleanUp.plan().mergedInto();
     }
 
-    public int deltaX() {
-        return deltaX;
-    }
-
-    public int deltaY() {
-        return deltaY;
-    }
-
     @Override
     public Optional<Command> mergedWith(Command next) {
         if (nudge && plan != null && next instanceof MoveWithWiresCommand following && following.nudge

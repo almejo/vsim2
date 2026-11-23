@@ -988,7 +988,7 @@ public final class SelectTool implements Tool {
             }
             return changed;
         }
-        if (lastDrag == null || pressPoint == null || wire != null || bandStart != null || labelComponent != null) {
+        if (lastDrag == null || pressPoint == null || bandStart != null || labelComponent != null) {
             return false;
         }
         mouseDragged(context, lastDrag);

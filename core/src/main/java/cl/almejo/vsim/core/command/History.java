@@ -303,10 +303,6 @@ public final class History {
         return Optional.ofNullable(undoStack.peek()).map(Command::description);
     }
 
-    public Optional<String> redoDescription() {
-        return Optional.ofNullable(redoStack.peek()).map(Command::description);
-    }
-
     public void markSaved() {
         savedTop = undoStack.peek();
         lastChange = null;

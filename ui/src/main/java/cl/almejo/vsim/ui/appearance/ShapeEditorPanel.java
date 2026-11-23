@@ -83,7 +83,6 @@ import java.util.function.UnaryOperator;
  * footer with the status and Cancelar · Aceptar. Window-free: the dialog's lifetime and applying the result belong to
  * its caller.
  */
-@SuppressWarnings("serial")
 public final class ShapeEditorPanel extends JPanel {
     private static final String MESSAGE_PREFIX = "shape.";
     /** The toolbar glyph size of the mockups (16 px in 28 px buttons), smaller than the main window's 24 px. */
@@ -846,7 +845,7 @@ public final class ShapeEditorPanel extends JPanel {
 
     private void refreshFigureGroup() {
         List<SymbolPath> figures = selectedFigures();
-        if (figureGroup.isVisible() != !figures.isEmpty()) {
+        if (figureGroup.isVisible() == figures.isEmpty()) {
             figureGroup.setVisible(!figures.isEmpty());
             revalidate();
         }

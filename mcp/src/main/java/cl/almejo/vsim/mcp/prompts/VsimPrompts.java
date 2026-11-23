@@ -54,7 +54,7 @@ public final class VsimPrompts {
     private static final List<Definition> DEFINITIONS = List.of(
             new Definition("guia", "Qué puede hacer la IA en VSim",
                     "Qué puede y qué no puede hacer la IA en VSim, y tres cosas para probar ahora.",
-                    List.of(), VsimPrompts::guide),
+                    List.of(), arguments -> guide()),
             new Definition("armar", "Armar un circuito por etapas",
                     "Arma el circuito que pidas, por etapas, comprobando cada una con VSim.",
                     List.of(argument(REQUEST, "El circuito que quieres, en tus palabras (por ejemplo «un "
@@ -126,7 +126,7 @@ public final class VsimPrompts {
         return DEFINITIONS.stream().map(Definition::prompt).toList();
     }
 
-    private static String guide(Arguments arguments) {
+    private static String guide() {
         return "Cuéntame en pocas líneas qué puedes hacer conmigo en VSim con sus herramientas: leer y explicar los "
                 + "circuitos que tengo abiertos; armar o cambiar circuitos por etapas, comprobando cada una con "
                 + "VSim; mostrarme cómo los armas en «Presentar» (paso a paso o de corrido); revisar problemas; "

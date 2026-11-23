@@ -43,10 +43,6 @@ public final class StickyNotesController {
         view.inspector().setBadge(InspectorPanel.NOTES, count, InspectorPanel.Badge.QUIET);
     }
 
-    public StickyNotesPanel panel() {
-        return panel;
-    }
-
     /** Stops listening; the section itself cannot be removed and stays with its last rows. */
     public void dispose() {
         if (disposed) {

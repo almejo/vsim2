@@ -231,7 +231,7 @@ final class PracticePanel extends JPanel {
         for (JComponent button : List.of(hintButton, reviewButton, clearAllButton, giveUpButton)) {
             button.setToolTipText(givenUpReason);
         }
-        showReview(spec, output, form, result, givenUp);
+        showReview(spec, output, result, givenUp);
         revalidate();
         repaint();
     }
@@ -321,7 +321,7 @@ final class PracticePanel extends JPanel {
      * After «Revisar» «¡Mínima!», «Correcta pero no mínima…» or «No es equivalente…» and VSim's map beside it; on a
      * map given up VSim's map alone, for good.
      */
-    private void showReview(TruthTableSpec spec, int output, Form form, PracticeResult result, boolean givenUp) {
+    private void showReview(TruthTableSpec spec, int output, PracticeResult result, boolean givenUp) {
         boolean graded = review != null && !givenUp;
         boolean shown = graded || givenUp;
         reviewText.setVisible(graded);

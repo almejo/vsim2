@@ -1,8 +1,6 @@
 package cl.almejo.vsim.ui.tunnel;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
@@ -14,7 +12,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.RenderState;
-import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
@@ -55,8 +52,8 @@ public final class TunnelFeatures {
     private final EditorView view;
     private final OpenDocument openDocument;
     private final StatusBar statusBar;
-    private final DocumentListener documentListener = this::documentChanged;
-    private final ContextMenuContributor contributor = this::contribute;
+    private final DocumentListener documentListener = (changedDocument, change) -> documentChanged();
+    private final ContextMenuContributor contributor = (menu, target, selection, gridPosition) -> contribute(menu, target);
     private final Runnable contributorRemover;
     private final Runnable paneInstallation;
     private Optional<ElementId> hovered = Optional.empty();
@@ -132,7 +129,7 @@ public final class TunnelFeatures {
     }
 
     /** A rename or a removal changes what the hovered tunnel stands for. */
-    private void documentChanged(CircuitDocument document, DocumentChange change) {
+    private void documentChanged() {
         if (hovered.isPresent()) {
             hover(hoveredTunnel().map(Component::id));
         }
@@ -188,8 +185,7 @@ public final class TunnelFeatures {
         }
     }
 
-    private void contribute(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
-                            Point2D gridPosition) {
+    private void contribute(JPopupMenu menu, Optional<DocumentElement> target) {
         if (target.isEmpty() || !(target.get() instanceof Component tunnel) || !Tunnels.isTunnel(tunnel.typeId())) {
             return;
         }

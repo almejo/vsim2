@@ -8,7 +8,6 @@ import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.core.document.DocumentElement;
-import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.ai.AiChangeGlowOverlay;
@@ -222,7 +221,7 @@ public final class PresentationOverlays {
         glow.show(preview.ghostElements().stream().map(DocumentElement::id).collect(Collectors.toSet()));
     }
 
-    private void discarded(String taskId, StepStatus why) {
+    private void discarded(String taskId) {
         if (taskId.equals(shownTask)) {
             ghosts.clear();
             callout.clear();
@@ -234,7 +233,7 @@ public final class PresentationOverlays {
     private void forget(String taskId) {
         plans.remove(taskId);
         stageOfLastStep.remove(taskId);
-        discarded(taskId, StepStatus.STOPPED);
+        discarded(taskId);
         if (taskId.equals(narratedTask)) {
             caption.clear();
             narratedTask = null;
@@ -337,7 +336,7 @@ public final class PresentationOverlays {
 
         @Override
         public void stepDiscarded(String taskId, StepStatus why) {
-            onEditorThread(() -> discarded(taskId, why));
+            onEditorThread(() -> discarded(taskId));
         }
 
         @Override

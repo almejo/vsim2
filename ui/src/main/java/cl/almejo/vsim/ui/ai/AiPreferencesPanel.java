@@ -30,7 +30,6 @@ public final class AiPreferencesPanel extends JPanel {
     private static final int MAXIMUM_PORT = 65_535;
 
     private final AppPreferences preferences;
-    private final Consumer<String> clipboard;
     private final JCheckBox startWithVsimBox = new JCheckBox(Messages.text("ai.preferences.startWithVsim"));
     private final JSpinner portSpinner = new JSpinner();
     private final JButton defaultPortButton = new JButton(Messages.text("ai.preferences.defaultPort"));
@@ -68,7 +67,7 @@ public final class AiPreferencesPanel extends JPanel {
         super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.service = Objects.requireNonNull(service, "service");
-        this.clipboard = Objects.requireNonNull(clipboard, "clipboard");
+        Objects.requireNonNull(clipboard, "clipboard");
 
         portSpinner.setModel(new SpinnerNumberModel(preferences.aiPort(), MINIMUM_PORT, MAXIMUM_PORT, 1));
         // the port is a number, never «47.017»

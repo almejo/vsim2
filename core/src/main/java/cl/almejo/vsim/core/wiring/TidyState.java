@@ -210,7 +210,7 @@ final class TidyState {
         retargets.clear();
         retargets.putAll(candidateRetargets);
         if (graph != null) {
-            graph.update(removed, added, candidate);
+            graph.update(removed, added);
         }
         if (wiresById != null) {
             removed.forEach(wire -> wiresById.remove(wire.id()));

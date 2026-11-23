@@ -59,7 +59,6 @@ public final class SheetsFeatures {
         void show(JPopupMenu menu, java.awt.Component invoker, int x, int y);
     }
 
-    private final EditorView view;
     private final OpenDocument openDocument;
     private final AppPreferences preferences;
     private final SheetAnchors anchors;
@@ -67,7 +66,6 @@ public final class SheetsFeatures {
     private final SheetsQuickOptions quickOptions;
     private final Action toggle;
     private final Runnable menuRemover;
-    private final JCheckBoxMenuItem menuItem;
     private final List<Runnable> removers = new ArrayList<>();
     /** What each pane shows of the sheets. */
     private final Map<CircuitCanvas, PaneSheets> panes = new LinkedHashMap<>();
@@ -80,7 +78,6 @@ public final class SheetsFeatures {
     private boolean disposed;
 
     SheetsFeatures(EditorView view, SheetAnchors anchors, SheetsExtension extension, MenuShower menuShower) {
-        this.view = view;
         this.openDocument = view.openDocument();
         this.preferences = view.services().preferences();
         this.anchors = anchors;
@@ -95,7 +92,7 @@ public final class SheetsFeatures {
         };
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.showSheets"));
         Icons.install(toggle, SheetsIcons.PRINT_SHEETS);
-        this.menuItem = new JCheckBoxMenuItem(toggle);
+        JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);
         this.menuRemover = MenuSlots.add(view, MenuSlot.SHEETS, menuItem);
         removers.add(view.addToolbarToggleAfterTools(new JToggleButton(toggle)));
         removers.add(view.registerShortcutAction(SHORTCUT, toggle));
@@ -103,11 +100,6 @@ public final class SheetsFeatures {
         openDocument.addChangeListener(documentListener);
         anchors.addListener(anchorListener);
         removers.add(view.forEachPane(this::installOn));
-    }
-
-    /** The toggle's action (menu item and toolbar button); its {@code SELECTED_KEY} is the preference. */
-    public Action toggleAction() {
-        return toggle;
     }
 
     CircuitDocument document() {

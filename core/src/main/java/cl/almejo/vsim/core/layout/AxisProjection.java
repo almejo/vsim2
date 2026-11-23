@@ -40,7 +40,6 @@ final class AxisProjection {
 
     private final long[] desired;
     private final long[] weights;
-    private final boolean[] fixed;
     private final List<Constraint> constraints;
     private final List<List<Integer>> incoming = new ArrayList<>();
     private final boolean[] active;
@@ -54,7 +53,6 @@ final class AxisProjection {
                            BooleanSupplier cancelled) {
         this.desired = desired;
         this.weights = weights;
-        this.fixed = fixed;
         this.constraints = constraints;
         this.cancelled = cancelled;
         this.active = new boolean[constraints.size()];

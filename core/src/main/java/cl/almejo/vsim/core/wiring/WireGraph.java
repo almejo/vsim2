@@ -36,17 +36,15 @@ public final class WireGraph {
     private final Map<Integer, TreeMap<Integer, List<Wire>>> endsByColumn = new HashMap<>();
     /** Position of each wire in the list order; a replacement takes the position of the first wire it replaces. */
     private final Map<ElementId, Integer> ranks = new HashMap<>();
-    private List<Wire> wires;
 
     private WireGraph(List<Wire> wires, Map<GridPoint, List<PinRef>> pinsAtPoint) {
-        this.wires = List.copyOf(wires);
         this.pinsAtPoint = pinsAtPoint;
         for (GridPoint point : pinsAtPoint.keySet()) {
             pinColumnsByRow.computeIfAbsent(point.y(), row -> new TreeSet<>()).add(point.x());
             pinRowsByColumn.computeIfAbsent(point.x(), column -> new TreeSet<>()).add(point.y());
         }
-        for (int index = 0; index < this.wires.size(); index++) {
-            Wire wire = this.wires.get(index);
+        for (int index = 0; index < wires.size(); index++) {
+            Wire wire = wires.get(index);
             ranks.put(wire.id(), index);
             index(wire);
         }
@@ -74,11 +72,9 @@ public final class WireGraph {
     }
 
     /**
-     * Takes {@code removed} out and puts {@code added} in (they take the list position of the first removed wire);
-     * {@code wiresNow} is the resulting list, as {@link #wires()} will return it (not copied: the caller never
-     * changes it).
+     * Takes {@code removed} out and puts {@code added} in (they take the list position of the first removed wire).
      */
-    void update(List<Wire> removed, List<Wire> added, List<Wire> wiresNow) {
+    void update(List<Wire> removed, List<Wire> added) {
         int rank = removed.stream().mapToInt(wire -> ranks.get(wire.id())).min().orElse(Integer.MAX_VALUE);
         for (Wire wire : removed) {
             ranks.remove(wire.id());
@@ -88,7 +84,6 @@ public final class WireGraph {
             ranks.put(wire.id(), rank);
             index(wire);
         }
-        wires = wiresNow;
     }
 
     private void index(Wire wire) {
@@ -123,10 +118,6 @@ public final class WireGraph {
         if (owners.isEmpty()) {
             line.remove(position);
         }
-    }
-
-    public List<Wire> wires() {
-        return wires;
     }
 
     public List<PinRef> pinsAt(GridPoint point) {

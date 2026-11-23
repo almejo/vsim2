@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.canvas;
 
-import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -86,10 +85,5 @@ final class ViewAnimator {
 
     boolean isTravelling() {
         return travel != null;
-    }
-
-    /** Where the travel in progress ends. */
-    Optional<ViewState> target() {
-        return Optional.ofNullable(travel).map(ViewTravel::target);
     }
 }

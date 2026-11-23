@@ -42,6 +42,12 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 - **No magic numbers or strings**: named constants (`MAXIMUM_INPUTS`, `NODE_BUDGET`) with a word on where they come
   from.
 - **No dead code**: no commented-out code, unused parameters, fields, keys or methods. Delete them; git remembers.
+  A field used only in the constructor or in one method is a local variable; no local variable that is only returned;
+  no condition that is always true or always false; no unused import. PMD checks (`pmdMain`): `SingularField`,
+  `UnusedPrivateField`, `UnusedPrivateMethod`, `UnusedFormalParameter` (private methods only), `VariableCanBeInlined`
+  (a local only returned or thrown) and `UnnecessaryImport`. `UnusedLocalVariable` and `UnusedAssignment` are off (false
+  positives: see the reasons in `config/pmd/vsim-rules.xml`). Non-private unused methods, unused parameters of
+  interface methods and always-true conditions are not checked automatically: look for them when you touch the code.
 - **Comments say why, not what** — they complement good names, they do not excuse bad ones (the Javadoc rule of
   section 5 still applies).
 - **Boy Scout rule**, inside the limits of section 1: leave the code you touch a little cleaner than you found it.

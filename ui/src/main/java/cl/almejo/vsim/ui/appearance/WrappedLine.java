@@ -13,7 +13,6 @@ import java.awt.Font;
  * One line under the canvas of the shape editor: the tone's mark and a sentence that wraps to the width it has, so a
  * long warning is never cut. The colour follows the {@link ToneLabel.Tone} and is read from the theme at each paint.
  */
-@SuppressWarnings("serial")
 final class WrappedLine extends JPanel {
     private static final int GAP = 6;
     private final JLabel mark;
@@ -44,10 +43,6 @@ final class WrappedLine extends JPanel {
     int heightFor(int width) {
         int markWidth = mark.getPreferredSize().width;
         return Math.max(mark.getPreferredSize().height + 1, sentence.heightFor(width - markWidth - GAP));
-    }
-
-    String text() {
-        return sentence.getText();
     }
 
     /** The sentence as a transparent read-only text area: it wraps by words, and its height follows its width. */

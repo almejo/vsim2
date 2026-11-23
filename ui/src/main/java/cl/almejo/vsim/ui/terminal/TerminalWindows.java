@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -31,7 +30,7 @@ public final class TerminalWindows {
     private final TerminalWindowServices services;
     private final TerminalWindowPreferences preferences;
     private final Map<String, Open> windows = new LinkedHashMap<>();
-    private final DocumentListener documentListener = this::documentChanged;
+    private final DocumentListener documentListener = (changed, change) -> documentChanged(changed);
 
     public TerminalWindows(OpenDocument document, TerminalFeeds feeds, TerminalWindowServices services,
                            TerminalWindowPreferences preferences) {
@@ -140,7 +139,7 @@ public final class TerminalWindows {
         open.content().dispose();
     }
 
-    private void documentChanged(CircuitDocument changed, DocumentChange change) {
+    private void documentChanged(CircuitDocument changed) {
         for (String componentId : List.copyOf(windows.keySet())) {
             if (changed.component(new ElementId(componentId)).isEmpty()) {
                 close(componentId);

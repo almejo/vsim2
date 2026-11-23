@@ -129,11 +129,6 @@ public final class FramesFeatures {
         return frameMenu;
     }
 
-    /** The frame gestures of the active pane's select tool. */
-    public FrameGestures gestures() {
-        return gesturesByPane.get(view.canvas());
-    }
-
     /** On one pane: the select tool's frame gestures and the padlock overlay. */
     private Runnable installOn(CircuitCanvas pane) {
         FrameGestures gestures = new FrameGestures();

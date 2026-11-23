@@ -47,12 +47,11 @@ final class MemoryCellRenderer extends DefaultTableCellRenderer {
                 setForeground(blend(table.getForeground(), background, MUTED_WEIGHT));
             } else {
                 setForeground(table.getForeground());
-                OptionalLong address = cellAddress;
                 if (edited) {
                     setBackground(blend(background, table.getSelectionBackground(), EDITED_WEIGHT));
                 }
-                if (address.isPresent()) {
-                    VisibleState.MemoryAccess access = model.accessAt(address.getAsLong());
+                if (cellAddress.isPresent()) {
+                    VisibleState.MemoryAccess access = model.accessAt(cellAddress.getAsLong());
                     if (access != VisibleState.MemoryAccess.NONE) {
                         ColorScheme current = scheme.get();
                         setBackground(blend(background, access == VisibleState.MemoryAccess.READ

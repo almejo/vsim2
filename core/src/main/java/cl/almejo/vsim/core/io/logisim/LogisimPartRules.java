@@ -70,9 +70,6 @@ final class LogisimPartRules {
     /** How Logisim writes a colour: {@code #rrggbb}. */
     private static final Pattern LOGISIM_COLOR = Pattern.compile("#\\p{XDigit}{6}");
 
-    private LogisimPartRules() {
-    }
-
     /** Logisim 2.7's table, keyed {@code library/name}. */
     static Map<String, Rule> logisim27() {
         Map<String, Rule> rules = new HashMap<>();

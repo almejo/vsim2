@@ -31,8 +31,6 @@ import java.util.OptionalLong;
  */
 final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
 
-    private static final long MAXIMUM_WORDS = 1L << MemoryTypes.MAXIMUM_ADDRESS_BITS;
-
     private final EditorView view;
     private final MemoryEditorLauncher launcher;
     private final MemoryLinkActions links;

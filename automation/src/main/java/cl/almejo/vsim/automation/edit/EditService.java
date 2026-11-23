@@ -130,7 +130,7 @@ public final class EditService {
 
     /** Editor thread: everything from the version check to the write, with nothing in between. */
     private EditReceipt edit(EditableCircuit circuit, EditRequest request, Optional<AiTask> task) {
-        Optional<EditReceipt> earlier = replay(circuit, request);
+        Optional<EditReceipt> earlier = replay(request);
         if (earlier.isPresent()) {
             return earlier.get();
         }
@@ -163,7 +163,7 @@ public final class EditService {
      * Editor thread: the receipt of an earlier call with the same operation id and arguments (a retry); empty for a
      * new id, {@code OPERATION_CONFLICT} for the same id with other arguments. Validate-only calls are never replayed.
      */
-    public Optional<EditReceipt> replay(EditableCircuit circuit, EditRequest request) {
+    public Optional<EditReceipt> replay(EditRequest request) {
         if (request.validateOnly()) {
             return Optional.empty();
         }
