@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.appearance.SegmentCurve;
+import cl.almejo.vsim.core.component.appearance.PinStub;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolElement;
 import cl.almejo.vsim.core.component.appearance.SymbolNode;
@@ -248,29 +249,38 @@ public final class SymbolPainter {
                 obstacles.add(pinNameArea(graphics, pin, type.pins(), drawing, strokeWidth));
             }
         }
-        float nominal = sizeOf(text.size());
+        for (NameTry attempt : nameTries(name, sizeOf(text.size()))) {
+            Rectangle2D area = textArea(graphics, attempt.text(), font, attempt.size(), anchorX, anchorY, alignment,
+                    sideways);
+            if (isFree(area, box, bodies, obstacles)) {
+                uprightBlock(graphics, List.of(attempt.text()), font,
+                        new PainterSupport.TextPlace(anchorX, anchorY, attempt.size(), alignment), look, strokeWidth,
+                        box);
+                return;
+            }
+        }
+    }
+
+    /** One way to write the component's name: the text (whole or elided) at a size. */
+    private record NameTry(String text, float size) { }
+
+    /**
+     * The ways to write {@code name}, in the order they are tried: whole, through the size steps not above
+     * {@code nominal}; then losing letters (ending in an ellipsis) at the smallest of those sizes.
+     */
+    private static List<NameTry> nameTries(String name, float nominal) {
+        List<NameTry> tries = new ArrayList<>();
         float smallest = nominal;
         for (float step : NAME_SIZE_STEPS) {
-            if (step > nominal) {
-                continue;
-            }
-            smallest = step;
-            Rectangle2D area = textArea(graphics, name, font, step, anchorX, anchorY, alignment, sideways);
-            if (isFree(area, box, bodies, obstacles)) {
-                uprightBlock(graphics, List.of(name), font, new PainterSupport.TextPlace(anchorX, anchorY, step, alignment), look,
-                        strokeWidth, box);
-                return;
+            if (step <= nominal) {
+                smallest = step;
+                tries.add(new NameTry(name, step));
             }
         }
         for (int length = name.length() - 1; length > 0; length--) {
-            String elided = name.substring(0, length).stripTrailing() + ELLIPSIS;
-            Rectangle2D area = textArea(graphics, elided, font, smallest, anchorX, anchorY, alignment, sideways);
-            if (isFree(area, box, bodies, obstacles)) {
-                uprightBlock(graphics, List.of(elided), font, new PainterSupport.TextPlace(anchorX, anchorY, smallest, alignment), look,
-                        strokeWidth, box);
-                return;
-            }
+            tries.add(new NameTry(name.substring(0, length).stripTrailing() + ELLIPSIS, smallest));
         }
+        return tries;
     }
 
     private static boolean isFree(Rectangle2D area, Rectangle2D box, List<Area> bodies, List<Rectangle2D> obstacles) {
@@ -304,14 +314,11 @@ public final class SymbolPainter {
 
     private static void paintPin(Graphics2D graphics, PinSpec pin, List<PinSpec> pins, SymbolDrawing drawing,
                                  ColorScheme scheme, float strokeWidth) {
-        double x = pin.position().x() * UNIT;
-        double y = pin.position().y() * UNIT;
-        double width = drawing.size().width() * UNIT;
-        double height = drawing.size().height() * UNIT;
-        double horizontal = Math.min(x, width - x);
-        double vertical = Math.min(y, height - y);
-        double directionX = horizontal <= vertical ? (x <= width / 2 ? 1 : -1) : 0;
-        double directionY = horizontal <= vertical ? 0 : (y <= height / 2 ? 1 : -1);
+        PinStub stub = PinStub.of(pin.position(), drawing.size(), UNIT);
+        double x = stub.x();
+        double y = stub.y();
+        double directionX = stub.directionX();
+        double directionY = stub.directionY();
         double length = stubLength(drawing, x, y, directionX, directionY, strokeWidth);
         graphics.setColor(scheme.componentStroke());
         graphics.draw(new Line2D.Double(x, y, x + directionX * length, y + directionY * length));
@@ -397,13 +404,14 @@ public final class SymbolPainter {
      */
     private static PinName pinName(Graphics2D graphics, PinSpec pin, List<PinSpec> pins, SymbolDrawing drawing,
                                    double stubLength, float largestSize) {
-        double x = pin.position().x() * UNIT;
-        double y = pin.position().y() * UNIT;
-        double width = drawing.size().width() * UNIT;
-        double height = drawing.size().height() * UNIT;
-        boolean onSide = Math.min(x, width - x) <= Math.min(y, height - y);
-        double directionX = onSide ? (x <= width / 2 ? 1 : -1) : 0;
-        double directionY = onSide ? 0 : (y <= height / 2 ? 1 : -1);
+        PinStub stub = PinStub.of(pin.position(), drawing.size(), UNIT);
+        double x = stub.x();
+        double y = stub.y();
+        double width = stub.width();
+        double height = stub.height();
+        boolean onSide = stub.onSide();
+        double directionX = stub.directionX();
+        double directionY = stub.directionY();
         boolean sideways = PainterSupport.turnedSideways(graphics);
         double gap = gapToNeighbours(pin, pins, onSide, onSide ? height : width);
         boolean runsAlongTheSpacing = onSide == sideways;
@@ -422,15 +430,10 @@ public final class SymbolPainter {
     /** Where a pin's name ink can be: its text rectangle cut to its slot. */
     private static Rectangle2D pinNameArea(Graphics2D graphics, PinSpec pin, List<PinSpec> pins, SymbolDrawing drawing,
                                            float strokeWidth) {
-        double x = pin.position().x() * UNIT;
-        double y = pin.position().y() * UNIT;
-        double width = drawing.size().width() * UNIT;
-        double height = drawing.size().height() * UNIT;
-        boolean onSide = Math.min(x, width - x) <= Math.min(y, height - y);
-        double directionX = onSide ? (x <= width / 2 ? 1 : -1) : 0;
-        double directionY = onSide ? 0 : (y <= height / 2 ? 1 : -1);
+        PinStub stub = PinStub.of(pin.position(), drawing.size(), UNIT);
         PinName name = pinName(graphics, pin, pins, drawing,
-                stubLength(drawing, x, y, directionX, directionY, strokeWidth), PIN_NAME_SIZE);
+                stubLength(drawing, stub.x(), stub.y(), stub.directionX(), stub.directionY(), strokeWidth),
+                PIN_NAME_SIZE);
         Rectangle2D text = textArea(graphics, name.text(), TextFonts.labelFont(), name.size(), name.anchorX(),
                 name.anchorY(), name.alignment(), PainterSupport.turnedSideways(graphics));
         return text.createIntersection(name.slot());

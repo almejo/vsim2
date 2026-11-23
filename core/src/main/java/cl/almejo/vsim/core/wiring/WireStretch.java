@@ -34,19 +34,22 @@ public final class WireStretch {
      * to the start (a loop). Empty when {@code wireId} is not a wire of {@code document}.
      */
     public static Set<ElementId> of(CircuitDocument document, ComponentTypeRegistry registry, ElementId wireId) {
-        Optional<Wire> clicked = document.wire(wireId);
-        if (clicked.isEmpty()) {
-            return Set.of();
-        }
-        WireGraph graph = WireGraph.of(document.wires(), document, registry);
-        Set<ElementId> visited = new HashSet<>(Set.of(wireId));
-        List<ElementId> before = follow(graph, clicked.get(), clicked.get().start(), visited);
-        List<ElementId> after = follow(graph, clicked.get(), clicked.get().end(), visited);
+        return document.wire(wireId).map(clicked -> stretch(graphOf(document, registry), clicked)).orElse(Set.of());
+    }
+
+    private static Set<ElementId> stretch(WireGraph graph, Wire clicked) {
+        Set<ElementId> visited = new HashSet<>(Set.of(clicked.id()));
+        List<ElementId> before = follow(graph, clicked, clicked.start(), visited);
+        List<ElementId> after = follow(graph, clicked, clicked.end(), visited);
         Collections.reverse(before);
         Set<ElementId> stretch = new LinkedHashSet<>(before);
-        stretch.add(wireId);
+        stretch.add(clicked.id());
         stretch.addAll(after);
         return Collections.unmodifiableSet(stretch);
+    }
+
+    private static WireGraph graphOf(CircuitDocument document, ComponentTypeRegistry registry) {
+        return WireGraph.of(document.wires(), document, registry);
     }
 
     /**
@@ -55,13 +58,13 @@ public final class WireStretch {
      */
     public static Set<ElementId> connected(CircuitDocument document, ComponentTypeRegistry registry,
                                            ElementId wireId) {
-        Optional<Wire> clicked = document.wire(wireId);
-        if (clicked.isEmpty()) {
-            return Set.of();
-        }
-        WireGraph graph = WireGraph.of(document.wires(), document, registry);
-        Set<ElementId> reached = new HashSet<>(Set.of(wireId));
-        Deque<Wire> pending = new ArrayDeque<>(List.of(clicked.get()));
+        return document.wire(wireId).map(clicked -> connected(document, graphOf(document, registry), clicked))
+                .orElse(Set.of());
+    }
+
+    private static Set<ElementId> connected(CircuitDocument document, WireGraph graph, Wire clicked) {
+        Set<ElementId> reached = new HashSet<>(Set.of(clicked.id()));
+        Deque<Wire> pending = new ArrayDeque<>(List.of(clicked));
         while (!pending.isEmpty()) {
             Wire current = pending.removeFirst();
             for (GridPoint point : graph.connectionPointsOn(current)) {

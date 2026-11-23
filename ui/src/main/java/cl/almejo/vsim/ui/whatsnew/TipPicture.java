@@ -152,11 +152,7 @@ final class TipPicture extends JComponent {
                 ? Keycaps.height(this, keyFont(), BIG_KEY_SCALE) + UIScale.scale(KEY_GAP) / 2 : 0;
         Rectangle picture = new Rectangle(area.x, area.y, area.width, area.height - keyRow);
         slot(0).ifPresent(slot -> paintSlot(painter, slot, picture, OptionalDouble.empty()));
-        content.key().ifPresent(keys -> {
-            int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
-            int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
-            paintKey(painter, keys, area.x + area.width - width, area.y + area.height - height);
-        });
+        content.key().ifPresent(keys -> paintKeyInCorner(painter, keys, area));
     }
 
     /**
@@ -209,11 +205,14 @@ final class TipPicture extends JComponent {
         painter.setStroke(new BasicStroke(UIScale.scale(2f)));
         painter.drawLine(dividerX, area.y - UIScale.scale(PADDING), dividerX,
                 area.y + area.height + UIScale.scale(PADDING));
-        content.key().ifPresent(keys -> {
-            int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
-            int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
-            paintKey(painter, keys, area.x + area.width - width, area.y + area.height - height);
-        });
+        content.key().ifPresent(keys -> paintKeyInCorner(painter, keys, area));
+    }
+
+    /** The tip's key in the bottom-right corner of {@code area}. */
+    private void paintKeyInCorner(Graphics2D painter, List<String> keys, Rectangle area) {
+        int width = Keycaps.width(this, keyFont(), BIG_KEY_SCALE, keys, !KeyNames.MAC_NOTATION);
+        int height = Keycaps.height(this, keyFont(), BIG_KEY_SCALE);
+        paintKey(painter, keys, area.x + area.width - width, area.y + area.height - height);
     }
 
     private Optional<Slot> slot(int index) {

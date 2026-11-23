@@ -311,11 +311,7 @@ public final class CircuitRenderer {
             }
             StickyNotePainter.paint(graphics, note, scheme, pixelsPerGrid, state.policy());
             if (state.selection().contains(note.id())) {
-                Rectangle2D bounds = StickyNoteLayout.paperOf(note);
-                MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
-                        bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
-                        bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
-                        state.selectionDashPhase());
+                paintSelectionOutline(graphics, StickyNoteLayout.paperOf(note), state, scheme);
             }
         }
     }
@@ -510,16 +506,28 @@ public final class CircuitRenderer {
         return raster;
     }
 
+    /** A part with an animated screen (a Terminal, a UART): its state, its moment of the animation and its label. */
+    private record ScreenPart(VisibleState state, TerminalMoment moment, Optional<String> label) { }
+
+    private ScreenPart screenPart(RenderState state, Component component, ComponentType type,
+                                  TerminalAnimation animation) {
+        VisibleState partState = state.snapshot().componentState(component.id().value());
+        TerminalLook look = TerminalLook.of(type.resolveParameters(component.parameters()));
+        TerminalMoment moment = terminalActivity.moment(component.id().value(), partState, look, animation);
+        Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
+        return new ScreenPart(partState, moment, label);
+    }
+
     /**
      * A Terminal at this view's moment of its animation, with its label in the title bar; remembers what of it moves
      * so the canvas's clock repaints just that.
      */
     private void paintTerminal(Graphics2D graphics, RenderState state, ColorScheme scheme, Component component,
                                ComponentType type, TerminalPainter painter, TerminalAnimation animation) {
-        VisibleState terminalState = state.snapshot().componentState(component.id().value());
-        TerminalLook look = TerminalLook.of(type.resolveParameters(component.parameters()));
-        TerminalMoment moment = terminalActivity.moment(component.id().value(), terminalState, look, animation);
-        Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
+        ScreenPart part = screenPart(state, component, type, animation);
+        VisibleState terminalState = part.state();
+        TerminalMoment moment = part.moment();
+        Optional<String> label = part.label();
         AffineTransform documentToDevice = graphics.getTransform();
         ComponentDrawing.paintPlaced(graphics, component, local -> {
             if (animation == TerminalAnimation.EXPORT) {
@@ -540,10 +548,10 @@ public final class CircuitRenderer {
      */
     private void paintUart(Graphics2D graphics, RenderState state, ColorScheme scheme, Component component,
                            ComponentType type, UartPainter painter, TerminalAnimation animation) {
-        VisibleState uartState = state.snapshot().componentState(component.id().value());
-        TerminalLook look = TerminalLook.of(type.resolveParameters(component.parameters()));
-        TerminalMoment moment = terminalActivity.moment(component.id().value(), uartState, look, animation);
-        Optional<String> label = component.label().isBlank() ? Optional.empty() : Optional.of(component.label());
+        ScreenPart part = screenPart(state, component, type, animation);
+        VisibleState uartState = part.state();
+        TerminalMoment moment = part.moment();
+        Optional<String> label = part.label();
         boolean capturing = state.capturingPart().filter(component.id()::equals).isPresent();
         UartPainter.Look partLook = new UartPainter.Look(label, capturing);
         boolean animated = animation != TerminalAnimation.EXPORT
@@ -627,11 +635,7 @@ public final class CircuitRenderer {
                 .toList()) {
             FramePainter.paint(graphics, frame, scheme, pixelsPerGrid, state.policy());
             if (state.selection().contains(frame.id())) {
-                Rectangle2D bounds = FramePainter.bounds(frame);
-                MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
-                        bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
-                        bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
-                        state.selectionDashPhase());
+                paintSelectionOutline(graphics, FramePainter.bounds(frame), state, scheme);
             }
         }
     }
@@ -910,11 +914,7 @@ public final class CircuitRenderer {
             }
             NotePainter.paint(graphics, label, scheme, state.policy());
             if (state.selection().contains(label.id())) {
-                Rectangle2D bounds = LabelLayout.noteBox(label);
-                MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
-                        bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
-                        bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
-                        state.selectionDashPhase());
+                paintSelectionOutline(graphics, LabelLayout.noteBox(label), state, scheme);
             }
         }
     }
@@ -931,9 +931,20 @@ public final class CircuitRenderer {
     }
 
     private Rectangle2D outline(ComponentType type, Component component) {
-        Rectangle2D bounds = SelectionArea.of(type, component);
+        return withOutlineGap(SelectionArea.of(type, component));
+    }
+
+    /** {@code bounds} grown by the gap the selection outline keeps around what it marks. */
+    private static Rectangle2D withOutlineGap(Rectangle2D bounds) {
         return new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP, bounds.getY() - OUTLINE_GAP,
                 bounds.getWidth() + 2 * OUTLINE_GAP, bounds.getHeight() + 2 * OUTLINE_GAP);
+    }
+
+    /** The marching ants around a selected note, frame or text, {@link #OUTLINE_GAP} outside its {@code bounds}. */
+    private static void paintSelectionOutline(Graphics2D graphics, Rectangle2D bounds, RenderState state,
+                                              ColorScheme scheme) {
+        MarchingAnts.draw(graphics, withOutlineGap(bounds), scheme.selection(), SELECTION_OUTLINE_WIDTH,
+                state.selectionDashPhase());
     }
 
     private static Line2D line(Wire wire) {

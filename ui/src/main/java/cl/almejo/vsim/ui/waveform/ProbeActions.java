@@ -146,15 +146,7 @@ public final class ProbeActions {
 
     /** Whether the channel watches a net wider than one bit (only those have a format to choose). */
     boolean isBus(String probeId) {
-        CircuitDocument document = openDocument.document();
-        Netlist netlist = openDocument.netlist();
-        return document.probes().stream()
-                .filter(probe -> probe.id().equals(probeId))
-                .findFirst()
-                .flatMap(probe -> ProbeResolver.netOf(probe.target(), document, netlist))
-                .flatMap(netId -> netlist.nets().stream().filter(net -> net.id().value().equals(netId)).findFirst())
-                .map(net -> net.width() > 1)
-                .orElse(false);
+        return busWidth(probeId) > 1;
     }
 
     public void moveUp(String probeId) {

@@ -133,13 +133,10 @@ public final class SymbolTemplates {
     }
 
     public static SymbolPath triangle(SymbolPoint start, SymbolPoint end, boolean equal) {
-        SymbolPoint corner = constrainedEnd(start, end, equal);
-        int left = Math.min(start.x(), corner.x());
-        int right = Math.max(start.x(), corner.x());
-        int top = Math.min(start.y(), corner.y());
-        int bottom = Math.max(start.y(), corner.y());
-        return polygon(List.of(new SymbolPoint(left, top), new SymbolPoint(right, (top + bottom) / 2),
-                new SymbolPoint(left, bottom)), true);
+        Box box = Box.dragged(start, end, equal);
+        return polygon(List.of(new SymbolPoint(box.left(), box.top()),
+                new SymbolPoint(box.right(), (box.top() + box.bottom()) / 2),
+                new SymbolPoint(box.left(), box.bottom())), true);
     }
 
     public static SymbolPath line(SymbolPoint start, SymbolPoint end, boolean constrained) {
@@ -161,16 +158,26 @@ public final class SymbolTemplates {
     }
 
     public static SymbolPath ellipse(SymbolPoint start, SymbolPoint end, boolean circle) {
-        SymbolPoint corner = constrainedEnd(start, end, circle);
-        int left = Math.min(start.x(), corner.x());
-        int right = Math.max(start.x(), corner.x());
-        int top = Math.min(start.y(), corner.y());
-        int bottom = Math.max(start.y(), corner.y());
+        Box box = Box.dragged(start, end, circle);
+        int left = box.left();
+        int right = box.right();
+        int top = box.top();
+        int bottom = box.bottom();
         int middleX = (left + right) / 2;
         int middleY = (top + bottom) / 2;
         return new SymbolPath(List.of(controlled(middleX, top, right, top),
                 controlled(right, middleY, right, bottom), controlled(middleX, bottom, left, bottom),
                 controlled(left, middleY, left, top)), true, true);
+    }
+
+    /** The box a drag from {@code start} to {@code end} draws a figure in (made square when {@code square}). */
+    private record Box(int left, int top, int right, int bottom) {
+
+        static Box dragged(SymbolPoint start, SymbolPoint end, boolean square) {
+            SymbolPoint corner = constrainedEnd(start, end, square);
+            return new Box(Math.min(start.x(), corner.x()), Math.min(start.y(), corner.y()),
+                    Math.max(start.x(), corner.x()), Math.max(start.y(), corner.y()));
+        }
     }
 
     /** A round circle: eight quadratic arcs, each one's control where the tangents at its ends meet. */

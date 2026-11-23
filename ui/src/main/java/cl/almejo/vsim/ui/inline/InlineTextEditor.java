@@ -698,13 +698,18 @@ public final class InlineTextEditor {
 
         @Override
         protected boolean processKeyBinding(KeyStroke stroke, KeyEvent event, int condition, boolean pressed) {
-            if (super.processKeyBinding(stroke, event, condition, pressed)) {
-                return true;
-            }
-            // Swing first tries the stroke of the extended key code, then the plain one: swallow on the last try.
-            return condition == WHEN_FOCUSED && stroke.getKeyCode() == event.getKeyCode() && keepsToItself(event);
+            return super.processKeyBinding(stroke, event, condition, pressed) || swallows(stroke, event, condition);
         }
 
+    }
+
+    /**
+     * Whether the focused editor swallows a key none of its bindings took. Swing first tries the stroke of the
+     * extended key code, then the plain one: swallow on the last try.
+     */
+    private static boolean swallows(KeyStroke stroke, KeyEvent event, int condition) {
+        return condition == JComponent.WHEN_FOCUSED && stroke.getKeyCode() == event.getKeyCode()
+                && keepsToItself(event);
     }
 
     /** A key the editor keeps from the canvas, the window and the menu accelerators: all but Alt combinations. */
@@ -725,10 +730,7 @@ public final class InlineTextEditor {
 
         @Override
         protected boolean processKeyBinding(KeyStroke stroke, KeyEvent event, int condition, boolean pressed) {
-            if (super.processKeyBinding(stroke, event, condition, pressed)) {
-                return true;
-            }
-            return condition == WHEN_FOCUSED && stroke.getKeyCode() == event.getKeyCode() && keepsToItself(event);
+            return super.processKeyBinding(stroke, event, condition, pressed) || swallows(stroke, event, condition);
         }
     }
 }

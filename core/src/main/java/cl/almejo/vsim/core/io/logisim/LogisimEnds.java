@@ -132,23 +132,24 @@ public final class LogisimEnds {
         table.put(LogisimPartRules.key(memory, "T Flip-Flop"), placement -> flipFlop(placement, List.of("t")));
         table.put(LogisimPartRules.key(memory, "J-K Flip-Flop"), placement -> flipFlop(placement, List.of("j", "k")));
         table.put(LogisimPartRules.key(memory, "S-R Flip-Flop"), placement -> flipFlop(placement, List.of("s", "r")));
-        table.put(LogisimPartRules.key(memory, "Register"), placement -> placement.ends()
-                .add("Q", 0, 0, LogisimEnd.Role.OUTPUT, placement.width())
-                .add("D", -30, 0, LogisimEnd.Role.INPUT, placement.width())
-                .add("CLK", -20, 20, LogisimEnd.Role.INPUT, 1)
-                .add("CLR", -10, 20, LogisimEnd.Role.INPUT, 1)
+        table.put(LogisimPartRules.key(memory, "Register"), placement -> storedValueEnds(placement)
                 .add("EN", -30, 10, LogisimEnd.Role.INPUT, 1).list());
-        table.put(LogisimPartRules.key(memory, "Counter"), placement -> placement.ends()
-                .add("Q", 0, 0, LogisimEnd.Role.OUTPUT, placement.width())
-                .add("D", -30, 0, LogisimEnd.Role.INPUT, placement.width())
-                .add("CLK", -20, 20, LogisimEnd.Role.INPUT, 1)
-                .add("CLR", -10, 20, LogisimEnd.Role.INPUT, 1)
+        table.put(LogisimPartRules.key(memory, "Counter"), placement -> storedValueEnds(placement)
                 .add("LD", -30, -10, LogisimEnd.Role.INPUT, 1)
                 .add("EN", -30, 10, LogisimEnd.Role.INPUT, 1)
                 .add("C", 0, 10, LogisimEnd.Role.OUTPUT, 1).list());
         table.put(LogisimPartRules.key(memory, "RAM"), LogisimEnds::ram);
         table.put(LogisimPartRules.key(memory, "ROM"), placement -> memoryEnds(placement, MEMORY_DATA,
                 LogisimEnd.Role.OUTPUT).list());
+    }
+
+    /** The ends a Register and a Counter share, first in both: the value out and in, the clock and the clear. */
+    private static Ends storedValueEnds(Placement placement) {
+        return placement.ends()
+                .add("Q", 0, 0, LogisimEnd.Role.OUTPUT, placement.width())
+                .add("D", -30, 0, LogisimEnd.Role.INPUT, placement.width())
+                .add("CLK", -20, 20, LogisimEnd.Role.INPUT, 1)
+                .add("CLR", -10, 20, LogisimEnd.Role.INPUT, 1);
     }
 
     private static void inputOutput(Map<String, Function<Placement, List<LogisimEnd>>> table) {

@@ -29,15 +29,20 @@ public class ShownAcceleratorItem extends JMenuItem {
     @Override
     protected void actionPropertyChanged(Action action, String propertyName) {
         super.actionPropertyChanged(action, propertyName);
-        if (Actions.SHOWN_ACCELERATOR.equals(propertyName) || Action.ACCELERATOR_KEY.equals(propertyName)) {
-            setAccelerator(acceleratorOf(action));
-        }
+        followAccelerator(this, action, propertyName);
     }
 
     /** Public so the menus' tests can check that a shown key never runs the item; false then. */
     @Override
     public boolean processKeyBinding(KeyStroke stroke, KeyEvent event, int condition, boolean pressed) {
         return !onlyShowsItsAccelerator() && super.processKeyBinding(stroke, event, condition, pressed);
+    }
+
+    /** Shows {@code action}'s key again on {@code item} when the property that changed is one of its keys. */
+    static void followAccelerator(JMenuItem item, Action action, String propertyName) {
+        if (Actions.SHOWN_ACCELERATOR.equals(propertyName) || Action.ACCELERATOR_KEY.equals(propertyName)) {
+            item.setAccelerator(acceleratorOf(action));
+        }
     }
 
     /** True while the key on the item is a shown one: its action has no menu accelerator of its own. */
@@ -76,9 +81,7 @@ public class ShownAcceleratorItem extends JMenuItem {
         @Override
         protected void actionPropertyChanged(Action action, String propertyName) {
             super.actionPropertyChanged(action, propertyName);
-            if (Actions.SHOWN_ACCELERATOR.equals(propertyName) || Action.ACCELERATOR_KEY.equals(propertyName)) {
-                setAccelerator(acceleratorOf(action));
-            }
+            followAccelerator(this, action, propertyName);
         }
 
         /** Public so the menus' tests can check that a shown key never runs the item; false then. */

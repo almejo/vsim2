@@ -25,16 +25,10 @@ final class OutlineReach {
         if (segments.isEmpty()) {
             return true;
         }
-        double x = pin.x() * (double) SymbolPoint.EIGHTHS;
-        double y = pin.y() * (double) SymbolPoint.EIGHTHS;
-        double width = box.width() * (double) SymbolPoint.EIGHTHS;
-        double height = box.height() * (double) SymbolPoint.EIGHTHS;
-        boolean onSide = Math.min(x, width - x) <= Math.min(y, height - y);
-        double directionX = onSide ? (x <= width / 2 ? 1 : -1) : 0;
-        double directionY = onSide ? 0 : (y <= height / 2 ? 1 : -1);
+        PinStub stub = PinStub.of(pin, box, SymbolPoint.EIGHTHS);
         double limit = MAXIMUM_STUB_UNITS * SymbolPoint.EIGHTHS + STROKE_TOLERANCE;
         return segments.stream().anyMatch(segment ->
-                distanceAlong(segment, x, y, directionX, directionY) <= limit);
+                distanceAlong(segment, stub.x(), stub.y(), stub.directionX(), stub.directionY()) <= limit);
     }
 
     /** The distance from the pin to where the ray along (directionX, directionY) meets the segment. */

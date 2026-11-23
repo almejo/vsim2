@@ -890,27 +890,23 @@ public final class PalettePanel extends JPanel {
 
     /** The tooltip the palette shows over the entry of {@code typeId}, if any. Package-private for tests. */
     Optional<String> toolTipFor(String typeId) {
-        for (int row = 0; row < tree.getRowCount(); row++) {
-            DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent();
-            Object item = node.getUserObject();
-            if (isEntryItem(item) && typeId.equals(idOf(item))) {
-                Component rendered = tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
-                        true, row, false);
-                return Optional.ofNullable(((JComponent) rendered).getToolTipText());
-            }
-        }
-        return Optional.empty();
+        return renderedEntry(typeId).flatMap(rendered -> Optional.ofNullable(((JComponent) rendered).getToolTipText()));
     }
 
     /** What a screen reader announces for the entry of {@code typeId}, if shown. Package-private for tests. */
     Optional<String> accessibleNameOf(String typeId) {
+        return renderedEntry(typeId)
+                .flatMap(rendered -> Optional.ofNullable(rendered.getAccessibleContext().getAccessibleName()));
+    }
+
+    /** The row of the entry of {@code typeId} as the tree's renderer draws it, if the row is shown. */
+    private Optional<Component> renderedEntry(String typeId) {
         for (int row = 0; row < tree.getRowCount(); row++) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent();
             Object item = node.getUserObject();
             if (isEntryItem(item) && typeId.equals(idOf(item))) {
-                Component rendered = tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
-                        true, row, false);
-                return Optional.ofNullable(rendered.getAccessibleContext().getAccessibleName());
+                return Optional.of(tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
+                        true, row, false));
             }
         }
         return Optional.empty();

@@ -1485,31 +1485,35 @@ public final class SelectTool implements Tool {
 
     /** The bus input pin whose value box holds {@code gridPosition}, if any (the topmost one when boxes overlap). */
     private static Optional<Component> busInputValueBoxAt(ToolContext context, Point2D gridPosition) {
-        double documentX = gridPosition.getX() * GridPoint.PIXELS_PER_UNIT;
-        double documentY = gridPosition.getY() * GridPoint.PIXELS_PER_UNIT;
-        List<Component> components = context.openDocument().document().components();
-        for (int index = components.size() - 1; index >= 0; index--) {
-            Component component = components.get(index);
-            if (InterfacePins.isBusInput(component) && InterfacePinPainter.valueBox(
-                    context.openDocument().registry().typeOf(component), component)
-                    .map(box -> box.contains(documentX, documentY)).orElse(false)) {
-                return Optional.of(component);
-            }
-        }
-        return Optional.empty();
+        return topmostComponentAt(context, gridPosition, (component, documentX, documentY) ->
+                InterfacePins.isBusInput(component) && InterfacePinPainter.valueBox(
+                        context.openDocument().registry().typeOf(component), component)
+                        .map(box -> box.contains(documentX, documentY)).orElse(false));
     }
 
     /** The component whose drawn label holds {@code gridPosition}, if any (the topmost one when labels overlap). */
     private static Optional<Component> componentLabelAt(ToolContext context, Point2D gridPosition) {
+        return topmostComponentAt(context, gridPosition, (component, documentX, documentY) ->
+                LabelLayout.componentLabel(context.openDocument().registry().typeOf(component), component)
+                        .map(label -> label.bounds().contains(documentX, documentY))
+                        .orElse(false));
+    }
+
+    /** Whether a part of {@code component} (its label, its value box…) holds a point, in document pixels. */
+    @FunctionalInterface
+    private interface HoldsPoint {
+        boolean test(Component component, double documentX, double documentY);
+    }
+
+    /** The topmost component (the last one drawn) a part of which holds {@code gridPosition}, if any. */
+    private static Optional<Component> topmostComponentAt(ToolContext context, Point2D gridPosition,
+                                                          HoldsPoint holds) {
         double documentX = gridPosition.getX() * GridPoint.PIXELS_PER_UNIT;
         double documentY = gridPosition.getY() * GridPoint.PIXELS_PER_UNIT;
         List<Component> components = context.openDocument().document().components();
         for (int index = components.size() - 1; index >= 0; index--) {
             Component component = components.get(index);
-            boolean onLabel = LabelLayout.componentLabel(context.openDocument().registry().typeOf(component), component)
-                    .map(label -> label.bounds().contains(documentX, documentY))
-                    .orElse(false);
-            if (onLabel) {
+            if (holds.test(component, documentX, documentY)) {
                 return Optional.of(component);
             }
         }

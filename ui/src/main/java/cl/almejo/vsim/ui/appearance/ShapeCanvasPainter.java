@@ -279,20 +279,22 @@ final class ShapeCanvasPainter {
         }
     }
 
+    /** The selected pin, in screen pixels: where its callouts point. */
+    private Point selectedPinOnScreen() {
+        PinPlacement selected = canvas.current.get().appearance().pins().stream()
+                .filter(placement -> canvas.pin.filter(placement.source()::equals).isPresent()).findFirst()
+                .orElseThrow();
+        return screen(selected.offset().x() * 8, selected.offset().y() * 8);
+    }
+
     private void paintCallouts(Graphics2D overlay, ColorScheme scheme) {
         Optional<String> coincidence = canvas.coincidenceCallout();
         if (coincidence.isPresent()) {
-            PinPlacement selected = canvas.current.get().appearance().pins().stream()
-                    .filter(placement -> canvas.pin.filter(placement.source()::equals).isPresent()).findFirst()
-                    .orElseThrow();
-            paintCallout(overlay, screen(selected.offset().x() * 8, selected.offset().y() * 8),
-                    new String[]{coincidence.get()}, scheme.wireConflict(), true, true);
+            paintCallout(overlay, selectedPinOnScreen(), new String[]{coincidence.get()}, scheme.wireConflict(), true,
+                    true);
         } else if (canvas.pinCallout().isPresent()) {
-            PinPlacement selected = canvas.current.get().appearance().pins().stream()
-                    .filter(placement -> canvas.pin.filter(placement.source()::equals).isPresent()).findFirst()
-                    .orElseThrow();
-            paintCallout(overlay, screen(selected.offset().x() * 8, selected.offset().y() * 8),
-                    new String[]{canvas.pinCallout().get()}, scheme.selection(), false, true);
+            paintCallout(overlay, selectedPinOnScreen(), new String[]{canvas.pinCallout().get()}, scheme.selection(),
+                    false, true);
         }
         canvas.dragTip.ifPresent(tip -> paintCallout(overlay, canvas.pointer,
                 tip.split("\n"), scheme.selection(), false, false));
@@ -474,12 +476,28 @@ final class ShapeCanvasPainter {
         SymbolPoint end = SymbolTemplates.line(anchor, canvas.point(canvas.pointer), canvas.shiftHeld()).nodes()
                 .getLast().point();
         surface.setColor(scheme.selection());
-        surface.setStroke(new BasicStroke((float) (1.2 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
-                new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0));
-        surface.draw(new Line2D.Double(anchor.x() / 8.0 * UNIT, anchor.y() / 8.0 * UNIT, end.x() / 8.0 * UNIT,
-                end.y() / 8.0 * UNIT));
-        Shape marker = new Ellipse2D.Double(anchor.x() / 8.0 * UNIT - scaled(3) / zoom(), anchor.y() / 8.0 * UNIT - scaled(3) / zoom(),
-                scaled(6) / zoom(), scaled(6) / zoom());
+        surface.setStroke(rubberBandStroke());
+        surface.draw(line(anchor, end));
+        // the anchor's marker is outlined with the rubber band's dashed stroke
+        paintNodeMarker(surface, scheme, anchor);
+    }
+
+    /** The dashed stroke of a rubber band from a placed node to the pointer. */
+    private BasicStroke rubberBandStroke() {
+        return new BasicStroke((float) (1.2 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+                new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0);
+    }
+
+    /** The line between two symbol points, in the surface's units. */
+    private static Line2D line(SymbolPoint from, SymbolPoint to) {
+        return new Line2D.Double(from.x() / 8.0 * UNIT, from.y() / 8.0 * UNIT, to.x() / 8.0 * UNIT,
+                to.y() / 8.0 * UNIT);
+    }
+
+    /** A placed node: a small ring in the background colour, outlined with the current stroke. */
+    private void paintNodeMarker(Graphics2D surface, ColorScheme scheme, SymbolPoint node) {
+        Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - scaled(3) / zoom(),
+                node.y() / 8.0 * UNIT - scaled(3) / zoom(), scaled(6) / zoom(), scaled(6) / zoom());
         surface.setColor(scheme.background());
         surface.fill(marker);
         surface.setColor(scheme.componentStroke());
@@ -509,24 +527,15 @@ final class ShapeCanvasPainter {
         SymbolPoint last = pathNodes.getLast();
         SymbolPoint target = closing ? pathNodes.getFirst() : canvas.point(canvas.pointer);
         surface.setColor(scheme.selection());
-        surface.setStroke(new BasicStroke((float) (1.2 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
-                new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0));
-        surface.draw(new Line2D.Double(last.x() / 8.0 * UNIT, last.y() / 8.0 * UNIT, target.x() / 8.0 * UNIT,
-                target.y() / 8.0 * UNIT));
+        surface.setStroke(rubberBandStroke());
+        surface.draw(line(last, target));
         if (canvas.tool == ShapeTool.POLYGON && pathNodes.size() >= 2 && !closing) {
-            SymbolPoint first = pathNodes.getFirst();
             surface.setColor(PainterSupport.withAlpha(scheme.selection(), 110));
-            surface.draw(new Line2D.Double(target.x() / 8.0 * UNIT, target.y() / 8.0 * UNIT, first.x() / 8.0 * UNIT,
-                    first.y() / 8.0 * UNIT));
+            surface.draw(line(target, pathNodes.getFirst()));
         }
         surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
         for (SymbolPoint node : pathNodes) {
-            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - scaled(3) / zoom(), node.y() / 8.0 * UNIT - scaled(3) / zoom(),
-                    scaled(6) / zoom(), scaled(6) / zoom());
-            surface.setColor(scheme.background());
-            surface.fill(marker);
-            surface.setColor(scheme.componentStroke());
-            surface.draw(marker);
+            paintNodeMarker(surface, scheme, node);
         }
         if (closing) {
             SymbolPoint first = pathNodes.getFirst();
