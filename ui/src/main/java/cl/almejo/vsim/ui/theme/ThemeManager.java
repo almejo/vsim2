@@ -203,6 +203,7 @@ public final class ThemeManager {
                 installedLook = look;
             }
         }
+        appearance.setInterfaceZoom(installedLook.zoomPercent());
         appearance.setScheme(schemeFor(preferences.colorScheme(), installedDark, customSchemes::lookup));
     }
 

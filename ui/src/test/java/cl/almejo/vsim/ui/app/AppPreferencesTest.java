@@ -71,6 +71,22 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theLeftColumnWidthRoundTripsAndGarbageReadsAsEmpty() {
+        AppPreferences preferences = AppPreferences.inMemory();
+        assertThat(preferences.leftColumnWidth()).isEmpty();
+        preferences.setLeftColumnWidth(260);
+        assertThat(preferences.leftColumnWidth()).hasValue(260);
+        preferences.setLeftColumnWidth(0);
+        preferences.setLeftColumnWidth(-5);
+        assertThat(preferences.leftColumnWidth()).hasValue(260);
+
+        for (String garbage : new String[] {"nada", "-3", "0", "", "12.5"}) {
+            AppPreferences stored = new AppPreferences(new FixedPreferences(Map.of("ui.leftColumn.width", garbage)));
+            assertThat(stored.leftColumnWidth()).as(garbage).isEmpty();
+        }
+    }
+
+    @Test
     void anUnreadableStoredTextFontSizeFallsBackToTheDefaultAndAMissingFamilyIsKept() {
         AppPreferences stored = new AppPreferences(new FixedPreferences(
                 Map.of("textFontFamily", "Fuente De Otro Computador", "textFontSize", "99")));

@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.IntSupplier;
 
 /**
  * The left column of an editor view (spec §5.3): the palette alone, or a panel above it (the circuit tree) as an
@@ -55,6 +56,9 @@ public final class LeftColumn extends JPanel {
     private static final String FOLDED_ARROW = "▸ ";
 
     private final AppPreferences preferences;
+    private final IntSupplier interfaceZoom;
+    /** Set while the column puts the divider where the preferences say, so that it is not taken for a drag. */
+    private boolean applying;
     private final KeyboardFocus focus;
     private final Runnable focusCanvas;
     private final Map<Section, Panel> panels = new EnumMap<>(Section.class);
@@ -66,18 +70,22 @@ public final class LeftColumn extends JPanel {
     private final PropertyChangeListener rememberDivider;
 
     /**
+     * @param interfaceZoom the interface size installed now, in percent (the tree's height scales with it)
      * @param focus       where the focus is and how to ask for it (the view's)
      * @param focusCanvas gives the focus to the canvas, when a panel that had it folds
      */
-    LeftColumn(JComponent palette, AppPreferences preferences, KeyboardFocus focus, Runnable focusCanvas) {
+    LeftColumn(JComponent palette, AppPreferences preferences, IntSupplier interfaceZoom, KeyboardFocus focus,
+               Runnable focusCanvas) {
         super(new BorderLayout());
         Objects.requireNonNull(palette, "palette");
         this.preferences = Objects.requireNonNull(preferences, "preferences");
+        this.interfaceZoom = Objects.requireNonNull(interfaceZoom, "interfaceZoom");
         this.focus = Objects.requireNonNull(focus, "focus");
         this.focusCanvas = Objects.requireNonNull(focusCanvas, "focusCanvas");
         this.rememberDivider = change -> {
-            if (split.isShowing() || split.getHeight() > 0) {
-                preferences.setCircuitTreeSplit(split.getDividerLocation());
+            if (!applying && (split.isShowing() || split.getHeight() > 0)) {
+                preferences.setCircuitTreeSplit(LeftColumnWidth.unscaled(split.getDividerLocation(),
+                        interfaceZoom.getAsInt()));
             }
         };
         toggles.put(Section.CIRCUIT, toggle(Section.CIRCUIT, "action.circuitTree", KeyEvent.VK_1));
@@ -88,6 +96,20 @@ public final class LeftColumn extends JPanel {
         panels.put(Section.PALETTE, new Panel(Messages.text("leftColumn.palette"), palette, toggles.get(
                 Section.PALETTE), () -> flip(Section.PALETTE)));
         layOutPanels();
+    }
+
+    /**
+     * Puts the divider between the tree and the palette where the stored height (at 100 %) and the interface size say;
+     * stores nothing. The view calls it when the interface size changes.
+     */
+    void applyTreeHeight() {
+        applying = true;
+        try {
+            split.setDividerLocation(LeftColumnWidth.scaled(
+                    preferences.circuitTreeSplit().orElse(DEFAULT_CIRCUIT_HEIGHT), interfaceZoom.getAsInt()));
+        } finally {
+            applying = false;
+        }
     }
 
     private Action toggle(Section section, String nameKey, int digit) {
@@ -137,7 +159,7 @@ public final class LeftColumn extends JPanel {
         Objects.requireNonNull(component, "component");
         Panel circuit = new Panel(title, component, toggles.get(Section.CIRCUIT), () -> flip(Section.CIRCUIT));
         panels.put(Section.CIRCUIT, circuit);
-        split.setDividerLocation(preferences.circuitTreeSplit().orElse(DEFAULT_CIRCUIT_HEIGHT));
+        applyTreeHeight();
         split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, rememberDivider);
         toggles.values().forEach(action -> action.setEnabled(true));
         layOutPanels();
@@ -230,7 +252,7 @@ public final class LeftColumn extends JPanel {
             if (circuitOpen && paletteOpen) {
                 split.setTopComponent(circuit);
                 split.setBottomComponent(paletteSection);
-                split.setDividerLocation(preferences.circuitTreeSplit().orElse(DEFAULT_CIRCUIT_HEIGHT));
+                applyTreeHeight();
                 add(split, BorderLayout.CENTER);
             } else if (circuitOpen) {
                 add(circuit, BorderLayout.CENTER);

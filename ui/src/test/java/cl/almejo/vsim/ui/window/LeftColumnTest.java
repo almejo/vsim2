@@ -41,12 +41,13 @@ class LeftColumnTest {
 
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private final AppPreferences preferences = AppPreferences.inMemory();
+    private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
     private EditorView view;
 
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
+        EditorServices services = new EditorServices(PainterRegistry.standard(), appearance,
                 preferences, new cl.almejo.vsim.core.library.ComponentLibrary(), List.of());
         view = new EditorView(openDocument, services, NO_WINDOW);
         view.setSize(900, 600);
@@ -177,6 +178,42 @@ class LeftColumnTest {
 
         JSplitPane split = (JSplitPane) SwingUtilities.getAncestorOfClass(JSplitPane.class, tree);
         assertThat(split.getDividerLocation()).isEqualTo(150);
+    }
+
+    @Test
+    void theTreeHeightScalesWithTheInterfaceSizeAndAnOldPixelValueIsTheValueAt100() {
+        preferences.setCircuitTreeSplit(150);
+        appearance.setInterfaceZoom(200);
+        JLabel tree = new JLabel("árbol");
+
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+
+        JSplitPane split = splitOf(tree);
+        assertThat(split.getDividerLocation()).isEqualTo(300);
+        appearance.setInterfaceZoom(75);
+        assertThat(split.getDividerLocation()).isEqualTo(150);
+        assertThat(preferences.circuitTreeSplit()).hasValue(150);
+    }
+
+    @Test
+    void aTreeDragAt150IsStoredAtItsValueAt100() {
+        appearance.setInterfaceZoom(150);
+        JLabel tree = new JLabel("árbol");
+        view.addAbovePalette("Circuito", tree);
+        layOut(view);
+        JSplitPane split = splitOf(tree);
+        assertThat(split.getDividerLocation()).isEqualTo(255);
+
+        split.setDividerLocation(300);
+
+        assertThat(preferences.circuitTreeSplit()).hasValue(200);
+    }
+
+    @Test
+    void garbageStoredTreeHeightsFallBackToTheDefault() {
+        AppPreferences garbage = AppPreferences.inMemory();
+        assertThat(garbage.circuitTreeSplit()).isEmpty();
     }
 
     private JSplitPane splitOf(Component tree) {

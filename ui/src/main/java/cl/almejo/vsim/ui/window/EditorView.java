@@ -112,7 +112,6 @@ import java.util.function.Supplier;
  */
 public final class EditorView extends JPanel implements CanvasHost {
 
-    private static final int PALETTE_WIDTH = 230;
 
     private final OpenDocument openDocument;
     /** The one selection of this window, shown and changed by every pane. */
@@ -142,6 +141,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final PalettePanel palette;
     /** The left column: the palette alone, or {@link #addAbovePalette} over it as an accordion. */
     private final LeftColumn leftColumn;
+    private final LeftColumnWidth leftColumnWidth;
     private final Map<String, Action> inspectorToggles = new LinkedHashMap<>();
     /** Herramientas: one radio item per tool, the active tool's chosen (M4), whatever chose it. */
     private final ButtonGroup toolItems = new ButtonGroup();
@@ -225,7 +225,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             canvas().requestFocusInWindow();
         });
-        this.leftColumn = new LeftColumn(palette, services.preferences(), viewFocus, () -> viewFocus.request(canvas()));
+        this.leftColumn = new LeftColumn(palette, services.preferences(), services.appearance()::interfaceZoom, viewFocus, () -> viewFocus.request(canvas()));
         createInspectorToggles();
 
         this.menuBar = actions.createMenuBar();
@@ -245,7 +245,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.bottomDock = new BottomDock(canvasArea);
         this.inspectorSplit = new InspectorSplit(bottomDock, inspector);
         this.split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftColumn, inspectorSplit);
-        split.setDividerLocation(PALETTE_WIDTH);
+        this.leftColumnWidth = new LeftColumnWidth(split, services.preferences(), services.appearance(), leftColumn);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
         // the strip of the right panel's sections stays on the edge when the panel closes, so it is outside the split
@@ -734,6 +734,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             steps.add(extensionDisposers.get(index));
         }
         extensionDisposers.clear();
+        steps.add(leftColumnWidth::dispose);
         steps.add(() -> services.appearance().removeListener(appearanceListener));
         steps.add(() -> TextFonts.removeListener(textFontListener));
         steps.add(() -> openDocument.removeChangeListener(placeHintListener));
@@ -1174,7 +1175,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
             add(splitAndStrip, BorderLayout.CENTER);
             statusBar.setVisible(true);
-            split.setDividerLocation(paletteWidth);
+            leftColumnWidth.apply();
             inspectorSplit.setDividerLocation(inspectorDivider);
             revalidate();
             repaint();

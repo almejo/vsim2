@@ -304,6 +304,7 @@ public final class AppPreferences {
     static final String GRID_STYLE = "grid.style";
     static final String SPLIT_LAYOUTS = "splitLayouts";
     private static final String CIRCUIT_TREE_SPLIT = "ui.circuitTree.split";
+    private static final String LEFT_COLUMN_WIDTH = "ui.leftColumn.width";
     static final String TERMINAL_WINDOWS = "terminal-windows";
     static final String GRID_LINE_SPACING = "grid.lineSpacing";
     static final String INVERT_MODIFIER = "invertModifier";
@@ -881,7 +882,29 @@ public final class AppPreferences {
         putFlag(ANIMATE_VIEW_MOVES, animate);
     }
 
-    /** The height of the circuit tree above the palette, in pixels; empty until the user drags the divider. */
+    /**
+     * The left column's width at 100 % interface size, in pixels (the window applies it × the size); empty until the
+     * user drags the divider.
+     */
+    public java.util.OptionalInt leftColumnWidth() {
+        try {
+            int stored = Integer.parseInt(read(LEFT_COLUMN_WIDTH, ""));
+            return stored > 0 ? java.util.OptionalInt.of(stored) : java.util.OptionalInt.empty();
+        } catch (NumberFormatException exception) {
+            return java.util.OptionalInt.empty();
+        }
+    }
+
+    public void setLeftColumnWidth(int width) {
+        if (width > 0 && leftColumnWidth().orElse(-1) != width) {
+            put(LEFT_COLUMN_WIDTH, Integer.toString(width));
+        }
+    }
+
+    /**
+     * The height of the circuit tree above the palette, in pixels at 100 % interface size (the window applies it × the
+     * size; old values were pixels, read as they are); empty until the user drags the divider.
+     */
     public java.util.OptionalInt circuitTreeSplit() {
         try {
             int stored = Integer.parseInt(read(CIRCUIT_TREE_SPLIT, ""));
