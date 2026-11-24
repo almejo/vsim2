@@ -1296,7 +1296,6 @@ public final class OpenDocument implements AutoCloseable {
         main().speedListeners.remove(listener);
     }
 
-    /** Puts the engine on the document's speed when an undo step (execute, undo, redo) changed it. */
     /** The history moved (an edit, an undo or a redo): the speed, the change count and the content version follow. */
     private void historyChanged(History changed) {
         followSpeed();
@@ -1311,6 +1310,7 @@ public final class OpenDocument implements AutoCloseable {
         fireChanged();
     }
 
+    /** Puts the engine on the document's speed when an undo step (execute, undo, redo) changed it. */
     private void followSpeed() {
         double speed = document.simulationSpeed();
         if (speed != engineSpeedRequested) {

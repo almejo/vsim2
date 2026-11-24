@@ -281,16 +281,16 @@ public final class ExpressionsPanel extends JPanel {
         }
     }
 
-    /**
-     * Every way of closing the dialog («Cerrar», which reads «Cancelar» while «Crear» is building, Escape and the
-     * close box) comes here: a creation that is running is cancelled; then, when the lines were edited and not created
-     * since, the user is asked before they are discarded.
-     */
     /** The creation controls close the window: {@code onClose} is the one set last, so it is read when called. */
     private void closeRequested() {
         onClose.run();
     }
 
+    /**
+     * Every way of closing the dialog («Cerrar», which reads «Cancelar» while «Crear» is building, Escape and the
+     * close box) comes here: a creation that is running is cancelled; then, when the lines were edited and not created
+     * since, the user is asked before they are discarded.
+     */
     public void requestClose() {
         controls.cancel();
         if (!model.contents().equals(unchanged) && !discardConfirmation.discard(this)) {
