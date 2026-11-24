@@ -18,7 +18,6 @@ import javax.swing.JSlider;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
-import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
@@ -110,22 +109,7 @@ public final class ZoomControl extends JPanel {
     private JTextField editor;
     private final ActionListener enterListener = event -> applyTyped();
     private final FocusListener editorFocus = FocusEvents.onLost(this::leaveField);
-    private final DocumentListener typing = new DocumentListener() {
-        @Override
-        public void insertUpdate(DocumentEvent event) {
-            typed();
-        }
-
-        @Override
-        public void removeUpdate(DocumentEvent event) {
-            typed();
-        }
-
-        @Override
-        public void changedUpdate(DocumentEvent event) {
-            typed();
-        }
-    };
+    private final DocumentListener typing = TextChanges.listener(this::typed);
 
     public ZoomControl(Target target, Actions actions) {
         super(new MigLayout("insets 0, gap 2, novisualpadding", "", "[center]"));

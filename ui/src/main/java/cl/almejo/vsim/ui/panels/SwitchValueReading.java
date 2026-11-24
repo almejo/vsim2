@@ -16,7 +16,6 @@ import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
-import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.Color;
@@ -58,22 +57,7 @@ final class SwitchValueReading {
         this.signednessBox = signednessBox;
         block.setName("value-reading");
         block.setOpaque(false);
-        DocumentListener refreshOnEdit = new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                refresh();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                refresh();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                refresh();
-            }
-        };
+        DocumentListener refreshOnEdit = TextChanges.listener(this::refresh);
         ((JTextComponent) valueBox.getEditor().getEditorComponent()).getDocument().addDocumentListener(refreshOnEdit);
         valueBox.addActionListener(event -> refresh());
         signednessBox.addActionListener(event -> refresh());

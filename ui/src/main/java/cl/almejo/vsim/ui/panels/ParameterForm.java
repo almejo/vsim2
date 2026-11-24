@@ -35,8 +35,6 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -358,7 +356,7 @@ public final class ParameterForm extends JPanel {
     private void showNumbersOnlyWithManyBits() {
         JFormattedTextField widthField = spinnerField((JSpinner) editors.get(StandardComponentTypes.WIDTH));
         Runnable update = () -> showNumbersFor(widthField);
-        widthField.getDocument().addDocumentListener(documentListener(update));
+        widthField.getDocument().addDocumentListener(TextChanges.listener(update));
         widthField.addPropertyChangeListener("value", event -> update.run());
         update.run();
     }
@@ -374,30 +372,11 @@ public final class ParameterForm extends JPanel {
         cells.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
     }
 
-    private static DocumentListener documentListener(Runnable update) {
-        return new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                update.run();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                update.run();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                update.run();
-            }
-        };
-    }
-
     /** Runs {@code action} whenever {@code editor} shows another value, typed or set. */
     private static void onEveryChange(JComponent editor, Runnable action) {
         switch (editor) {
             case JSpinner spinner -> spinner.addChangeListener(event -> action.run());
-            case JTextComponent text -> text.getDocument().addDocumentListener(documentListener(action));
+            case JTextComponent text -> text.getDocument().addDocumentListener(TextChanges.listener(action));
             case JComboBox<?> box -> box.addActionListener(event -> action.run());
             case JCheckBox checkBox -> checkBox.addActionListener(event -> action.run());
             case ColorSwatches<?> swatches -> swatches.addChoiceListener(action);

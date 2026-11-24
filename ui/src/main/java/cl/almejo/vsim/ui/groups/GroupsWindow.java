@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.ModalDialogs;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.layout.LC;
 import net.miginfocom.layout.PlatformDefaults;
 import net.miginfocom.layout.UnitValue;
@@ -33,8 +34,6 @@ import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
@@ -324,22 +323,7 @@ final class GroupsWindow {
         row.add(caption);
         text.setName("groups.text");
         text.addActionListener(event -> accept());
-        text.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                updateAccept();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                updateAccept();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                updateAccept();
-            }
-        });
+        TextChanges.onChange(text, this::updateAccept);
         text.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent event) {

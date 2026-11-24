@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import javax.swing.JTextField;
+import javax.swing.event.DocumentListener;
 import org.junit.jupiter.api.Test;
 
 class TextChangesTest {
@@ -37,5 +38,19 @@ class TextChangesTest {
         second.setText("b");
 
         assertThat(runs[0]).isEqualTo(2);
+    }
+
+    @Test
+    void theListenerCanBeKeptAndRemoved() {
+        JTextField field = new JTextField();
+        int[] runs = {0};
+        DocumentListener listener = TextChanges.listener(() -> runs[0]++);
+        field.getDocument().addDocumentListener(listener);
+
+        field.setText("a");
+        assertThat(runs[0]).isEqualTo(1);
+        field.getDocument().removeDocumentListener(listener);
+        field.setText("b");
+        assertThat(runs[0]).isEqualTo(1);
     }
 }

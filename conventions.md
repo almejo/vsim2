@@ -95,7 +95,11 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 - **Lambdas are short**: a lambda is one expression or a body of at most 3 lines; anything longer is a named method
   passed as a method reference (`this::applyZoom`). When the logic is worth testing, the method goes where a test
   reaches it (package-private, or a model/core class), not only a private method of a panel. A lambda that only calls
-  a method is that method's reference. A listener repeated in more than one place is a named class. Automatic checks
+  a method is that method's reference. A listener repeated in more than one place is a named class; the ones that
+  only forward an event to a `Runnable` already exist in `ui.panels` (`WindowEvents`, `FocusEvents`, `ComponentEvents`,
+  `MouseClicks`, `PopupMouseListener`, `TextChanges`) and in `ui.actions` (`Actions.of`, `unnamed`, `doNothing`): use
+  them before writing an anonymous `WindowAdapter`, `FocusAdapter`, `ComponentAdapter`, `MouseAdapter`,
+  `DocumentListener` or `AbstractAction`. Automatic checks
   (PMD, `config/pmd/vsim-rules.xml`): `LambdaBodyAtMostThreeLines` and
   `LambdaCanBeMethodReference`; the `vsim-rules-reviewer` judges the repeated listeners.
 - Compilation runs with `-Xlint:all`: new code introduces no warnings. The build also runs PMD
