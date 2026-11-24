@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -43,14 +44,8 @@ public final class MachineModeExtension implements EditorExtension {
                 .addComponentRows(new MachinePieceRows(view.openDocument(), view::enterComponent));
         // last: a new view of a machine being tested (Nueva vista, the group moved) tests too, everything installed
         MachineMode.of(view).ifPresent(MachineMode::joinTheTestUnderWay);
-        return () -> {
-            removePieceRows.run();
-            removeNameRows.run();
-            stopNavigating.run();
-            removeHelpItem.run();
-            leaveMachineMode.run();
-            testEntries.uninstall();
-            removeDuplication.run();
-        };
+        List<Runnable> undos = List.of(removePieceRows, removeNameRows, stopNavigating, removeHelpItem,
+                leaveMachineMode, testEntries::uninstall, removeDuplication);
+        return () -> undos.forEach(Runnable::run);
     }
 }

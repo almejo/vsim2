@@ -43,20 +43,41 @@ final class MachineTestHelp {
      * until then), and taken away before that when asked.
      */
     private static Bubble standard() {
-        return (shownIn, ended) -> {
-            boolean[] cancelled = {false};
-            Runnable[] closer = {() -> { }};
-            SwingUtilities.invokeLater(() -> {
-                if (!cancelled[0]) {
-                    closer[0] = FeatureBubble.open(shownIn, TARGET_ID, "machine.test.help.title",
-                            "machine.test.help.text", ended);
-                }
-            });
-            return () -> {
-                cancelled[0] = true;
-                closer[0].run();
-            };
-        };
+        return LaterBubble::open;
+    }
+
+    /** The real bubble, opened on the event queue's next turn unless taken away before; running it takes it away. */
+    private static final class LaterBubble implements Runnable {
+
+        private final EditorView shownIn;
+        private final Runnable ended;
+        private boolean cancelled;
+        private Runnable closer = () -> { };
+
+        private LaterBubble(EditorView shownIn, Runnable ended) {
+            this.shownIn = shownIn;
+            this.ended = ended;
+        }
+
+        /** Opens the bubble in {@code shownIn} once the window laid out; returns what takes it away. */
+        static Runnable open(EditorView shownIn, Runnable ended) {
+            LaterBubble bubble = new LaterBubble(shownIn, ended);
+            SwingUtilities.invokeLater(bubble::openUnlessCancelled);
+            return bubble;
+        }
+
+        private void openUnlessCancelled() {
+            if (!cancelled) {
+                closer = FeatureBubble.open(shownIn, TARGET_ID, "machine.test.help.title", "machine.test.help.text",
+                        ended);
+            }
+        }
+
+        @Override
+        public void run() {
+            cancelled = true;
+            closer.run();
+        }
     }
 
     /** The bubble opens through {@code replacement} from now on (tests). */

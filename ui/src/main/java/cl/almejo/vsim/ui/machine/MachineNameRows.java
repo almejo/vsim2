@@ -59,16 +59,7 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
         WrappedErrorText problem = new WrappedErrorText(" ");
         problem.setName(PROBLEM_NAME);
         problem.setVisible(false);
-        Runnable apply = () -> {
-            Optional<String> wrong = MachineNaming.problem(place, library, id, field.getText());
-            problem.setText(wrong.orElse(" "));
-            problem.setVisible(wrong.isPresent());
-            if (wrong.isEmpty()) {
-                MachineNaming.rename(place, library, id, field.getText());
-                MachineNaming.nameOf(place, id).filter(name -> !name.equals(field.getText()))
-                        .ifPresent(field::setText);
-            }
-        };
+        Runnable apply = () -> applyName(id, field, problem);
         field.addActionListener(event -> apply.run());
         rows.onCommit(apply); // a click on another part rebuilds Propiedades before the focus leaves the field
         field.addFocusListener(new FocusAdapter() {
@@ -81,5 +72,20 @@ final class MachineNameRows implements PropertiesPanel.ComponentRows {
         });
         rows.add(Messages.text("machine.piece.name"), field);
         rows.addWide(problem);
+    }
+
+    /**
+     * Renames the machine {@code id} to what {@code field} says when the name is good (the field then shows the name
+     * as kept), else {@code problem} says why.
+     */
+    private void applyName(String id, JTextField field, WrappedErrorText problem) {
+        Optional<String> wrong = MachineNaming.problem(place, library, id, field.getText());
+        problem.setText(wrong.orElse(" "));
+        problem.setVisible(wrong.isPresent());
+        if (wrong.isEmpty()) {
+            MachineNaming.rename(place, library, id, field.getText());
+            MachineNaming.nameOf(place, id).filter(name -> !name.equals(field.getText()))
+                    .ifPresent(field::setText);
+        }
     }
 }

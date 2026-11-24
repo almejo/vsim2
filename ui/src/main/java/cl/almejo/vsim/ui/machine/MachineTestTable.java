@@ -305,13 +305,16 @@ public final class MachineTestTable extends JPanel {
 
     /** Espacio: every cell of {@code block} changes as a click would change it. */
     void advance(MachineTestCellPainter.Block block) {
-        editCells(block, (test, row, column) -> {
-            String pinId = row.pinId().orElseThrow();
-            return row.kind() == MachineTestTableModel.Kind.INPUT
-                    ? MachineTests.withInput(test, column, pinId, !test.columns().get(column).input(pinId))
-                    : MachineTests.withExpected(test, column, pinId,
-                    test.columns().get(column).expected(pinId).next());
-        });
+        editCells(block, MachineTestTable::advanced);
+    }
+
+    /** {@code test} with the cell of {@code row} in {@code column} changed as a click would change it. */
+    static MachineTest advanced(MachineTest test, MachineTestTableModel.Row row, int column) {
+        String pinId = row.pinId().orElseThrow();
+        return row.kind() == MachineTestTableModel.Kind.INPUT
+                ? MachineTests.withInput(test, column, pinId, !test.columns().get(column).input(pinId))
+                : MachineTests.withExpected(test, column, pinId,
+                test.columns().get(column).expected(pinId).next());
     }
 
     /** Supr: the «esperado» cells of {@code block} become «no importa»; an input has no such value. */
@@ -328,19 +331,23 @@ public final class MachineTestTable extends JPanel {
 
     private void editCells(MachineTestCellPainter.Block block, CellEdit edit) {
         List<MachineTestTableModel.Row> rows = grid.model().rows();
-        editChosen(test -> {
-            MachineTest edited = test;
-            int lastColumn = Math.min(block.lastColumn(), test.columns().size() - 1);
-            for (int row = Math.max(0, block.firstRow()); row <= block.lastRow() && row < rows.size(); row++) {
-                if (!rows.get(row).kind().editable()) {
-                    continue;
-                }
-                for (int column = Math.max(0, block.firstColumn()); column <= lastColumn; column++) {
-                    edited = edit.apply(edited, rows.get(row), column);
-                }
+        editChosen(test -> withCellsEdited(test, block, rows, edit), "machine.test.step.fill");
+    }
+
+    /** {@code test} with {@code edit} applied to each editable cell of {@code block} ({@code rows} the table's). */
+    private static MachineTest withCellsEdited(MachineTest test, MachineTestCellPainter.Block block,
+                                               List<MachineTestTableModel.Row> rows, CellEdit edit) {
+        MachineTest edited = test;
+        int lastColumn = Math.min(block.lastColumn(), test.columns().size() - 1);
+        for (int row = Math.max(0, block.firstRow()); row <= block.lastRow() && row < rows.size(); row++) {
+            if (!rows.get(row).kind().editable()) {
+                continue;
             }
-            return edited;
-        }, "machine.test.step.fill");
+            for (int column = Math.max(0, block.firstColumn()); column <= lastColumn; column++) {
+                edited = edit.apply(edited, rows.get(row), column);
+            }
+        }
+        return edited;
     }
 
     // ---- columns ----
@@ -388,13 +395,16 @@ public final class MachineTestTable extends JPanel {
         if (!grid.model().canAddTest()) {
             return;
         }
-        editTests(tests -> {
-            List<MachineTest> added = new ArrayList<>(tests);
-            added.add(MachineTest.empty(MachineTests.freeId(tests), MachineTestTableModel.defaultName(tests),
-                    MachineTests.DEFAULT_COLUMNS));
-            return added;
-        }, "machine.test.step.addTest");
+        editTests(MachineTestTable::withEmptyTestAdded, "machine.test.step.addTest");
         session.chooseTest(session.machine().tests().size() - 1);
+    }
+
+    /** {@code tests} with an empty test of the default columns after them, named after the next number. */
+    static List<MachineTest> withEmptyTestAdded(List<MachineTest> tests) {
+        List<MachineTest> added = new ArrayList<>(tests);
+        added.add(MachineTest.empty(MachineTests.freeId(tests), MachineTestTableModel.defaultName(tests),
+                MachineTests.DEFAULT_COLUMNS));
+        return added;
     }
 
     void renameTest(int index, String name) {
@@ -419,14 +429,17 @@ public final class MachineTestTable extends JPanel {
         if (!grid.model().canAddTest()) {
             return;
         }
-        editTests(tests -> {
-            List<MachineTest> copied = new ArrayList<>(tests);
-            MachineTest original = tests.get(index);
-            copied.add(index + 1, original.withId(MachineTests.freeId(tests))
-                    .withName(Messages.format("machine.test.copyName", original.name())));
-            return copied;
-        }, "machine.test.step.duplicateTest");
+        editTests(tests -> withTestDuplicated(tests, index), "machine.test.step.duplicateTest");
         session.chooseTest(index + 1);
+    }
+
+    /** {@code tests} with a copy of the test at {@code index} right after it («… (copia)», a free id). */
+    static List<MachineTest> withTestDuplicated(List<MachineTest> tests, int index) {
+        List<MachineTest> copied = new ArrayList<>(tests);
+        MachineTest original = tests.get(index);
+        copied.add(index + 1, original.withId(MachineTests.freeId(tests))
+                .withName(Messages.format("machine.test.copyName", original.name())));
+        return copied;
     }
 
     void deleteTest(int index) {
@@ -464,13 +477,7 @@ public final class MachineTestTable extends JPanel {
         MachineTest renamed = grid.model().tests().get(index);
         JTextField field = new JTextField(renamed.name(), 12);
         boolean[] finished = {false};
-        Runnable commit = () -> {
-            if (!finished[0]) {
-                finished[0] = true;
-                closeEditor(field);
-                renameTestWithId(renamed.id(), field.getText());
-            }
-        };
+        Runnable commit = () -> commitRename(field, renamed.id(), finished);
         field.addActionListener(event -> commit.run());
         field.addFocusListener(new FocusAdapter() {
             @Override
@@ -488,6 +495,15 @@ public final class MachineTestTable extends JPanel {
         field.selectAll();
         field.requestFocusInWindow();
         return field;
+    }
+
+    /** Renames the test {@code testId} to what {@code field} says and closes it, once ({@code finished[0]}). */
+    private void commitRename(JTextField field, String testId, boolean[] finished) {
+        if (!finished[0]) {
+            finished[0] = true;
+            closeEditor(field);
+            renameTestWithId(testId, field.getText());
+        }
     }
 
     /** Takes {@code field} off whichever tab holds it now (none, when its tab went). */
