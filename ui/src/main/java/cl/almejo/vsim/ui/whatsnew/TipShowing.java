@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import com.formdev.flatlaf.util.UIScale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +25,6 @@ import java.awt.Dimension;
 import java.awt.KeyEventDispatcher;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
@@ -282,17 +281,7 @@ final class TipShowing {
         Runnable preferencesChanged = this::refresh; // a rebound key shows at once
         preferences.addListener(preferencesChanged);
         whileOpen.add(() -> preferences.removeListener(preferencesChanged));
-        ComponentListener moved = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                place();
-            }
-
-            @Override
-            public void componentMoved(ComponentEvent event) {
-                place();
-            }
-        };
+        ComponentListener moved = ComponentEvents.onMovedOrResized(this::place);
         layers.addComponentListener(moved);
         whileOpen.add(() -> layers.removeComponentListener(moved));
         Component area = view.canvasPanes();

@@ -1,13 +1,12 @@
 package cl.almejo.vsim.ui.groups;
 
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import javax.swing.BorderFactory;
 import javax.swing.JScrollPane;
 import javax.swing.Scrollable;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Insets;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 
 /**
  * A scroll pane of the «Grupos» window that shows its whole view up to {@code tallest} pixels and never gives up any
@@ -28,14 +27,7 @@ final class WholeHeightScrollPane extends JScrollPane {
         setBorder(BorderFactory.createEmptyBorder());
         getVerticalScrollBar().setUnitIncrement(16);
         // a new width can make the view fit or stop fitting: ask for the height that goes with it
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                if (scrollsSideways() != scrollbarCounted) {
-                    revalidate();
-                }
-            }
-        });
+        addComponentListener(ComponentEvents.onResized(this::revalidateWhenTheScrollbarChanges));
     }
 
     private Component view() {
@@ -56,6 +48,12 @@ final class WholeHeightScrollPane extends JScrollPane {
     }
 
     /** True when the view is wider than the room the pane has for it now (unknown before the first layout). */
+    private void revalidateWhenTheScrollbarChanges() {
+        if (scrollsSideways() != scrollbarCounted) {
+            revalidate();
+        }
+    }
+
     private boolean scrollsSideways() {
         if (getWidth() <= 0) {
             return false;

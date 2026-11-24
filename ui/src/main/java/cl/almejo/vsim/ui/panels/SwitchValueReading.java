@@ -21,8 +21,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.Color;
 import java.awt.FontMetrics;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,12 +77,7 @@ final class SwitchValueReading {
         ((JTextComponent) valueBox.getEditor().getEditorComponent()).getDocument().addDocumentListener(refreshOnEdit);
         valueBox.addActionListener(event -> refresh());
         signednessBox.addActionListener(event -> refresh());
-        valueBox.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                refresh();
-            }
-        });
+        valueBox.addComponentListener(ComponentEvents.onResized(this::refresh));
         JFormattedTextField widthField = ((JSpinner.DefaultEditor) widthSpinner.getEditor()).getTextField();
         widthField.getDocument().addDocumentListener(refreshOnEdit);
         widthField.addPropertyChangeListener("value", event -> refresh());

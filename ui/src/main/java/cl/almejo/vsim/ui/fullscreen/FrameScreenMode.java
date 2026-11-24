@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.fullscreen;
 
 import cl.almejo.vsim.ui.canvas.FrameTicker;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
+import java.awt.event.ComponentListener;
 
 import javax.swing.JFrame;
 import java.awt.Frame;
@@ -8,8 +10,6 @@ import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.Insets;
 import java.awt.Rectangle;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowStateListener;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,17 +34,7 @@ public final class FrameScreenMode implements ScreenMode {
             System::currentTimeMillis);
     private final Remaximize remaximize = new Remaximize(FrameTicker.swing(RESYNC_FRAME_MILLISECONDS),
             System::currentTimeMillis);
-    private final ComponentAdapter frameListener = new ComponentAdapter() {
-        @Override
-        public void componentMoved(ComponentEvent event) {
-            windowManagerAnswered();
-        }
-
-        @Override
-        public void componentResized(ComponentEvent event) {
-            windowManagerAnswered();
-        }
-    };
+    private final ComponentListener frameListener = ComponentEvents.onMovedOrResized(this::windowManagerAnswered);
     private final WindowStateListener stateListener = event -> windowManagerAnswered();
     private GraphicsDevice device;
     private Rectangle boundsBefore;

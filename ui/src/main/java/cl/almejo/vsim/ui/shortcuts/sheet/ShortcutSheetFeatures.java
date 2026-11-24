@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutEchoExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 
 import javax.swing.Action;
 import javax.swing.JLayeredPane;
@@ -204,17 +205,7 @@ final class ShortcutSheetFeatures {
         whileOpen.add(() -> preferences.removeListener(refresher));
         Runnable removePhraseListener = view.addGesturePhraseListener(this::showGesturePhrase);
         whileOpen.add(removePhraseListener);
-        ComponentListener areaListener = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                place(layers);
-            }
-
-            @Override
-            public void componentMoved(ComponentEvent event) {
-                place(layers);
-            }
-        };
+        ComponentListener areaListener = ComponentEvents.onMovedOrResized(() -> place(layers));
         view.addComponentListener(areaListener);
         whileOpen.add(() -> view.removeComponentListener(areaListener));
         ComponentListener hiddenListener = new ComponentAdapter() {

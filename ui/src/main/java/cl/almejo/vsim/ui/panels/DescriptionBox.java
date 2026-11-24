@@ -11,8 +11,6 @@ import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.util.Objects;
 
 /**
@@ -56,12 +54,7 @@ public final class DescriptionBox extends JPanel {
         applyLabelLook();
         showText(text);
         // The wrapped height depends on the width: ask the layout again when the width changes.
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                revalidate();
-            }
-        });
+        addComponentListener(ComponentEvents.onResized(this::revalidate));
     }
 
     @Override

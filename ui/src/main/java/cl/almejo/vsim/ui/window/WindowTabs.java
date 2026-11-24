@@ -26,6 +26,8 @@ import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import cl.almejo.vsim.ui.window.tabs.TabMark;
 import cl.almejo.vsim.ui.window.tabs.TabStrip;
 import cl.almejo.vsim.ui.window.tabs.TabStripModel;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
+import java.awt.event.ComponentListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +44,6 @@ import java.awt.CardLayout;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -474,12 +474,8 @@ public final class WindowTabs extends JPanel {
      */
     static Runnable watchForTheInitialView(EditorView view, InitialView initialView, BooleanSupplier maximized) {
         Runnable paneWatchRemover = view.forEachPane(pane -> watchForTheUsersView(pane, initialView));
-        ComponentAdapter resizeListener = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                initialView.canvasResized(maximized.getAsBoolean());
-            }
-        };
+        ComponentListener resizeListener = ComponentEvents.onResized(
+                () -> initialView.canvasResized(maximized.getAsBoolean()));
         view.canvasPanes().addComponentListener(resizeListener);
         return () -> {
             paneWatchRemover.run();

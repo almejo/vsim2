@@ -24,6 +24,7 @@ import cl.almejo.vsim.ui.window.closed.ClosedEntry;
 import cl.almejo.vsim.ui.window.closed.ClosedGroup;
 import cl.almejo.vsim.ui.window.closed.ClosedWindow;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +34,6 @@ import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -104,17 +103,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 application.windowActivated(CircuitWindow.this);
             }
         });
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentMoved(ComponentEvent event) {
-                rememberNormalBounds();
-            }
-
-            @Override
-            public void componentResized(ComponentEvent event) {
-                rememberNormalBounds();
-            }
-        });
+        addComponentListener(ComponentEvents.onMovedOrResized(this::rememberNormalBounds));
         application.addWindowsListener(windowsListener);
         setSize(1280, 820);
         setLocationByPlatform(true);

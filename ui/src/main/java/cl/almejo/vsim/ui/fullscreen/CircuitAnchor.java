@@ -2,11 +2,10 @@ package cl.almejo.vsim.ui.fullscreen;
 
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 
 import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyBoundsAdapter;
 import java.awt.event.HierarchyBoundsListener;
@@ -73,17 +72,8 @@ final class CircuitAnchor {
     }
 
     private void listenTo(CircuitCanvas pane) {
-        ComponentListener resizes = new ComponentAdapter() {
-            @Override
-            public void componentMoved(ComponentEvent event) {
-                fromAnEvent(() -> paneChangedOnTheEdt(pane));
-            }
-
-            @Override
-            public void componentResized(ComponentEvent event) {
-                fromAnEvent(() -> paneChangedOnTheEdt(pane));
-            }
-        };
+        ComponentListener resizes = ComponentEvents.onMovedOrResized(
+                () -> fromAnEvent(() -> paneChangedOnTheEdt(pane)));
         HierarchyBoundsListener ancestorResizes = new HierarchyBoundsAdapter() {
             @Override
             public void ancestorResized(HierarchyEvent event) {

@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 
 import javax.swing.JComponent;
 import javax.swing.JViewport;
@@ -22,10 +23,8 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.event.ComponentAdapter;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -58,12 +57,7 @@ final class WaveformPlot extends JComponent implements Scrollable {
                 }
             }
         });
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                panel.plotResized(getWidth());
-            }
-        });
+        addComponentListener(ComponentEvents.onResized(() -> panel.plotResized(getWidth())));
         addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent event) {

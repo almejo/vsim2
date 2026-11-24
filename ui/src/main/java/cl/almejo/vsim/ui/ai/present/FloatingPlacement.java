@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
@@ -11,8 +12,6 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -70,17 +69,7 @@ final class FloatingPlacement {
     private final JComponent panel;
     private final List<JComponent> dragHandles;
     private final Runnable removeActivePaneListener;
-    private final ComponentListener viewListener = new ComponentAdapter() {
-        @Override
-        public void componentResized(ComponentEvent event) {
-            place();
-        }
-
-        @Override
-        public void componentMoved(ComponentEvent event) {
-            place();
-        }
-    };
+    private final ComponentListener viewListener = ComponentEvents.onMovedOrResized(this::place);
     private final MouseAdapter dragger = new MouseAdapter() {
         private Point last;
 

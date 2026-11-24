@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.fullscreen;
 
 import cl.almejo.vsim.ui.canvas.FrameTicker;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.JComboBox;
@@ -29,8 +30,6 @@ import java.awt.PointerInfo;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeListener;
@@ -147,12 +146,7 @@ public final class EdgeBars {
         Objects.requireNonNull(bar, "bar");
         Objects.requireNonNull(keepOpen, "keepOpen");
         Container parent = Objects.requireNonNull(bar.getParent(), "the bar must be in its container");
-        ComponentListener parentListener = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                relayout();
-            }
-        };
+        ComponentListener parentListener = ComponentEvents.onResized(this::relayout);
         parent.addComponentListener(parentListener);
         Registration registration = new Registration(edge, bar, keepOpen, parent, parentListener);
         registrations.add(registration);

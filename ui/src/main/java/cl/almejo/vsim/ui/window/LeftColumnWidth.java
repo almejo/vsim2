@@ -2,10 +2,10 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
+import java.awt.event.ComponentListener;
 
 import javax.swing.JSplitPane;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.util.Objects;
 
 /**
@@ -28,7 +28,7 @@ final class LeftColumnWidth {
     private final LeftColumn leftColumn;
     private final Runnable zoomListener;
     private final DividerDrags drags;
-    private final ComponentAdapter resizeListener;
+    private final ComponentListener resizeListener;
     private boolean laidOut;
     /** A width to give back when the interface size goes back to its own (after presentation mode), or null. */
     private Kept pendingRestore;
@@ -45,20 +45,19 @@ final class LeftColumnWidth {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.appearance = Objects.requireNonNull(appearance, "appearance");
         this.zoomListener = this::zoomChanged;
-        this.resizeListener = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                if (!laidOut && split.getWidth() > 0) {
-                    laidOut = true;
-                    apply();
-                }
-            }
-        };
+        this.resizeListener = ComponentEvents.onResized(this::laidOutOnce);
         laidOut = split.getWidth() > 0;
         apply();
         this.drags = new DividerDrags(split, this::dragged);
         split.addComponentListener(resizeListener);
         appearance.addZoomListener(zoomListener);
+    }
+
+    private void laidOutOnce() {
+        if (!laidOut && split.getWidth() > 0) {
+            laidOut = true;
+            apply();
+        }
     }
 
     private void zoomChanged() {
