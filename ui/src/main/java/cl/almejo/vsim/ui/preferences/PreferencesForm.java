@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.wiring.InvertModifierNames;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import com.formdev.flatlaf.FlatLaf;
 
 import javax.swing.JButton;
@@ -25,8 +26,6 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -299,12 +298,7 @@ public final class PreferencesForm {
         Runnable store = () -> preferences.setExternalEditor(Optional.of(externalEditorField.getText().strip())
                 .filter(command -> !command.isEmpty()));
         externalEditorField.addActionListener(event -> store.run());
-        externalEditorField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                store.run();
-            }
-        });
+        externalEditorField.addFocusListener(FocusEvents.onLost(store));
     }
 
     /**

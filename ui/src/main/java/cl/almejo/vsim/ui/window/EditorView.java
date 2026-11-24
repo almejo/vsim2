@@ -66,6 +66,7 @@ import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -89,8 +90,6 @@ import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -343,12 +342,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     private Runnable refreshPasteOnFocus(CircuitCanvas pane) {
-        FocusListener refresh = new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent event) {
-                selectionActions.refreshPaste();
-            }
-        };
+        FocusListener refresh = FocusEvents.onGained(selectionActions::refreshPaste);
         pane.addFocusListener(refresh);
         return () -> pane.removeFocusListener(refresh);
     }

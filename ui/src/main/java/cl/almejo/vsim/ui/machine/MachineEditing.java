@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 
 import javax.swing.Action;
 import javax.swing.InputMap;
@@ -25,8 +26,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import java.awt.Component;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
@@ -103,12 +102,7 @@ final class MachineEditing {
 
     /** Pegar asks the clipboard again when the diagram gets the focus back, as a circuit's pane does. */
     private static Runnable refreshPasteOnFocus(EditorView view, MachineCanvas canvas) {
-        FocusListener refresh = new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent event) {
-                view.selectionActions().refreshPaste();
-            }
-        };
+        FocusListener refresh = FocusEvents.onGained(() -> view.selectionActions().refreshPaste());
         canvas.addFocusListener(refresh);
         return () -> canvas.removeFocusListener(refresh);
     }

@@ -7,14 +7,13 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Supplier;
@@ -61,12 +60,7 @@ final class GroupsRows implements PropertiesPanel.ComponentRows {
         field.setToolTipText(Messages.format("groups.bitsPerPinTip", groups.width()));
         Runnable commit = () -> commitBitsPerPin(id, groups, field);
         field.addActionListener(event -> commit.run());
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                commit.run();
-            }
-        });
+        field.addFocusListener(FocusEvents.onLost(commit));
         JLabel custom = new MutedLabel(size == 0 ? Messages.text("groups.custom")
                 : groups.lastPinRemainder() > 0 ? Messages.format("groups.lastPin", groups.lastPinRemainder()) : "");
         custom.setName("groups.custom");

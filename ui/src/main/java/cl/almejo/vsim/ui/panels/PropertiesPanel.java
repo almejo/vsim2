@@ -650,12 +650,7 @@ public final class PropertiesPanel extends VerticalScrollPanel {
         int built = generation;
         Runnable apply = () -> applyIfCurrent(built, () -> labelCommand(id, area).ifPresent(openDocument::execute));
         area.addConfirmListener(apply);
-        area.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                apply.run();
-            }
-        });
+        area.addFocusListener(FocusEvents.onLost(apply));
         noteArea = area;
         pendingEdits = apply;
         addNoteStyleRows(List.of(label));

@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
@@ -33,8 +34,6 @@ import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -155,14 +154,7 @@ final class MachinePinTable extends JPanel {
                 ? "machine.pins.newInput.accessible" : "machine.pins.newOutput.accessible"));
         newNameField.setVisible(false);
         newNameField.addActionListener(event -> applyNewName(true));
-        newNameField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                if (newNameField.isVisible()) {
-                    applyNewName(false);
-                }
-            }
-        });
+        newNameField.addFocusListener(FocusEvents.onLost(this::applyNewNameIfVisible));
         newNameField.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 CANCEL_NEW);
         newNameField.getActionMap().put(CANCEL_NEW, action(this::closeNewName));
@@ -384,14 +376,7 @@ final class MachinePinTable extends JPanel {
                 : "machine.pins.output.accessible", pin.name()));
         Row row = new Row(pin.id(), pin.name(), field, handle);
         field.addActionListener(event -> applyRename(row, true));
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                if (!rebuilding && rows.contains(row)) {
-                    applyRename(row, false);
-                }
-            }
-        });
+        field.addFocusListener(FocusEvents.onLost(() -> applyRenameIfStillThere(row)));
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_UP,
                 InputEvent.ALT_DOWN_MASK), MOVE_UP);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,
@@ -470,6 +455,18 @@ final class MachinePinTable extends JPanel {
      * refused name stays while the field has the focus ({@code typing}), so it can be fixed; leaving the field puts
      * back the name the machine has, the reason still under it.
      */
+    private void applyRenameIfStillThere(Row row) {
+        if (!rebuilding && rows.contains(row)) {
+            applyRename(row, false);
+        }
+    }
+
+    private void applyNewNameIfVisible() {
+        if (newNameField.isVisible()) {
+            applyNewName(false);
+        }
+    }
+
     private void applyRename(Row row, boolean typing) {
         String typedName = row.field().getText().strip();
         if (typedName.equals(row.name())) {

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -10,8 +11,6 @@ import javax.swing.JTextField;
 import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
 import java.awt.Font;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 
 /** One line: its text field and ✕, its problem, the merged-letters warning with its ✕, and its preview. */
 final class ExpressionLineRow extends JPanel {
@@ -55,18 +54,17 @@ final class ExpressionLineRow extends JPanel {
         add(warningRow, "span 2, hidemode 3");
         add(preview, "span 2, hidemode 3");
         owner.onEdit(field, this::lineEdited);
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent event) {
-                int index = owner.rows.indexOf(ExpressionLineRow.this);
-                if (index >= 0) {
-                    owner.lastFocused = index;
-                }
-            }
-        });
+        field.addFocusListener(FocusEvents.onGained(this::focused));
         remove.addActionListener(event -> removeLine());
         field.addActionListener(event -> goToNextLine());
         dismiss.addActionListener(event -> dismissMerged());
+    }
+
+    private void focused() {
+        int index = owner.rows.indexOf(this);
+        if (index >= 0) {
+            owner.lastFocused = index;
+        }
     }
 
     private void lineEdited() {

@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.paint.LedPainter;
 import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import cl.almejo.vsim.ui.paint.KeyboardPainter;
+import java.awt.event.FocusListener;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
@@ -40,8 +41,6 @@ import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.text.ParseException;
@@ -759,12 +758,7 @@ public final class ParameterForm extends JPanel {
                 listener.run();
             }
         };
-        FocusAdapter onFocusLost = new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                edited.run();
-            }
-        };
+        FocusListener onFocusLost = FocusEvents.onLost(edited);
         Optional<String> chooser = type.profileParameter();
         editors.forEach((name, editor) -> {
             if (chooser.filter(name::equals).isEmpty()) {
@@ -773,7 +767,7 @@ public final class ParameterForm extends JPanel {
         });
     }
 
-    private static void listenForCommits(JComponent editor, Runnable edited, FocusAdapter onFocusLost) {
+    private static void listenForCommits(JComponent editor, Runnable edited, FocusListener onFocusLost) {
         switch (editor) {
             case JSpinner spinner -> {
                 JFormattedTextField field = spinnerField(spinner);

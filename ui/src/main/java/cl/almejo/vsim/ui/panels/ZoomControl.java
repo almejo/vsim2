@@ -28,8 +28,6 @@ import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -112,12 +110,7 @@ public final class ZoomControl extends JPanel {
     private double shownZoom = 1.0;
     private JTextField editor;
     private final ActionListener enterListener = event -> applyTyped();
-    private final FocusListener editorFocus = new FocusAdapter() {
-        @Override
-        public void focusLost(FocusEvent event) {
-            leaveField();
-        }
-    };
+    private final FocusListener editorFocus = FocusEvents.onLost(this::leaveField);
     private final DocumentListener typing = new DocumentListener() {
         @Override
         public void insertUpdate(DocumentEvent event) {

@@ -3,6 +3,8 @@ package cl.almejo.vsim.ui.window.panes;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
+import cl.almejo.vsim.ui.panels.FocusEvents;
+import java.awt.event.FocusListener;
 
 import javax.swing.JComponent;
 import javax.swing.border.Border;
@@ -10,8 +12,6 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
@@ -464,12 +464,7 @@ public final class CanvasPanes extends JComponent {
         Runnable removePressObserver = pane.addPressObserver(() -> activate(pane));
         Runnable removeOtherPanes = pane.useOtherPanes(
                 () -> panes().stream().filter(other -> other != pane).toList());
-        FocusAdapter focusListener = new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent event) {
-                activate(pane);
-            }
-        };
+        FocusListener focusListener = FocusEvents.onGained(() -> activate(pane));
         pane.addFocusListener(focusListener);
         paneListenerRemovals.put(pane, () -> {
             removePressObserver.run();

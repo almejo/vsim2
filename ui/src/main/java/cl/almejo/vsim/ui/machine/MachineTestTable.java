@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.waveform.PinToggle;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 
@@ -26,8 +27,6 @@ import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -479,12 +478,7 @@ public final class MachineTestTable extends JPanel {
         boolean[] finished = {false};
         Runnable commit = () -> commitRename(field, renamed.id(), finished);
         field.addActionListener(event -> commit.run());
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                commit.run();
-            }
-        });
+        field.addFocusListener(FocusEvents.onLost(commit));
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 "cancelRename");
         field.getActionMap().put("cancelRename", Actions.unnamed(() -> {
