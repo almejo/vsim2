@@ -145,6 +145,25 @@ class StoryboardTest {
         assertThat(circuit.document().components()).hasSize(1);
     }
 
+    /** The methods behind a call read the id off the task they were given: a refusal names the task asked for. */
+    @Test
+    void aRefusalNamesTheTaskThatWasAskedAboutNotAnother() {
+        presenting();
+        TaskInfo first = api.beginTask(DOCUMENT, "Primera", STORY);
+        api.beginStage(first.taskId(), 0, Optional.empty());
+        api.endTask(first.taskId(), false).task();
+        TaskInfo second = api.beginTask(DOCUMENT, "Segunda", STORY);
+
+        assertThatThrownBy(() -> api.keepOnlyResult(second.taskId()))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
+                    assertThat(refusal.getMessage()).contains(second.taskId()).doesNotContain(first.taskId() + " ");
+                    assertThat(refusal.recovery()).containsEntry("taskId", second.taskId());
+                });
+        // the ended task answers for itself, whatever else runs
+        api.keepOnlyResult(first.taskId());
+    }
+
     // --- frames never take in what the stage did not add (Review Focus 3) ---
 
     /** The user's first look: a «Prueba: …» note's frame was a tiny box at the note's top-left corner. */
