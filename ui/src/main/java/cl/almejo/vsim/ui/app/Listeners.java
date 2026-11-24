@@ -31,7 +31,7 @@ public final class Listeners<T> {
     /**
      * Calls {@code action} with every listener even when an earlier one fails; the failures come back, in order,
      * once all have run. Unlike {@code Steps.runEach}, which keeps the first failure and suppresses the rest in it, the
-     * caller here gets every failure apart (to report each one to its own listener's owner).
+     * caller here gets every failure apart.
      */
     public List<RuntimeException> fireAll(Consumer<T> action) {
         List<RuntimeException> failures = new ArrayList<>();
