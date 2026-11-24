@@ -40,15 +40,17 @@ public final class EdgeController {
     public Runnable add(EdgeHandle handle) {
         Objects.requireNonNull(handle, "handle");
         handles.add(handle);
-        return () -> {
-            if (owner == handle) {
-                cancel();
-            }
-            if (hovered == handle) {
-                hovered = null;
-            }
-            handles.remove(handle);
-        };
+        return () -> removeHandle(handle);
+    }
+
+    private void removeHandle(EdgeHandle handle) {
+        if (owner == handle) {
+            cancel();
+        }
+        if (hovered == handle) {
+            hovered = null;
+        }
+        handles.remove(handle);
     }
 
     /** The handles installed now, in installation order. */
