@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.panels.ModalDialogs;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.panels.TextRenderers;
 import cl.almejo.vsim.ui.panels.WindowEvents;
 
 import net.miginfocom.swing.MigLayout;
@@ -28,14 +29,12 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.swing.ButtonGroup;
-import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
@@ -341,17 +340,8 @@ public final class PdfExportDialog extends JPanel {
         options.add(scopeSelection, "span 2");
         options.add(scopeFrame);
         options.add(frameChoice);
-        frameChoice.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected,
-                                                          boolean focused) {
-                Component shown = super.getListCellRendererComponent(list, value, index, selected, focused);
-                if (value instanceof FrameEntry entry) {
-                    setText("  ".repeat(index < 0 ? 0 : entry.depth()) + entry.displayTitle());
-                }
-                return shown;
-            }
-        });
+        frameChoice.setRenderer(TextRenderers.of(FrameEntry.class,
+                (entry, index) -> "  ".repeat(index < 0 ? 0 : entry.depth()) + entry.displayTitle()));
         frameChoice.getAccessibleContext().setAccessibleName(Messages.text("print.scope.frame"));
     }
 
@@ -362,17 +352,7 @@ public final class PdfExportDialog extends JPanel {
         paperLabel.setLabelFor(paperChoice);
         options.add(paperLabel);
         options.add(paperChoice);
-        paperChoice.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected,
-                                                          boolean focused) {
-                Component shown = super.getListCellRendererComponent(list, value, index, selected, focused);
-                if (value instanceof Paper paper) {
-                    setText(Messages.text(paper.messageKey()));
-                }
-                return shown;
-            }
-        });
+        paperChoice.setRenderer(TextRenderers.of(Paper.class, (paper, index) -> Messages.text(paper.messageKey())));
         ButtonGroup orientations = new ButtonGroup();
         orientations.add(portrait);
         orientations.add(landscape);
