@@ -116,12 +116,7 @@ public final class ListedProblems {
                     problems.add(MachineProblem.of(definition.id(), Optional.empty(), finding))));
         }
         List<String> paths = new ArrayList<>();
-        componentStates.forEach((path, state) -> {
-            if (state instanceof VisibleState.MachineVisibleState running
-                    && !MachineChecks.runtime(running).isEmpty()) {
-                paths.add(path);
-            }
-        });
+        componentStates.forEach((path, state) -> addIfRunningWithFindings(paths, path, state));
         Collections.sort(paths);
         for (String path : paths) {
             Optional<ComponentDefinition> definition = MachineCopies.definitionAt(document, path);
@@ -133,6 +128,12 @@ public final class ListedProblems {
                     problems.add(MachineProblem.of(definition.get().id(), Optional.of(path), finding)));
         }
         return problems;
+    }
+
+    private static void addIfRunningWithFindings(List<String> paths, String path, VisibleState state) {
+        if (state instanceof VisibleState.MachineVisibleState running && !MachineChecks.runtime(running).isEmpty()) {
+            paths.add(path);
+        }
     }
 
     /**

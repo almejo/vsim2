@@ -222,13 +222,16 @@ public final class EditInsideCommand implements WrapsCommand, LoosensPins {
      * document is the truth and the copy only a view of it, so undo and redo never stick on a stale copy.
      */
     void bringCopyToTheDefinition(CircuitDocument document) {
-        document.definition(definitionId).ifPresent(definition -> {
-            ReplaceContentCommand refresh = ReplaceContentCommand.between(workingCopy,
-                    definition.bodyDocument(document), "inside.refresh");
-            if (!refresh.changesNothing()) {
-                refresh.apply(workingCopy);
-            }
-        });
+        document.definition(definitionId).ifPresent(definition -> refreshCopyFrom(definition, document));
+    }
+
+    /** Applies to the working copy whatever differs from the body of {@code definition}. */
+    private void refreshCopyFrom(ComponentDefinition definition, CircuitDocument document) {
+        ReplaceContentCommand refresh = ReplaceContentCommand.between(workingCopy,
+                definition.bodyDocument(document), "inside.refresh");
+        if (!refresh.changesNothing()) {
+            refresh.apply(workingCopy);
+        }
     }
 
     @Override

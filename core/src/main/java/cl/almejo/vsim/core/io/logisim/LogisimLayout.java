@@ -456,13 +456,16 @@ public final class LogisimLayout {
                 ends.add(new PartPlacement.End(rotation.apply(request.pins().get(pin).position()), plan.net(),
                         plan.target()));
             }
-            GridPoint estimate = PartPlacement.estimate(ends, () -> {
-                GridPoint location = scaled(component.location());
-                GridPoint offset = request.anchor().map(rotation::apply).orElseGet(() -> request.pins().isEmpty()
-                        ? GridPoint.ORIGIN : rotation.apply(request.pins().getFirst().position()));
-                return location.translate(-offset.x(), -offset.y());
-            });
+            GridPoint estimate = PartPlacement.estimate(ends, () -> anchoredAtLocation(component, request, rotation));
             return new PartPlacement.Choice(ends, estimate, rotation == request.rotation() ? 0 : ROTATION_PENALTY);
+        }
+
+        /** Where the part goes at {@code rotation} when it has no end to meet: its anchor (or first pin) on its location. */
+        private GridPoint anchoredAtLocation(LogisimComponent component, PartRequest request, Rotation rotation) {
+            GridPoint location = scaled(component.location());
+            GridPoint offset = request.anchor().map(rotation::apply).orElseGet(() -> request.pins().isEmpty()
+                    ? GridPoint.ORIGIN : rotation.apply(request.pins().getFirst().position()));
+            return location.translate(-offset.x(), -offset.y());
         }
 
         private GridPoint pinPoint(Spot spot, PinSpec pin) {

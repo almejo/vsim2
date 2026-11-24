@@ -166,18 +166,21 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
 
     private static void checkVisibilityConditions(String id, List<ParameterSpec> parameters) {
         for (ParameterSpec parameter : parameters) {
-            parameter.visibility().ifPresent(condition -> {
-                ParameterSpec other = parameters.stream()
-                        .filter(candidate -> candidate.name().equals(condition.parameter())
-                                && !candidate.name().equals(parameter.name()))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException(id + ": " + parameter.name()
-                                + " is shown after an unknown parameter " + condition.parameter()));
-                if (!other.normalizeIfValid(condition.value()).filter(condition.value()::equals).isPresent()) {
-                    throw new IllegalArgumentException(id + ": " + parameter.name() + " is shown when "
-                            + other.name() + " is " + condition.value() + ", which is not one of its values");
-                }
-            });
+            parameter.visibility().ifPresent(condition -> checkVisibilityCondition(id, parameters, parameter, condition));
+        }
+    }
+
+    private static void checkVisibilityCondition(String id, List<ParameterSpec> parameters, ParameterSpec parameter,
+                                                 VisibilityCondition condition) {
+        ParameterSpec other = parameters.stream()
+                .filter(candidate -> candidate.name().equals(condition.parameter())
+                        && !candidate.name().equals(parameter.name()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(id + ": " + parameter.name()
+                        + " is shown after an unknown parameter " + condition.parameter()));
+        if (!other.normalizeIfValid(condition.value()).filter(condition.value()::equals).isPresent()) {
+            throw new IllegalArgumentException(id + ": " + parameter.name() + " is shown when "
+                    + other.name() + " is " + condition.value() + ", which is not one of its values");
         }
     }
 
@@ -208,15 +211,18 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     private static ParameterProfile normalized(String id, List<ParameterSpec> parameters, String chooser,
                                                ParameterProfile profile) {
         Map<String, Object> values = new LinkedHashMap<>();
-        profile.values().forEach((name, value) -> {
-            ParameterSpec parameter = parameters.stream()
-                    .filter(candidate -> candidate.name().equals(name) && !name.equals(chooser))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException(id + ": profile " + profile.name()
-                            + " sets an unknown parameter " + name));
-            values.put(name, parameter.normalize(value));
-        });
+        profile.values().forEach((name, value) ->
+                values.put(name, profileParameter(id, parameters, chooser, profile, name).normalize(value)));
         return new ParameterProfile(profile.name(), values);
+    }
+
+    private static ParameterSpec profileParameter(String id, List<ParameterSpec> parameters, String chooser,
+                                                  ParameterProfile profile, String name) {
+        return parameters.stream()
+                .filter(candidate -> candidate.name().equals(name) && !name.equals(chooser))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(id + ": profile " + profile.name()
+                        + " sets an unknown parameter " + name));
     }
 
     /** This type as {@code component} has it: {@link #specializedFor} its parameters. */

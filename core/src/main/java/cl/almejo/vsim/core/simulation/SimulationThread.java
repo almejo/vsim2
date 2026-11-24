@@ -178,14 +178,17 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void restart(FlatCircuit circuit, Map<String, String> channels) {
         Map<String, String> copy = Map.copyOf(channels);
-        requests.add(() -> {
-            stepInProgress = null;
-            engine.restart(circuit, copy);
-            latestStep = null; // the old timeline's last jump must not come back as «(+N)»
-            latestPauseNotice = null;
-            failure = null;
-            pendingUnits = 0;
-        });
+        requests.add(() -> restartNow(circuit, copy));
+    }
+
+    /** On the simulation thread: restarts the engine and forgets the old timeline's step, notice and failure. */
+    private void restartNow(FlatCircuit circuit, Map<String, String> channels) {
+        stepInProgress = null;
+        engine.restart(circuit, channels);
+        latestStep = null; // the old timeline's last jump must not come back as «(+N)»
+        latestPauseNotice = null;
+        failure = null;
+        pendingUnits = 0;
     }
 
     /**
@@ -210,17 +213,19 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     private void driveButton(String componentId, Value value) {
-        requests.add(() -> {
-            try {
-                if (running) {
-                    engine.setInput(componentId, value);
-                } else {
-                    publishStep(engine.setInputTracked(componentId, value));
-                }
-            } catch (IllegalArgumentException exception) {
-                LOGGER.debug("Button {} not driven: {}", componentId, exception.getMessage());
+        requests.add(() -> driveNow(componentId, value));
+    }
+
+    private void driveNow(String componentId, Value value) {
+        try {
+            if (running) {
+                engine.setInput(componentId, value);
+            } else {
+                publishStep(engine.setInputTracked(componentId, value));
             }
-        });
+        } catch (IllegalArgumentException exception) {
+            LOGGER.debug("Button {} not driven: {}", componentId, exception.getMessage());
+        }
     }
 
     /**
@@ -246,13 +251,15 @@ public final class SimulationThread implements AutoCloseable {
 
     /** An edit of the not-yet-read typed text of {@code componentId}; while paused it is a step, as a click. */
     public void editTyping(String componentId, TypingEdit edit) {
-        requests.add(() -> {
-            if (running) {
-                engine.editTyping(componentId, edit);
-            } else {
-                publishStep(engine.editTypingTracked(componentId, edit));
-            }
-        });
+        requests.add(() -> editTypingNow(componentId, edit));
+    }
+
+    private void editTypingNow(String componentId, TypingEdit edit) {
+        if (running) {
+            engine.editTyping(componentId, edit);
+        } else {
+            publishStep(engine.editTypingTracked(componentId, edit));
+        }
     }
 
     /** Queues {@code typing} with the {@link #driveButton} template, answering what it took. */
@@ -264,35 +271,40 @@ public final class SimulationThread implements AutoCloseable {
         }
         waitingTyping.add(future);
         future.whenComplete((taken, failure) -> waitingTyping.remove(future));
-        requests.add(() -> {
-            try {
-                if (running) {
-                    future.complete(typing.getAsInt());
-                } else {
-                    SimulationEngine.TypedStep typed = engine.typedTracked(typing);
-                    publishStep(typed.step());
-                    future.complete(typed.taken());
-                }
-            } catch (RuntimeException exception) {
-                future.complete(0);
-                throw exception;
-            }
-        });
+        requests.add(() -> typeNow(future, typing));
         if (stopRequested) {
             future.complete(0);
         }
         return future;
     }
 
+    /** On the simulation thread: runs the typing, completing {@code future} with what it took (0 if it throws). */
+    private void typeNow(CompletableFuture<Integer> future, IntSupplier typing) {
+        try {
+            if (running) {
+                future.complete(typing.getAsInt());
+            } else {
+                SimulationEngine.TypedStep typed = engine.typedTracked(typing);
+                publishStep(typed.step());
+                future.complete(typed.taken());
+            }
+        } catch (RuntimeException exception) {
+            future.complete(0);
+            throw exception;
+        }
+    }
+
     /** Clicks a component. While paused it also publishes a {@link #latestStep()} with the nets that changed. */
     public void interact(String componentId) {
-        requests.add(() -> {
-            if (running) {
-                engine.interact(componentId);
-            } else {
-                publishStep(engine.interactTracked(componentId));
-            }
-        });
+        requests.add(() -> interactNow(componentId));
+    }
+
+    private void interactNow(String componentId) {
+        if (running) {
+            engine.interact(componentId);
+        } else {
+            publishStep(engine.interactTracked(componentId));
+        }
     }
 
     /**
@@ -302,24 +314,28 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void takeLiveValues(Map<String, Map<String, Object>> parametersById) {
         Map<String, Map<String, Object>> copy = Map.copyOf(parametersById);
-        requests.add(() -> {
-            if (running) {
-                engine.takeLiveValues(copy);
-            } else {
-                engine.takeLiveValuesTracked(copy).ifPresent(this::publishStep);
-            }
-        });
+        requests.add(() -> takeLiveValuesNow(copy));
+    }
+
+    private void takeLiveValuesNow(Map<String, Map<String, Object>> parametersById) {
+        if (running) {
+            engine.takeLiveValues(parametersById);
+        } else {
+            engine.takeLiveValuesTracked(parametersById).ifPresent(this::publishStep);
+        }
     }
 
     /** Clicks bit {@code bit} of a multi-bit switch; like {@link #interact}, a paused click publishes a step. */
     public void interactBit(String componentId, int bit) {
-        requests.add(() -> {
-            if (running) {
-                engine.interactBit(componentId, bit);
-            } else {
-                publishStep(engine.interactBitTracked(componentId, bit));
-            }
-        });
+        requests.add(() -> interactBitNow(componentId, bit));
+    }
+
+    private void interactBitNow(String componentId, int bit) {
+        if (running) {
+            engine.interactBit(componentId, bit);
+        } else {
+            publishStep(engine.interactBitTracked(componentId, bit));
+        }
     }
 
     /**
@@ -328,12 +344,15 @@ public final class SimulationThread implements AutoCloseable {
      * failure in the snapshot.
      */
     public void advanceToNextEvent() {
-        requests.add(() -> {
-            if (!running) {
-                finishStep();
-                publishStep(engine.advanceToNextEvent());
-            }
-        });
+        requests.add(() -> advanceWhenPaused(engine::advanceToNextEvent));
+    }
+
+    /** On the simulation thread: when paused, finishes the step in progress and publishes what {@code advance} did. */
+    private void advanceWhenPaused(Supplier<StepResult> advance) {
+        if (!running) {
+            finishStep();
+            publishStep(advance.get());
+        }
     }
 
     /**
@@ -343,12 +362,7 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void advanceToNextClockEdge(ClockEdgeMode mode) {
         Objects.requireNonNull(mode, "mode");
-        requests.add(() -> {
-            if (!running) {
-                finishStep();
-                publishStep(engine.advanceToNextClockEdge(mode));
-            }
-        });
+        requests.add(() -> advanceWhenPaused(() -> engine.advanceToNextClockEdge(mode)));
     }
 
     /**
@@ -396,13 +410,15 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void setInputs(Map<String, Value> values) {
         Map<String, Value> copy = Map.copyOf(values);
-        requests.add(() -> copy.forEach((componentId, value) -> {
-            try {
-                engine.setInput(componentId, value);
-            } catch (IllegalArgumentException exception) {
-                LOGGER.debug("Input {} not set: {}", componentId, exception.getMessage());
-            }
-        }));
+        requests.add(() -> copy.forEach(this::setInputNow));
+    }
+
+    private void setInputNow(String componentId, Value value) {
+        try {
+            engine.setInput(componentId, value);
+        } catch (IllegalArgumentException exception) {
+            LOGGER.debug("Input {} not set: {}", componentId, exception.getMessage());
+        }
     }
 
     /**
@@ -521,13 +537,15 @@ public final class SimulationThread implements AutoCloseable {
      * tick. A step that ends within its first budget publishes exactly what one call did.
      */
     public void step(long duration) {
-        requests.add(() -> {
-            if (!running) {
-                finishStep();
-                stepInProgress = new StepInProgress(engine.now(), Scheduler.later(engine.now(), duration));
-                advanceStep();
-            }
-        });
+        requests.add(() -> startStepWhenPaused(duration));
+    }
+
+    private void startStepWhenPaused(long duration) {
+        if (!running) {
+            finishStep();
+            stepInProgress = new StepInProgress(engine.now(), Scheduler.later(engine.now(), duration));
+            advanceStep();
+        }
     }
 
     /** Where a sliced «Avanzar N t» started, the time it ends at and the nets it changed so far. */
@@ -631,18 +649,21 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void setMemoryMapRequest(Optional<MemoryMapRequest> request) {
         MemoryMapRequest wanted = request.orElse(null);
-        requests.add(() -> {
-            if (wanted != null && (memoryMapRequest == null
-                    || !memoryMapRequest.componentId().equals(wanted.componentId()))) {
-                engine.memory(wanted.componentId()).ifPresent(memory -> memory.accessLog().drainRecent());
-            }
-            memoryMapRequest = wanted;
-            memoryMapStale = true;
-            memoryMapPublished = false;
-            if (wanted == null) {
-                latestMemoryMap = null;
-            }
-        });
+        requests.add(() -> changeMemoryMapRequest(wanted));
+    }
+
+    /** On the simulation thread: aims the memory map at {@code wanted} (null: none), dropping the old frame. */
+    private void changeMemoryMapRequest(MemoryMapRequest wanted) {
+        if (wanted != null && (memoryMapRequest == null
+                || !memoryMapRequest.componentId().equals(wanted.componentId()))) {
+            engine.memory(wanted.componentId()).ifPresent(memory -> memory.accessLog().drainRecent());
+        }
+        memoryMapRequest = wanted;
+        memoryMapStale = true;
+        memoryMapPublished = false;
+        if (wanted == null) {
+            latestMemoryMap = null;
+        }
     }
 
     /**
@@ -745,24 +766,27 @@ public final class SimulationThread implements AutoCloseable {
         List<InputAssignment> copy = List.copyOf(inputs);
         requirePositiveBudget(eventBudget);
         List<InputOutcome> outcomes = new ArrayList<>();
-        return budgeted(eventBudget, outcomes, () -> {
-            for (InputAssignment input : copy) {
-                try {
-                    engine.setInput(input.componentId(), input.value());
-                    outcomes.add(InputOutcome.accepted(input.componentId()));
-                } catch (IllegalArgumentException exception) {
-                    outcomes.add(InputOutcome.rejected(input.componentId(), String.valueOf(exception.getMessage())));
-                } catch (EventBudgetExceededException exception) {
-                    outcomes.add(new InputOutcome(input.componentId(), true,
-                            "set, but the event budget ran out during its zero-delay effects"));
-                    for (int index = outcomes.size(); index < copy.size(); index++) {
-                        outcomes.add(InputOutcome.rejected(copy.get(index).componentId(),
-                                "not set: the event budget ran out before it"));
-                    }
-                    throw exception;
+        return budgeted(eventBudget, outcomes, () -> setAssignments(copy, outcomes));
+    }
+
+    /** Sets each input in order, listing in {@code outcomes} what became of it (the rest, when the budget runs out). */
+    private void setAssignments(List<InputAssignment> assignments, List<InputOutcome> outcomes) {
+        for (InputAssignment input : assignments) {
+            try {
+                engine.setInput(input.componentId(), input.value());
+                outcomes.add(InputOutcome.accepted(input.componentId()));
+            } catch (IllegalArgumentException exception) {
+                outcomes.add(InputOutcome.rejected(input.componentId(), String.valueOf(exception.getMessage())));
+            } catch (EventBudgetExceededException exception) {
+                outcomes.add(new InputOutcome(input.componentId(), true,
+                        "set, but the event budget ran out during its zero-delay effects"));
+                for (int index = outcomes.size(); index < assignments.size(); index++) {
+                    outcomes.add(InputOutcome.rejected(assignments.get(index).componentId(),
+                            "not set: the event budget ran out before it"));
                 }
+                throw exception;
             }
-        });
+        }
     }
 
     /**
@@ -827,14 +851,16 @@ public final class SimulationThread implements AutoCloseable {
         }
         requirePositiveBudget(eventBudget);
         CompletableFuture<RequestReport> future = waitingReport();
-        requests.add(() -> {
-            if (duration > Long.MAX_VALUE - engine.now()) {
-                future.complete(reportOf(RequestReport.Status.REFUSED_TIME_OVERFLOW, engine.now(), 0, List.of()));
-                return;
-            }
-            runStep(future, eventBudget, () -> engine.advanceBy(duration));
-        });
+        requests.add(() -> advanceByNow(future, duration, eventBudget));
         return future;
+    }
+
+    private void advanceByNow(CompletableFuture<RequestReport> future, long duration, long eventBudget) {
+        if (duration > Long.MAX_VALUE - engine.now()) {
+            future.complete(reportOf(RequestReport.Status.REFUSED_TIME_OVERFLOW, engine.now(), 0, List.of()));
+            return;
+        }
+        runStep(future, eventBudget, () -> engine.advanceBy(duration));
     }
 
     /** {@link #restart} within {@code eventBudget} events (the components' initialization included). */
@@ -842,14 +868,17 @@ public final class SimulationThread implements AutoCloseable {
                                                           long eventBudget) {
         Map<String, String> copy = Map.copyOf(channels);
         requirePositiveBudget(eventBudget);
-        return budgeted(eventBudget, List.of(), () -> {
-            stepInProgress = null;
-            latestStep = null; // the old timeline's last jump must not come back as «(+N)»
-            latestPauseNotice = null;
-            failure = null;
-            pendingUnits = 0;
-            engine.restart(circuit, copy);
-        });
+        return budgeted(eventBudget, List.of(), () -> forgetTimelineAndRestart(circuit, copy));
+    }
+
+    /** Forgets the old timeline's step, notice and failure, then restarts the engine (inside a budgeted run). */
+    private void forgetTimelineAndRestart(FlatCircuit circuit, Map<String, String> channels) {
+        stepInProgress = null;
+        latestStep = null; // the old timeline's last jump must not come back as «(+N)»
+        latestPauseNotice = null;
+        failure = null;
+        pendingUnits = 0;
+        engine.restart(circuit, channels);
     }
 
     /** A receipt of the state once every earlier request ran: nothing runs (a reading of one instant). */
@@ -914,23 +943,26 @@ public final class SimulationThread implements AutoCloseable {
      */
     private CompletableFuture<RequestReport> budgeted(long eventBudget, List<InputOutcome> outcomes, Runnable work) {
         CompletableFuture<RequestReport> future = waitingReport();
-        requests.add(() -> {
-            long fromTime = engine.now();
-            EventBudgetRun run;
-            try {
-                run = engine.runWithEventBudget(eventBudget, work);
-            } catch (RuntimeException exception) {
-                LOGGER.error("Simulation request failed; pausing", exception);
-                answerFailed(future, exception, fromTime, outcomes);
-                return;
-            }
-            if (run.exceeded()) {
-                running = false;
-            }
-            future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
-                    : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), outcomes));
-        });
+        requests.add(() -> runBudgeted(future, eventBudget, outcomes, work));
         return future;
+    }
+
+    private void runBudgeted(CompletableFuture<RequestReport> future, long eventBudget, List<InputOutcome> outcomes,
+                             Runnable work) {
+        long fromTime = engine.now();
+        EventBudgetRun run;
+        try {
+            run = engine.runWithEventBudget(eventBudget, work);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Simulation request failed; pausing", exception);
+            answerFailed(future, exception, fromTime, outcomes);
+            return;
+        }
+        if (run.exceeded()) {
+            running = false;
+        }
+        future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
+                : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), outcomes));
     }
 
     private CompletableFuture<RequestReport> budgetedStep(long eventBudget, Supplier<StepResult> step) {
@@ -1130,15 +1162,17 @@ public final class SimulationThread implements AutoCloseable {
      * Asked while paused (a step), it only publishes the notice.
      */
     private void pauseForPart() {
-        engine.takePauseRequest().ifPresent(notice -> {
-            if (running) {
-                LOGGER.info("Part {} asked to pause at t = {}", notice.componentId(), notice.time());
-            }
-            running = false;
-            latestPauseNotice = notice;
-            snapshotStale = true;
-            snapshotDue = true;
-        });
+        engine.takePauseRequest().ifPresent(this::pauseFor);
+    }
+
+    private void pauseFor(PauseNotice notice) {
+        if (running) {
+            LOGGER.info("Part {} asked to pause at t = {}", notice.componentId(), notice.time());
+        }
+        running = false;
+        latestPauseNotice = notice;
+        snapshotStale = true;
+        snapshotDue = true;
     }
 
     /**

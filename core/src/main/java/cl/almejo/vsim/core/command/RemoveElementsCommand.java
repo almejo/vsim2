@@ -79,14 +79,17 @@ public final class RemoveElementsCommand implements Command {
             probesBefore = document.probes();
             document.setProbes(probesAfter);
         }
-        document.batch(() -> {
-            for (ElementId id : ids) {
-                if (document.element(id).isPresent()) {
-                    long order = document.orderOf(id);
-                    document.remove(id).ifPresent(element -> removed.add(new RemovedElement(element, order)));
-                }
+        document.batch(() -> removePresentElements(document));
+    }
+
+    /** Removes the elements still in the document, remembering each with its place in the order. */
+    private void removePresentElements(CircuitDocument document) {
+        for (ElementId id : ids) {
+            if (document.element(id).isPresent()) {
+                long order = document.orderOf(id);
+                document.remove(id).ifPresent(element -> removed.add(new RemovedElement(element, order)));
             }
-        });
+        }
     }
 
     /**

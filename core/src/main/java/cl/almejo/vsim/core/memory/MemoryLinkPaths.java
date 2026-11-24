@@ -115,14 +115,16 @@ public final class MemoryLinkPaths {
 
     /** A memory with its link absolute against {@code circuitFile}; any other component, or one already so, as is. */
     private static UnaryOperator<Component> absoluteLink(Optional<Path> circuitFile) {
-        return component -> {
-            Optional<Path> file = isMemory(component) ? linkedFile(component, circuitFile) : Optional.empty();
-            if (file.isEmpty()) {
-                return component;
-            }
-            String absolute = storedLinkPath(file.get(), Optional.empty());
-            return absolute.equals(linkOf(component)) ? component : withLink(component, absolute);
-        };
+        return component -> withAbsoluteLink(component, circuitFile);
+    }
+
+    private static Component withAbsoluteLink(Component component, Optional<Path> circuitFile) {
+        Optional<Path> file = isMemory(component) ? linkedFile(component, circuitFile) : Optional.empty();
+        if (file.isEmpty()) {
+            return component;
+        }
+        String absolute = storedLinkPath(file.get(), Optional.empty());
+        return absolute.equals(linkOf(component)) ? component : withLink(component, absolute);
     }
 
     /** What {@link CircuitFormat} writes for each component, inside definitions too: links relative to the circuit. */

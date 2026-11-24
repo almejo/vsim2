@@ -165,8 +165,8 @@ final class LogicNetwork {
         }
         Map<String, Integer> ordered = new LinkedHashMap<>();
         counts.keySet().stream()
-                .sorted(Comparator.comparingInt((String type) -> familyOrders.get(type))
-                        .thenComparingInt(type -> type.length())
+                .sorted(Comparator.<String>comparingInt(familyOrders::get)
+                        .thenComparingInt(String::length)
                         .thenComparing(Comparator.naturalOrder()))
                 .forEach(type -> ordered.put(type, counts.get(type)));
         return new GateCost(gates.size(), ordered);

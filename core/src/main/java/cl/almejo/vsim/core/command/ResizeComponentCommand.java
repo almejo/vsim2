@@ -85,14 +85,16 @@ public final class ResizeComponentCommand implements Command {
         if (!resize.appliesTo(type, component.parameters())) {
             throw new IllegalArgumentException(type.id() + " cannot be resized with its parameters now");
         }
-        values.forEach((parameter, value) -> {
-            ResizeSpec.Axis axis = resize.axisOf(parameter).orElseThrow(() -> new IllegalArgumentException(
-                    type.id() + " is not resized by " + parameter));
-            if (value < axis.minimum(type) || value > axis.maximum(type)) {
-                throw new IllegalArgumentException(parameter + " " + value + " is out of range");
-            }
-        });
+        values.forEach((parameter, value) -> requireInRange(type, resize, parameter, value));
         return resize.parametersWith(component.parameters(), values);
+    }
+
+    private static void requireInRange(ComponentType type, ResizeSpec resize, String parameter, int value) {
+        ResizeSpec.Axis axis = resize.axisOf(parameter).orElseThrow(() -> new IllegalArgumentException(
+                type.id() + " is not resized by " + parameter));
+        if (value < axis.minimum(type) || value > axis.maximum(type)) {
+            throw new IllegalArgumentException(parameter + " " + value + " is out of range");
+        }
     }
 
     @Override

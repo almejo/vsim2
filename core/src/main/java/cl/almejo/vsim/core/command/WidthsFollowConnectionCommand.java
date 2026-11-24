@@ -90,17 +90,20 @@ public final class WidthsFollowConnectionCommand implements WrapsCommand {
             followed = ConnectedWidths.Followed.NOTHING;
             return;
         }
-        document.batch(() -> {
-            Netlist before = knownNetlist.of(document)
-                    .orElseGet(() -> new NetlistCompiler(registry).compile(document));
-            connection.apply(document);
-            try {
-                followed = ConnectedWidths.follow(document, registry, before, placedIds);
-            } catch (RuntimeException exception) {
-                connection.revert(document);
-                throw exception;
-            }
-        });
+        document.batch(() -> connectAndFollowWidths(document));
+    }
+
+    /** Applies the connection and lets the widths follow it; if that fails, takes the connection back. */
+    private void connectAndFollowWidths(CircuitDocument document) {
+        Netlist before = knownNetlist.of(document)
+                .orElseGet(() -> new NetlistCompiler(registry).compile(document));
+        connection.apply(document);
+        try {
+            followed = ConnectedWidths.follow(document, registry, before, placedIds);
+        } catch (RuntimeException exception) {
+            connection.revert(document);
+            throw exception;
+        }
     }
 
     @Override

@@ -150,17 +150,20 @@ public record KeyEncoding(int dataWidth, TerminalEncoding encoding, EnterSends e
      */
     public List<byte[]> encodeText(String text) {
         List<byte[]> characters = new ArrayList<>();
-        forEachCharacter(text, codePoint -> {
-            byte[] bytes = switch (codePoint) {
-                case LINE_FEED -> encode(SpecialKey.ENTER).orElseThrow();
-                case TAB -> encode(SpecialKey.TAB).orElseThrow();
-                default -> isControl(codePoint) ? new byte[0] : encode(codePoint);
-            };
-            if (bytes.length > 0) {
-                characters.add(bytes);
-            }
-        });
+        forEachCharacter(text, codePoint -> addEncoded(characters, codePoint));
         return characters;
+    }
+
+    /** Adds the bytes of one typed character; a control character with no key adds nothing. */
+    private void addEncoded(List<byte[]> characters, int codePoint) {
+        byte[] bytes = switch (codePoint) {
+            case LINE_FEED -> encode(SpecialKey.ENTER).orElseThrow();
+            case TAB -> encode(SpecialKey.TAB).orElseThrow();
+            default -> isControl(codePoint) ? new byte[0] : encode(codePoint);
+        };
+        if (bytes.length > 0) {
+            characters.add(bytes);
+        }
     }
 
     /** How many characters {@code text} has as {@link #encodeText} reads it (CR LF is one line break). */

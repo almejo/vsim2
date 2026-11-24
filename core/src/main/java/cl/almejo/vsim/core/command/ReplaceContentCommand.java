@@ -229,14 +229,24 @@ public final class ReplaceContentCommand implements Command {
                               Map<String, ComponentDefinition> definitionsTo) {
         requireStartingState(document, takenOut, replacedFrom, putIn);
         document.batch(() -> {
-            takenOut.forEach(placed -> document.remove(placed.element().id()));
-            replacedTo.values().forEach(document::replace);
-            putIn.forEach(placed -> document.restore(placed.element(), placed.order()));
-            definitionsFrom.keySet().stream()
-                    .filter(id -> !definitionsTo.containsKey(id))
-                    .forEach(document::removeDefinition);
-            definitionsTo.values().forEach(document::putDefinition);
+            changeElements(document, takenOut, replacedTo, putIn);
+            changeDefinitions(document, definitionsFrom, definitionsTo);
         });
+    }
+
+    private static void changeElements(CircuitDocument document, List<Placed> takenOut,
+                                       Map<ElementId, DocumentElement> replacedTo, List<Placed> putIn) {
+        takenOut.forEach(placed -> document.remove(placed.element().id()));
+        replacedTo.values().forEach(document::replace);
+        putIn.forEach(placed -> document.restore(placed.element(), placed.order()));
+    }
+
+    private static void changeDefinitions(CircuitDocument document, Map<String, ComponentDefinition> definitionsFrom,
+                                          Map<String, ComponentDefinition> definitionsTo) {
+        definitionsFrom.keySet().stream()
+                .filter(id -> !definitionsTo.containsKey(id))
+                .forEach(document::removeDefinition);
+        definitionsTo.values().forEach(document::putDefinition);
     }
 
     private static void requireStartingState(CircuitDocument document, List<Placed> takenOut,

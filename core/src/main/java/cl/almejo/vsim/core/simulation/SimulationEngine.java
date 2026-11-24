@@ -216,17 +216,20 @@ public final class SimulationEngine {
         pendingPause = null;
         recorder.clear();
         update(circuit, channels);
-        inputs.forEach((id, value) -> {
-            ComponentInstance instance = instances.get(id);
-            if (instance != null && instance.behavior.visibleState() instanceof VisibleState.SwitchState state
-                    && state.value().width() == value.width()) {
-                instance.behavior.setValue(instance, value);
-            }
-        });
+        inputs.forEach(this::restoreSwitchValue);
         scheduler.runUntil(now());
         // the traces start at t = 0 with the switches already in place
         recorder.clear();
         rebind();
+    }
+
+    /** Puts a switch back at the value it had before a restart, when it still exists with the same width. */
+    private void restoreSwitchValue(String id, Value value) {
+        ComponentInstance instance = instances.get(id);
+        if (instance != null && instance.behavior.visibleState() instanceof VisibleState.SwitchState state
+                && state.value().width() == value.width()) {
+            instance.behavior.setValue(instance, value);
+        }
     }
 
     private void rebindWaveforms() {

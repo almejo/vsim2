@@ -22,22 +22,25 @@ public final class PutDefinitionsCommand implements Command {
     @Override
     public void apply(CircuitDocument document) {
         List<String> added = new ArrayList<>();
-        document.batch(() -> {
-            try {
-                for (ComponentDefinition definition : definitions) {
-                    if (document.definition(definition.id()).isEmpty()) {
-                        document.putDefinition(definition);
-                        added.add(definition.id());
-                    }
-                }
-            } catch (RuntimeException exception) {
-                for (int index = added.size() - 1; index >= 0; index--) {
-                    document.removeDefinition(added.get(index));
-                }
-                throw exception;
-            }
-        });
+        document.batch(() -> putMissingOrTakeBack(document, added));
         addedIds = List.copyOf(added);
+    }
+
+    /** Puts the definitions the document lacks, listing them in {@code added}; if one fails, removes those put. */
+    private void putMissingOrTakeBack(CircuitDocument document, List<String> added) {
+        try {
+            for (ComponentDefinition definition : definitions) {
+                if (document.definition(definition.id()).isEmpty()) {
+                    document.putDefinition(definition);
+                    added.add(definition.id());
+                }
+            }
+        } catch (RuntimeException exception) {
+            for (int index = added.size() - 1; index >= 0; index--) {
+                document.removeDefinition(added.get(index));
+            }
+            throw exception;
+        }
     }
 
     @Override

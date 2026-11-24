@@ -38,37 +38,50 @@ public final class TidyWiresCommand implements Command {
         removedWires.clear();
         probesBefore = document.probes();
         document.batch(() -> {
-            for (Wire wire : plan.removed()) {
-                if (document.wire(wire.id()).isPresent()) {
-                    long order = document.orderOf(wire.id());
-                    document.remove(wire.id());
-                    removedWires.add(new RemovedWire(wire, order));
-                }
-            }
-            for (Wire wire : plan.added()) {
-                RemovedWire replaced = removedWires.stream()
-                        .filter(entry -> entry.wire().id().equals(wire.id())).findFirst().orElse(null);
-                if (replaced == null) {
-                    document.add(wire);
-                } else {
-                    document.restore(wire, replaced.order());
-                }
-            }
+            removePlannedWires(document);
+            addPlannedWires(document);
         });
         if (!plan.probeRetargets().isEmpty()) {
             document.setProbes(retargeted(probesBefore));
         }
     }
 
+    private void removePlannedWires(CircuitDocument document) {
+        for (Wire wire : plan.removed()) {
+            if (document.wire(wire.id()).isPresent()) {
+                long order = document.orderOf(wire.id());
+                document.remove(wire.id());
+                removedWires.add(new RemovedWire(wire, order));
+            }
+        }
+    }
+
+    /** Adds the planned wires; one that replaces a wire just removed goes back to that wire's place in the order. */
+    private void addPlannedWires(CircuitDocument document) {
+        for (Wire wire : plan.added()) {
+            RemovedWire replaced = removedWires.stream()
+                    .filter(entry -> entry.wire().id().equals(wire.id())).findFirst().orElse(null);
+            if (replaced == null) {
+                document.add(wire);
+            } else {
+                document.restore(wire, replaced.order());
+            }
+        }
+    }
+
     @Override
     public void revert(CircuitDocument document) {
         document.batch(() -> {
-            for (Wire wire : plan.added()) {
-                document.remove(wire.id());
-            }
+            removeAddedWires(document);
             removedWires.forEach(entry -> document.restore(entry.wire(), entry.order()));
         });
         document.setProbes(probesBefore);
+    }
+
+    private void removeAddedWires(CircuitDocument document) {
+        for (Wire wire : plan.added()) {
+            document.remove(wire.id());
+        }
     }
 
     private List<Probe> retargeted(List<Probe> probes) {

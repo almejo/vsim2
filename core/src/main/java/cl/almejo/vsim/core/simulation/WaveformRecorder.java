@@ -80,14 +80,16 @@ final class WaveformRecorder {
                 }
             }
         }
-        channels.keySet().forEach(channelId -> {
-            ChannelTrace back = parked.remove(channelId);
-            if (back != null && !traces.containsKey(channelId)) {
-                traces.put(channelId, back);
-            }
-        });
+        channels.keySet().forEach(this::takeBackParkedTrace);
         dropOldestParked();
         version++;
+    }
+
+    private void takeBackParkedTrace(String channelId) {
+        ChannelTrace back = parked.remove(channelId);
+        if (back != null && !traces.containsKey(channelId)) {
+            traces.put(channelId, back);
+        }
     }
 
     private void park(String channelId, ChannelTrace trace, long now) {
@@ -126,24 +128,26 @@ final class WaveformRecorder {
                 net.recorders = List.of();
             }
         }
-        channels.forEach((channelId, netId) -> {
-            RuntimeNet net = netId.isEmpty() ? null : netWithId.apply(netId);
-            ChannelTrace trace = traces.computeIfAbsent(channelId, id -> newTrace(id, net == null ? 1 : net.width));
-            boolean changed;
-            if (net == null) {
-                changed = trace.appendGap(now);
-            } else {
-                if (net.recorders.isEmpty()) {
-                    net.recorders = new ArrayList<>(1);
-                }
-                net.recorders.add(trace);
-                trace.setWidth(net.width);
-                changed = trace.append(now, net.value);
+        channels.forEach((channelId, netId) -> attach(channelId, netId.isEmpty() ? null : netWithId.apply(netId), now));
+    }
+
+    /** Attaches the channel to {@code net} and samples it at {@code now}; a channel without a net records a gap. */
+    private void attach(String channelId, RuntimeNet net, long now) {
+        ChannelTrace trace = traces.computeIfAbsent(channelId, id -> newTrace(id, net == null ? 1 : net.width));
+        boolean changed;
+        if (net == null) {
+            changed = trace.appendGap(now);
+        } else {
+            if (net.recorders.isEmpty()) {
+                net.recorders = new ArrayList<>(1);
             }
-            if (changed) {
-                version++;
-            }
-        });
+            net.recorders.add(trace);
+            trace.setWidth(net.width);
+            changed = trace.append(now, net.value);
+        }
+        if (changed) {
+            version++;
+        }
     }
 
     /** A machine channel keeps a shorter history than a probe ({@link MachineChannels#HISTORY_CHUNKS}). */

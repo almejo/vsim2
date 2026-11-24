@@ -242,21 +242,8 @@ final class LogisimExportRules {
         rules.put(StandardComponentTypes.COMPARATOR, draft -> block(draft, "Comparator")
                 .attribute("mode", draft.text(StandardComponentTypes.SIGNEDNESS)
                         .equals(StandardComponentTypes.SIGNEDNESS_UNSIGNED) ? "unsigned" : "twosComplement"));
-        rules.put(ArithmeticTypes.MULTIPLIER, draft -> {
-            block(draft, "Multiplier");
-            boolean signed = draft.text(StandardComponentTypes.SIGNEDNESS)
-                    .equals(StandardComponentTypes.SIGNEDNESS_SIGNED);
-            // Logisim multiplies Java ints: signed at 32 bits, unsigned below (LogisimPartRules.multiplier).
-            if (signed != (draft.integer(StandardComponentTypes.WIDTH) == Integer.SIZE)) {
-                draft.approximated(LogisimNotes.EXPORT_SIGNEDNESS);
-            }
-        });
-        rules.put(ArithmeticTypes.DIVIDER, draft -> {
-            block(draft, "Divider");
-            if (draft.text(StandardComponentTypes.SIGNEDNESS).equals(StandardComponentTypes.SIGNEDNESS_SIGNED)) {
-                draft.approximated(LogisimNotes.EXPORT_SIGNEDNESS);
-            }
-        });
+        rules.put(ArithmeticTypes.MULTIPLIER, LogisimExportRules::multiplier);
+        rules.put(ArithmeticTypes.DIVIDER, LogisimExportRules::divider);
         rules.put(ArithmeticTypes.SHIFTER, draft -> block(draft, "Shifter")
                 .attribute("shift", switch (draft.text(ArithmeticTypes.SHIFT_TYPE)) {
                     case ArithmeticTypes.LOGICAL_RIGHT -> "lr";
@@ -266,6 +253,23 @@ final class LogisimExportRules {
                     default -> "ll";
                 }));
         rules.put(ArithmeticTypes.BIT_COUNTER, draft -> block(draft, "BitAdder").attribute("inputs", 1));
+    }
+
+    private static void multiplier(ExportDraft draft) {
+        block(draft, "Multiplier");
+        boolean signed = draft.text(StandardComponentTypes.SIGNEDNESS)
+                .equals(StandardComponentTypes.SIGNEDNESS_SIGNED);
+        // Logisim multiplies Java ints: signed at 32 bits, unsigned below (LogisimPartRules.multiplier).
+        if (signed != (draft.integer(StandardComponentTypes.WIDTH) == Integer.SIZE)) {
+            draft.approximated(LogisimNotes.EXPORT_SIGNEDNESS);
+        }
+    }
+
+    private static void divider(ExportDraft draft) {
+        block(draft, "Divider");
+        if (draft.text(StandardComponentTypes.SIGNEDNESS).equals(StandardComponentTypes.SIGNEDNESS_SIGNED)) {
+            draft.approximated(LogisimNotes.EXPORT_SIGNEDNESS);
+        }
     }
 
     private static ExportDraft block(ExportDraft draft, String name) {

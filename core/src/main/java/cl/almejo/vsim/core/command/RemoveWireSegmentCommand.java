@@ -68,30 +68,35 @@ public final class RemoveWireSegmentCommand implements Command {
         } else {
             addedPiece = null;
         }
-        document.batch(() -> {
-            if (keptPiece == null) {
-                document.remove(wireId);
-            } else {
-                document.replace(keptPiece);
-            }
-            if (addedPiece != null) {
-                document.add(addedPiece);
-            }
-        });
+        document.batch(() -> cutOut(document));
+    }
+
+    /** Removes the wire or shortens it to its kept piece, and adds the other piece when there is one. */
+    private void cutOut(CircuitDocument document) {
+        if (keptPiece == null) {
+            document.remove(wireId);
+        } else {
+            document.replace(keptPiece);
+        }
+        if (addedPiece != null) {
+            document.add(addedPiece);
+        }
     }
 
     @Override
     public void revert(CircuitDocument document) {
-        document.batch(() -> {
-            if (addedPiece != null) {
-                document.remove(addedPiece.id());
-            }
-            if (keptPiece == null) {
-                document.restore(original, originalOrder);
-            } else {
-                document.replace(original);
-            }
-        });
+        document.batch(() -> putOriginalBack(document));
+    }
+
+    private void putOriginalBack(CircuitDocument document) {
+        if (addedPiece != null) {
+            document.remove(addedPiece.id());
+        }
+        if (keptPiece == null) {
+            document.restore(original, originalOrder);
+        } else {
+            document.replace(original);
+        }
     }
 
     @Override

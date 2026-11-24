@@ -92,13 +92,7 @@ public final class LogisimRawFormat implements MemoryFileFormat {
         List<String> tokens = new ArrayList<>();
         long[] pending = {0, 0};
         long[] nextAddress = {0};
-        file.contents().forEachNonZero((address, value) -> {
-            if (address > nextAddress[0]) {
-                flush(tokens, pending, 0, address - nextAddress[0]);
-            }
-            flush(tokens, pending, value, 1);
-            nextAddress[0] = address + 1;
-        });
+        file.contents().forEachNonZero((address, value) -> flushWithGap(tokens, pending, nextAddress, address, value));
         closeRun(tokens, pending);
         StringBuilder text = new StringBuilder(SIGNATURE).append('\n');
         for (int index = 0; index < tokens.size(); index++) {
@@ -107,6 +101,16 @@ public final class LogisimRawFormat implements MemoryFileFormat {
             text.append(lineEnd ? '\n' : ' ');
         }
         return text.toString();
+    }
+
+    /** Adds the zeros between {@code nextAddress[0]} and {@code address}, then {@code value}, and moves past it. */
+    private static void flushWithGap(List<String> tokens, long[] pending, long[] nextAddress, long address,
+                                     long value) {
+        if (address > nextAddress[0]) {
+            flush(tokens, pending, 0, address - nextAddress[0]);
+        }
+        flush(tokens, pending, value, 1);
+        nextAddress[0] = address + 1;
     }
 
     /** Adds {@code count} copies of {@code value} to the run being built, closing the previous run if it differs. */

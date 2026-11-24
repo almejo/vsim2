@@ -95,19 +95,8 @@ public final class History {
         }
         List<ComponentDefinition> definitionsBefore = document.definitions();
         try {
-            document.batch(() -> {
-                try {
-                    top.revert(document);
-                    if (!dropRun) {
-                        replacement.apply(document);
-                    }
-                } catch (RuntimeException exception) {
-                    putBack(elementsBefore, ordersBefore);
-                    putBackDefinitions(definitionsBefore);
-                    followedByItsWorkingCopy(top);
-                    throw exception;
-                }
-            });
+            document.batch(() -> swapTopOrPutBack(top, dropRun ? null : replacement, elementsBefore, ordersBefore,
+                    definitionsBefore));
         } catch (RuntimeException exception) {
             return false;
         }
@@ -121,6 +110,25 @@ public final class History {
         }
         notifyListeners();
         return true;
+    }
+
+    /**
+     * Reverts {@code top} and applies {@code replacement} (none when the run left nothing); when that throws, puts
+     * the document back as it was before and rethrows.
+     */
+    private void swapTopOrPutBack(Command top, Command replacement, Map<ElementId, DocumentElement> elementsBefore,
+                                  Map<ElementId, Long> ordersBefore, List<ComponentDefinition> definitionsBefore) {
+        try {
+            top.revert(document);
+            if (replacement != null) {
+                replacement.apply(document);
+            }
+        } catch (RuntimeException exception) {
+            putBack(elementsBefore, ordersBefore);
+            putBackDefinitions(definitionsBefore);
+            followedByItsWorkingCopy(top);
+            throw exception;
+        }
     }
 
     /**

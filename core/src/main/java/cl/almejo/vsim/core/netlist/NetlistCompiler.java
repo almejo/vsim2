@@ -101,13 +101,16 @@ public final class NetlistCompiler {
 
         void joinTunnelsByName(CircuitDocument document) {
             Map<String, GridPoint> firstOfName = new HashMap<>();
-            tunnelPins.forEach((tunnelId, location) -> {
-                String name = Tunnels.nameOf(document.component(tunnelId).orElseThrow());
-                GridPoint first = firstOfName.putIfAbsent(name, location);
-                if (first != null) {
-                    unionFind.union(first, location);
-                }
-            });
+            tunnelPins.forEach((tunnelId, location) -> joinTunnel(document, firstOfName, tunnelId, location));
+        }
+
+        private void joinTunnel(CircuitDocument document, Map<String, GridPoint> firstOfName, ElementId tunnelId,
+                                GridPoint location) {
+            String name = Tunnels.nameOf(document.component(tunnelId).orElseThrow());
+            GridPoint first = firstOfName.putIfAbsent(name, location);
+            if (first != null) {
+                unionFind.union(first, location);
+            }
         }
 
         Netlist nets(CircuitDocument document) {
