@@ -95,14 +95,17 @@ public final class KarnaughWizard extends JPanel {
 
         /** The same question with the texts of {@code discardKey} and {@code keepKey} on its two buttons. */
         static DiscardConfirmation dialog(String titleKey, String messageKey, String discardKey, String keepKey) {
-            return parent -> {
-                String discard = Messages.text(discardKey);
-                String keep = Messages.text(keepKey);
-                int answer = JOptionPane.showOptionDialog(parent, Messages.text(messageKey),
-                        Messages.text(titleKey), JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE, null, new Object[] {discard, keep}, keep);
-                return answer == 0;
-            };
+            return parent -> askToDiscard(parent, titleKey, messageKey, discardKey, keepKey);
+        }
+
+        private static boolean askToDiscard(Component parent, String titleKey, String messageKey, String discardKey,
+                                            String keepKey) {
+            String discard = Messages.text(discardKey);
+            String keep = Messages.text(keepKey);
+            int answer = JOptionPane.showOptionDialog(parent, Messages.text(messageKey),
+                    Messages.text(titleKey), JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE, null, new Object[] {discard, keep}, keep);
+            return answer == 0;
         }
     }
 
@@ -116,14 +119,16 @@ public final class KarnaughWizard extends JPanel {
 
         /** «Seguir practicando» / «Seguir igual», with «Seguir practicando» as the default answer. */
         static LeaveConfirmation dialog() {
-            return (parent, message) -> {
-                String stay = Messages.text("karnaugh.practice.leave.stay");
-                String go = Messages.text("karnaugh.practice.leave.go");
-                int answer = JOptionPane.showOptionDialog(parent, message,
-                        Messages.text("karnaugh.practice.leave.title"), JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE, null, new Object[] {stay, go}, stay);
-                return answer == 1;
-            };
+            return LeaveConfirmation::askToLeave;
+        }
+
+        private static boolean askToLeave(Component parent, String message) {
+            String stay = Messages.text("karnaugh.practice.leave.stay");
+            String go = Messages.text("karnaugh.practice.leave.go");
+            int answer = JOptionPane.showOptionDialog(parent, message,
+                    Messages.text("karnaugh.practice.leave.title"), JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE, null, new Object[] {stay, go}, stay);
+            return answer == 1;
         }
     }
 
@@ -198,10 +203,10 @@ public final class KarnaughWizard extends JPanel {
         panels.put(Step.EXPRESSION, expressionPanel);
         panels.put(Step.CREATE, createPanel);
 
-        backAction = Actions.of(Messages.text("karnaugh.back"), () -> back());
-        nextAction = Actions.of(Messages.text("karnaugh.next"), () -> next());
-        closeAction = Actions.of(Messages.text("karnaugh.close"), () -> requestClose());
-        undoRestartAction = Actions.of(Messages.text("karnaugh.practice.undoRestart"), () -> model.restorePractice());
+        backAction = Actions.of(Messages.text("karnaugh.back"), this::back);
+        nextAction = Actions.of(Messages.text("karnaugh.next"), this::next);
+        closeAction = Actions.of(Messages.text("karnaugh.close"), this::requestClose);
+        undoRestartAction = Actions.of(Messages.text("karnaugh.practice.undoRestart"), model::restorePractice);
         undoRestartButton = new JButton(undoRestartAction);
         undoRestartButton.setToolTipText(Messages.text("karnaugh.practice.undoRestart.tooltip"));
         undoRestartButton.setVisible(false);

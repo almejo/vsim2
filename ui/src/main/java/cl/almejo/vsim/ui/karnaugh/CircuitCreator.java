@@ -105,24 +105,31 @@ final class CircuitCreator {
         long job = ++generation;
         Optional<String> definitionId = request.componentName()
                 .map(name -> DefinitionIds.slug(name, target.takenComponentIds()));
-        background.run(() -> build(request, definitionId), built -> {
-            if (job != generation) {
-                return;
-            }
+        background.run(() -> build(request, definitionId), built -> finishCreation(job, request, built, done),
+                failure -> buildFailed(job, request, failure, done));
+    }
+
+    /** On the EDT: the build of creation {@code job} finished; applies it unless it was cancelled meanwhile. */
+    private void finishCreation(long job, Request request, Built built, Consumer<Outcome> done) {
+        if (job != generation) {
+            return;
+        }
+        busy = false;
+        Outcome outcome;
+        try {
+            outcome = apply(request, built);
+        } catch (RuntimeException exception) {
+            outcome = failed(request, exception);
+        }
+        done.accept(outcome);
+    }
+
+    /** On the EDT: the build of creation {@code job} failed; says so unless it was cancelled meanwhile. */
+    private void buildFailed(long job, Request request, Throwable failure, Consumer<Outcome> done) {
+        if (job == generation) {
             busy = false;
-            Outcome outcome;
-            try {
-                outcome = apply(request, built);
-            } catch (RuntimeException exception) {
-                outcome = failed(request, exception);
-            }
-            done.accept(outcome);
-        }, failure -> {
-            if (job == generation) {
-                busy = false;
-                done.accept(failed(request, failure));
-            }
-        });
+            done.accept(failed(request, failure));
+        }
     }
 
     /**

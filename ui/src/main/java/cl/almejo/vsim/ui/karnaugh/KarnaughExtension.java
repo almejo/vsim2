@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -91,14 +92,8 @@ public final class KarnaughExtension implements EditorExtension {
 
         // «Ver en Karnaugh…» of the expressions dialog: a wizard over it on the expressions' table (read-only there),
         // showing the groups (step 3); going back leaves the expressions as they were, creating closes both.
-        ExpressionsPanel.WizardOpener openInWizard = (owner, spec) -> {
-            KarnaughModel model = new KarnaughModel();
-            model.load(spec);
-            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background, animations);
-            wizard.showTableFromExpressions(owner::closeAfterCreating);
-            wizard.goTo(KarnaughWizard.Step.GROUPS);
-            opener.open(owner, wizard);
-        };
+        ExpressionsPanel.WizardOpener openInWizard = (owner, spec) ->
+                openOverExpressions(owner, spec, target, animations);
         Action expressionsAction = Actions.of(Messages.text("action.circuitFromExpressions"),
                 () -> expressionsOpener.open(view, new ExpressionsPanel(target, background,
                         view.services().preferences(), cost, openInWizard)));
@@ -107,25 +102,44 @@ public final class KarnaughExtension implements EditorExtension {
 
         // «Abrir en el asistente» of the import dialog: that dialog is closed, the normal (editable) wizard opens over
         // the view on the map, with the table and the dialog's options.
-        TableImportPanel.WizardOpener importInWizard = (spec, options) -> {
-            KarnaughModel model = new KarnaughModel();
-            model.load(spec);
-            model.setOptions(options);
-            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background, animations);
-            wizard.goTo(KarnaughWizard.Step.MAP);
-            opener.open(view, wizard);
-        };
+        TableImportPanel.WizardOpener importInWizard = (spec, options) ->
+                openOverImport(view, spec, options, target, animations);
         Action importAction = Actions.of(Messages.text("action.importTruthTable"),
                 () -> importOpener.open(view, new TableImportPanel(sources, target, background, importInWizard)));
         Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), new JMenuItem(importAction));
         Runnable importShortcutRemover = view.registerShortcutAction(IMPORT_SHORTCUT_ID, importAction);
+        return inOrder(() -> view.setTableWizard(null), importShortcutRemover, importItemRemover, expressionsRemover,
+                practiceRemover, toolsItemRemover);
+    }
+
+    /** A wizard over the expressions dialog, on its table, showing the groups (step 3). */
+    private void openOverExpressions(ExpressionsPanel owner, TruthTableSpec spec, CreationTarget target,
+                                     BooleanSupplier animations) {
+        KarnaughModel model = new KarnaughModel();
+        model.load(spec);
+        KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background, animations);
+        wizard.showTableFromExpressions(owner::closeAfterCreating);
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        opener.open(owner, wizard);
+    }
+
+    /** The normal (editable) wizard over {@code view}, on the map, with the import dialog's table and options. */
+    private void openOverImport(EditorView view, TruthTableSpec spec, WizardOptions options, CreationTarget target,
+                                BooleanSupplier animations) {
+        KarnaughModel model = new KarnaughModel();
+        model.load(spec);
+        model.setOptions(options);
+        KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background, animations);
+        wizard.goTo(KarnaughWizard.Step.MAP);
+        opener.open(view, wizard);
+    }
+
+    /** What runs each of {@code removers}, in the order given. */
+    private static Runnable inOrder(Runnable... removers) {
         return () -> {
-            view.setTableWizard(null);
-            importShortcutRemover.run();
-            importItemRemover.run();
-            expressionsRemover.run();
-            practiceRemover.run();
-            toolsItemRemover.run();
+            for (Runnable remover : removers) {
+                remover.run();
+            }
         };
     }
 }

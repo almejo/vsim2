@@ -123,13 +123,15 @@ final class WizardTable extends JTable {
             getInputMap(JComponent.WHEN_FOCUSED).put(stroke, name);
             boundKeys.add(stroke);
         }
-        getActionMap().put(name, Actions.unnamed(() -> {
-                int row = getSelectedRow();
-                int output = outputOf(getSelectedColumn());
-                if (row >= 0 && output >= 0) {
-                    edit.apply(output, row);
-                }
-        }));
+        getActionMap().put(name, Actions.unnamed(() -> editSelectedCell(edit)));
+    }
+
+    private void editSelectedCell(CellEdit edit) {
+        int row = getSelectedRow();
+        int output = outputOf(getSelectedColumn());
+        if (row >= 0 && output >= 0) {
+            edit.apply(output, row);
+        }
     }
 
     /** A new shape rebuilds the columns; values and names keep the selection (for keyboard editing). */

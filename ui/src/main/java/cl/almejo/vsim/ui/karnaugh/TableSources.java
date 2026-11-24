@@ -52,23 +52,26 @@ public record TableSources(Chooser chooser, Supplier<Optional<String>> clipboard
      * uses) and hands the chosen file to {@code chosen}, so the next «Abrir» or import starts there too.
      */
     public static TableSources system(Supplier<Path> startDirectory, Consumer<Path> chosen) {
-        return new TableSources(fileChooser(startDirectory, chosen, (chooser, parent) -> chooser.showOpenDialog(parent)),
+        return new TableSources(fileChooser(startDirectory, chosen, JFileChooser::showOpenDialog),
                 TableSources::clipboardText);
     }
 
     static Chooser fileChooser(Supplier<Path> startDirectory, Consumer<Path> chosen, ChooserDialog dialog) {
-        return parent -> {
-            JFileChooser chooser = new JFileChooser(startDirectory.get().toFile());
-            chooser.setDialogTitle(Messages.text("tableImport.choose.title"));
-            chooser.setFileFilter(new FileNameExtensionFilter(Messages.text("tableImport.choose.filter"),
-                    "xlsx", "csv", "tsv", "txt"));
-            if (dialog.show(chooser, parent) != JFileChooser.APPROVE_OPTION) {
-                return Optional.empty();
-            }
-            Path file = chooser.getSelectedFile().toPath();
-            chosen.accept(file);
-            return Optional.of(file);
-        };
+        return parent -> chooseFile(parent, startDirectory, chosen, dialog);
+    }
+
+    private static Optional<Path> chooseFile(Component parent, Supplier<Path> startDirectory, Consumer<Path> chosen,
+                                             ChooserDialog dialog) {
+        JFileChooser chooser = new JFileChooser(startDirectory.get().toFile());
+        chooser.setDialogTitle(Messages.text("tableImport.choose.title"));
+        chooser.setFileFilter(new FileNameExtensionFilter(Messages.text("tableImport.choose.filter"),
+                "xlsx", "csv", "tsv", "txt"));
+        if (dialog.show(chooser, parent) != JFileChooser.APPROVE_OPTION) {
+            return Optional.empty();
+        }
+        Path file = chooser.getSelectedFile().toPath();
+        chosen.accept(file);
+        return Optional.of(file);
     }
 
     /** Reads {@code file}: an {@code .xlsx} as a workbook, anything else as separated text (UTF-8, else Latin-1). */

@@ -38,9 +38,11 @@ final class ExpressionLineRow extends JPanel {
     final JButton dismiss = new JButton("✕");
     final JLabel preview = new JLabel(" ");
     String mergedName;
+    private final ExpressionsPanel owner;
 
     ExpressionLineRow(ExpressionsPanel owner) {
         super(new MigLayout("insets 0, fillx, wrap 2, gapy 2", "[grow, fill][]", ""));
+        this.owner = owner;
         // Its columns are only a preferred width: the field fills the line's width and shrinks with it.
         remove.setToolTipText(Messages.text("expressions.removeLine"));
         dismiss.setToolTipText(Messages.text("expressions.merged.dismiss"));
@@ -52,12 +54,7 @@ final class ExpressionLineRow extends JPanel {
         add(problem, "span 2, hidemode 3");
         add(warningRow, "span 2, hidemode 3");
         add(preview, "span 2, hidemode 3");
-        owner.onEdit(field, () -> {
-            int index = owner.rows.indexOf(this);
-            if (index >= 0) {
-                owner.model.setLine(index, field.getText());
-            }
-        });
+        owner.onEdit(field, this::lineEdited);
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent event) {
@@ -67,30 +64,43 @@ final class ExpressionLineRow extends JPanel {
                 }
             }
         });
-        remove.addActionListener(event -> {
-            int index = owner.rows.indexOf(this);
-            if (index >= 0 && owner.model.canRemoveLine()) {
-                // This row goes, so the others keep their fields; the legend follows the line it typed into.
-                owner.rows.remove(index);
-                owner.linesPanel.remove(this);
-                if (index < owner.lastFocused) {
-                    owner.lastFocused--;
-                }
-                owner.model.removeLine(index);
-                owner.linesPanel.revalidate();
-                owner.linesPanel.repaint();
+        remove.addActionListener(event -> removeLine());
+        field.addActionListener(event -> goToNextLine());
+        dismiss.addActionListener(event -> dismissMerged());
+    }
+
+    private void lineEdited() {
+        int index = owner.rows.indexOf(this);
+        if (index >= 0) {
+            owner.model.setLine(index, field.getText());
+        }
+    }
+
+    private void removeLine() {
+        int index = owner.rows.indexOf(this);
+        if (index >= 0 && owner.model.canRemoveLine()) {
+            // This row goes, so the others keep their fields; the legend follows the line it typed into.
+            owner.rows.remove(index);
+            owner.linesPanel.remove(this);
+            if (index < owner.lastFocused) {
+                owner.lastFocused--;
             }
-        });
-        field.addActionListener(event -> {
-            int index = owner.rows.indexOf(this);
-            if (index >= 0) {
-                owner.nextLine(index);
-            }
-        });
-        dismiss.addActionListener(event -> {
-            if (mergedName != null) {
-                owner.model.dismissMerged(mergedName);
-            }
-        });
+            owner.model.removeLine(index);
+            owner.linesPanel.revalidate();
+            owner.linesPanel.repaint();
+        }
+    }
+
+    private void goToNextLine() {
+        int index = owner.rows.indexOf(this);
+        if (index >= 0) {
+            owner.nextLine(index);
+        }
+    }
+
+    private void dismissMerged() {
+        if (mergedName != null) {
+            owner.model.dismissMerged(mergedName);
+        }
     }
 }

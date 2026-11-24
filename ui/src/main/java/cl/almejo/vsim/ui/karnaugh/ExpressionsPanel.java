@@ -137,7 +137,7 @@ public final class ExpressionsPanel extends JPanel {
         this.openInWizard = openInWizard;
         this.form = new CreationForm(target);
         this.controls = new CreationControls(form, new CircuitCreator(target, background), model::spec,
-                model::options, () -> onClose.run(), this::refreshButtons, () -> true);
+                model::options, this::closeRequested, this::refreshButtons, () -> true);
         controls.setAsWritten(() -> model.simplify() ? Optional.empty() : model.expressionLines());
         controls.setOnCreated(() -> unchanged = model.contents());
         this.unchanged = model.contents();
@@ -286,6 +286,11 @@ public final class ExpressionsPanel extends JPanel {
      * close box) comes here: a creation that is running is cancelled; then, when the lines were edited and not created
      * since, the user is asked before they are discarded.
      */
+    /** The creation controls close the window: {@code onClose} is the one set last, so it is read when called. */
+    private void closeRequested() {
+        onClose.run();
+    }
+
     public void requestClose() {
         controls.cancel();
         if (!model.contents().equals(unchanged) && !discardConfirmation.discard(this)) {
@@ -408,17 +413,22 @@ public final class ExpressionsPanel extends JPanel {
         // A job a newer one replaced before the worker reached it answers null instead of minimizing.
         Callable<Preview> work = () -> request == previewRequest
                 ? previewOf(table, written, simplifying, options, cost) : null;
-        background.run(work, result -> {
-            if (request == previewRequest && result != null) {
-                preview = result;
-                showPreview();
-            }
-        }, failure -> {
-            if (request == previewRequest) {
-                preview = new Preview(List.of(), " ");
-                showPreview();
-            }
-        });
+        background.run(work, result -> previewArrived(request, result), failure -> previewFailed(request));
+    }
+
+    /** On the EDT: the preview of {@code request} is in; a newer request makes it stale. */
+    private void previewArrived(long request, Preview result) {
+        if (request == previewRequest && result != null) {
+            preview = result;
+            showPreview();
+        }
+    }
+
+    private void previewFailed(long request) {
+        if (request == previewRequest) {
+            preview = new Preview(List.of(), " ");
+            showPreview();
+        }
     }
 
     /** The worker's part: the minimized expressions and the cost, or only the cost of the circuit as written. */

@@ -55,15 +55,17 @@ final class PracticePanel extends JPanel {
         boolean clear(Component parent, int count, String outputName);
 
         static ClearConfirmation dialog() {
-            return (parent, count, outputName) -> {
-                String clear = Messages.text("karnaugh.practice.clearAll.confirm");
-                String keep = Messages.text("karnaugh.practice.clearAll.keep");
-                int answer = JOptionPane.showOptionDialog(parent,
-                        Messages.format("karnaugh.practice.clearAll.message", count, outputName),
-                        Messages.text("karnaugh.practice.clearAll.title"), JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE, null, new Object[] {clear, keep}, keep);
-                return answer == 0;
-            };
+            return ClearConfirmation::askToClear;
+        }
+
+        private static boolean askToClear(Component parent, int count, String outputName) {
+            String clear = Messages.text("karnaugh.practice.clearAll.confirm");
+            String keep = Messages.text("karnaugh.practice.clearAll.keep");
+            int answer = JOptionPane.showOptionDialog(parent,
+                    Messages.format("karnaugh.practice.clearAll.message", count, outputName),
+                    Messages.text("karnaugh.practice.clearAll.title"), JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE, null, new Object[] {clear, keep}, keep);
+            return answer == 0;
         }
     }
 
@@ -74,15 +76,17 @@ final class PracticePanel extends JPanel {
 
         /** «Me rindo» / «Seguir intentando», with «Seguir intentando» as the default answer. */
         static GiveUpConfirmation dialog() {
-            return (parent, outputName) -> {
-                String show = Messages.text("karnaugh.practice.giveUp.confirm");
-                String keep = Messages.text("karnaugh.practice.giveUp.keep");
-                int answer = JOptionPane.showOptionDialog(parent,
-                        Messages.format("karnaugh.practice.giveUp.message", outputName),
-                        Messages.text("karnaugh.practice.giveUp.title"), JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE, null, new Object[] {show, keep}, keep);
-                return answer == 0;
-            };
+            return GiveUpConfirmation::askToGiveUp;
+        }
+
+        private static boolean askToGiveUp(Component parent, String outputName) {
+            String show = Messages.text("karnaugh.practice.giveUp.confirm");
+            String keep = Messages.text("karnaugh.practice.giveUp.keep");
+            int answer = JOptionPane.showOptionDialog(parent,
+                    Messages.format("karnaugh.practice.giveUp.message", outputName),
+                    Messages.text("karnaugh.practice.giveUp.title"), JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE, null, new Object[] {show, keep}, keep);
+            return answer == 0;
         }
     }
 

@@ -60,14 +60,16 @@ final class PracticeKeyboard {
      */
     private void putAction(String name, Runnable action, BooleanSupplier condition) {
         BooleanSupplier active = () -> view.editable() && condition.getAsBoolean();
-        view.getActionMap().put(name, Actions.unnamed(active, () -> {
-            if (active.getAsBoolean()) {
-                view.keyboardActive = true;
-                action.run();
-                view.updateAnimation();
-                view.repaint();
-            }
-        }));
+        view.getActionMap().put(name, Actions.unnamed(active, () -> runKeyAction(active, action)));
+    }
+
+    private void runKeyAction(BooleanSupplier active, Runnable action) {
+        if (active.getAsBoolean()) {
+            view.keyboardActive = true;
+            action.run();
+            view.updateAnimation();
+            view.repaint();
+        }
     }
 
     private void moveCursor(int rowDelta, int columnDelta) {

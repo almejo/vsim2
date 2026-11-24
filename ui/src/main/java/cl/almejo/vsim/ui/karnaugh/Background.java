@@ -24,7 +24,12 @@ public record Background(Executor worker, Executor edt) {
 
     /** The application's: a background thread, results on the EDT. */
     public static Background application() {
-        return new Background(command -> SharedWorker.INSTANCE.execute(command), SwingUtilities::invokeLater);
+        return new Background(Background::executeOnSharedWorker, SwingUtilities::invokeLater);
+    }
+
+    /** Not a method reference to the instance: the worker is made the first time it is needed, not before. */
+    private static void executeOnSharedWorker(Runnable command) {
+        SharedWorker.INSTANCE.execute(command);
     }
 
     /** Everything at once on the calling thread (tests). */
@@ -38,15 +43,18 @@ public record Background(Executor worker, Executor edt) {
      * hears back and never stays busy.
      */
     public <T> void run(Callable<T> work, Consumer<T> done, Consumer<Throwable> failed) {
-        worker.execute(() -> {
-            T result;
-            try {
-                result = work.call();
-            } catch (Throwable failure) {
-                edt.execute(() -> failed.accept(failure));
-                return;
-            }
-            edt.execute(() -> done.accept(result));
-        });
+        worker.execute(() -> runWork(work, done, failed));
+    }
+
+    /** On the worker: runs {@code work}, then reports its result or its failure on the EDT. */
+    private <T> void runWork(Callable<T> work, Consumer<T> done, Consumer<Throwable> failed) {
+        T result;
+        try {
+            result = work.call();
+        } catch (Throwable failure) {
+            edt.execute(() -> failed.accept(failure));
+            return;
+        }
+        edt.execute(() -> done.accept(result));
     }
 }

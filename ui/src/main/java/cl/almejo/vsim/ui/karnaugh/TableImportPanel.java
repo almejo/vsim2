@@ -182,7 +182,7 @@ public final class TableImportPanel extends JPanel {
         this.background = background;
         this.form = new CreationForm(target);
         this.controls = new CreationControls(form, new CircuitCreator(target, background), model::spec,
-                model::options, () -> onClose.run(), this::refreshButtons,
+                model::options, this::closeRequested, this::refreshButtons,
                 () -> !reading && page == Page.CREATE && sizeKnownAndAllowed());
 
         JPanel data = TableImportPages.dataPage(this);
@@ -307,23 +307,34 @@ public final class TableImportPanel extends JPanel {
                 Messages.text("karnaugh.table.defaultTitle"));
     }
 
+    /** The creation controls close the window: {@code onClose} is the one set last, so it is read when called. */
+    private void closeRequested() {
+        onClose.run();
+    }
+
     private void read(Callable<ImportedGrid> reader, String source, String proposedTitle) {
         reading = true;
         long request = ++readRequest;
         refreshButtons();
-        background.run(reader, grid -> {
-            if (request == readRequest) {
-                reading = false;
-                model.load(grid, source, proposedTitle);
-                fitWindow();
-            }
-        }, failure -> {
-            if (request == readRequest) {
-                reading = false;
-                model.loadFailed(failure instanceof TableImportException unreadable ? unreadable.problem()
-                        : ImportProblem.general("tableImport.readFailed", readFailure(failure)), source);
-            }
-        });
+        background.run(reader, grid -> gridRead(request, grid, source, proposedTitle),
+                failure -> readFailed(request, failure, source));
+    }
+
+    /** On the EDT: the read of {@code request} is in; a newer request makes it stale. */
+    private void gridRead(long request, ImportedGrid grid, String source, String proposedTitle) {
+        if (request == readRequest) {
+            reading = false;
+            model.load(grid, source, proposedTitle);
+            fitWindow();
+        }
+    }
+
+    private void readFailed(long request, Throwable failure, String source) {
+        if (request == readRequest) {
+            reading = false;
+            model.loadFailed(failure instanceof TableImportException unreadable ? unreadable.problem()
+                    : ImportProblem.general("tableImport.readFailed", readFailure(failure)), source);
+        }
     }
 
     private void modelChanged() {
