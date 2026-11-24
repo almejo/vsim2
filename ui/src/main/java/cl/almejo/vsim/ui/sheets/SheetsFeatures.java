@@ -21,13 +21,12 @@ import cl.almejo.vsim.ui.print.SheetPlan;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
+import cl.almejo.vsim.ui.actions.Actions;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -84,12 +83,8 @@ public final class SheetsFeatures {
         this.extension = extension;
         this.quickOptions = new SheetsQuickOptions(view, preferences, menuShower,
                 () -> picture().map(shown -> shown.grid().tiled()).orElse(false));
-        this.toggle = new AbstractAction(Messages.text("action.showSheets")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                preferences.setShowSheets(!preferences.showSheets());
-            }
-        };
+        this.toggle = Actions.of(Messages.text("action.showSheets"),
+                () -> preferences.setShowSheets(!preferences.showSheets()));
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.showSheets"));
         Icons.install(toggle, SheetsIcons.PRINT_SHEETS);
         JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);

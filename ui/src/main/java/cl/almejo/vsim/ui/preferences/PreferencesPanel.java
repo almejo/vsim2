@@ -6,11 +6,11 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.theme.ThemeColors;
+import cl.almejo.vsim.ui.actions.Actions;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.icons.FlatSearchIcon;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JComponent;
@@ -32,7 +32,6 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FocusTraversalPolicy;
 import java.awt.KeyboardFocusManager;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -134,42 +133,14 @@ final class PreferencesPanel extends JPanel {
      * the dialog's default button, which would close it); Ctrl+F (⌘F) anywhere goes to the field. */
     private void installKeys() {
         searchField.getInputMap(JComponent.WHEN_FOCUSED).put(ESCAPE, CLEAR_SEARCH);
-        searchField.getActionMap().put(CLEAR_SEARCH, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                searchField.setText("");
-            }
-
-            @Override
-            public boolean isEnabled() {
-                return !searchField.getText().isEmpty();
-            }
-        });
+        searchField.getActionMap().put(CLEAR_SEARCH,
+                Actions.unnamed(() -> !searchField.getText().isEmpty(), () -> searchField.setText("")));
         searchField.getInputMap(JComponent.WHEN_FOCUSED).put(ENTER, GO_TO_PAGE);
-        searchField.getActionMap().put(GO_TO_PAGE, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                firstControl().ifPresent(JComponent::requestFocusInWindow);
-            }
-
-            @Override
-            public boolean isEnabled() {
-                return firstControl().isPresent();
-            }
-        });
+        searchField.getActionMap().put(GO_TO_PAGE,
+                Actions.unnamed(() -> firstControl().isPresent(), this::focusFirstControl));
         KeyStroke find = KeyStroke.getKeyStroke(KeyEvent.VK_F, ShortcutCatalog.menuMask());
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(find, FOCUS_SEARCH);
-        getActionMap().put(FOCUS_SEARCH, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                focusSearch();
-            }
-
-            @Override
-            public boolean isEnabled() {
-                return !keyboardCaptured.getAsBoolean();
-            }
-        });
+        getActionMap().put(FOCUS_SEARCH, Actions.unnamed(() -> !keyboardCaptured.getAsBoolean(), this::focusSearch));
     }
 
     /** The user chose {@code groupId}: it is shown, and stored as the last seen when the dialog closes. */
@@ -267,6 +238,10 @@ final class PreferencesPanel extends JPanel {
     /** The matches of {@code groupId} for the current search. */
     int countFor(String groupId) {
         return counts.getOrDefault(groupId, 0);
+    }
+
+    private void focusFirstControl() {
+        firstControl().ifPresent(JComponent::requestFocusInWindow);
     }
 
     /** The first component of the page shown that the focus traversal policy gives the focus to; empty with no page. */

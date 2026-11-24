@@ -7,7 +7,6 @@ import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -148,12 +147,7 @@ public final class ZoomControl extends JPanel {
         selectionButton = iconButton(actions.zoomToSelection(), "zoom-selection");
         buildSlider();
         buildField();
-        typeZoom = new AbstractAction(Messages.text("action.zoomField")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                focusField();
-            }
-        };
+        typeZoom = cl.almejo.vsim.ui.actions.Actions.of(Messages.text("action.zoomField"), this::focusField);
         // a click on the slider or a button never takes the keyboard, so give it back to the pane in case the field
         // still holds it (the user used the field, then the slider: R and Supr must reach the canvas)
         MouseAdapter keyboardToPane = new MouseAdapter() {
@@ -208,12 +202,8 @@ public final class ZoomControl extends JPanel {
 
     private void bindSliderKey(int keyCode, String name, DoubleUnaryOperator change) {
         slider.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
-        slider.getActionMap().put(name, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                zoomInstantly(change.applyAsDouble(target.zoom()));
-            }
-        });
+        slider.getActionMap().put(name, cl.almejo.vsim.ui.actions.Actions.unnamed(
+                () -> zoomInstantly(change.applyAsDouble(target.zoom()))));
     }
 
     private void fieldCommitted(ActionEvent event) {
@@ -298,12 +288,7 @@ public final class ZoomControl extends JPanel {
         // Escape is the field's (it never reaches the tool, EditorView.bindEscapeToTheTool)
         String cancel = "zoomFieldCancel";
         editor.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), cancel);
-        editor.getActionMap().put(cancel, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                cancelTyping();
-            }
-        });
+        editor.getActionMap().put(cancel, cl.almejo.vsim.ui.actions.Actions.unnamed(this::cancelTyping));
     }
 
     private static String tooltipOf(Action action) {

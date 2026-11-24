@@ -20,12 +20,11 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
+import cl.almejo.vsim.ui.actions.Actions;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -67,16 +66,7 @@ public final class WaveformFeatures {
                 this::hidePanel);
         panel.setAnimations(() -> Animations.enabled(view.services().preferences()));
         dock.setContent(panel);
-        this.toggle = new AbstractAction(Messages.text("menu.view.waveforms")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                if (dock.isDockShowing()) {
-                    dock.hideDock();
-                } else {
-                    dock.showDock();
-                }
-            }
-        };
+        this.toggle = Actions.of(Messages.text("menu.view.waveforms"), () -> toggleDock(dock));
         Icons.install(toggle, WaveformIcons.PANEL); // the menu item's icon and the toolbar toggle's
         this.dockListener = () -> toggle.putValue(Action.SELECTED_KEY, dock.isDockShowing());
         dock.addDockListener(dockListener);
@@ -152,6 +142,14 @@ public final class WaveformFeatures {
         toolTipRemover.run();
         pane.removeOverlay(markers);
         pane.removeOverlay(blink);
+    }
+
+    private static void toggleDock(BottomDock dock) {
+        if (dock.isDockShowing()) {
+            dock.hideDock();
+        } else {
+            dock.showDock();
+        }
     }
 
     /** The panel's «Ocultar»: closes the dock, or in presentation mode takes the panel out of sight. */

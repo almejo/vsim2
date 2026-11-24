@@ -4,10 +4,10 @@ import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
+import cl.almejo.vsim.ui.actions.Actions;
 import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -30,7 +30,6 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Window;
-import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
@@ -166,12 +165,7 @@ final class AboutContent extends JPanel {
     void bindTo(JRootPane rootPane) {
         rootPane.setDefaultButton(closeButton);
         rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), CLOSE_KEY);
-        rootPane.getActionMap().put(CLOSE_KEY, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                close();
-            }
-        });
+        rootPane.getActionMap().put(CLOSE_KEY, Actions.unnamed(this::close));
     }
 
     @Override

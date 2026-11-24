@@ -1,9 +1,9 @@
 package cl.almejo.vsim.ui.toolbar;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.actions.Actions;
 import com.formdev.flatlaf.util.UIScale;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
@@ -22,7 +22,6 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Objects;
@@ -253,12 +252,7 @@ public final class SplitButton extends JComponent {
         arrowButton.addActionListener(event -> openPopup());
         arrowButton.getInputMap(JComponent.WHEN_FOCUSED)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK), OPEN_MODES);
-        arrowButton.getActionMap().put(OPEN_MODES, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                openPopup();
-            }
-        });
+        arrowButton.getActionMap().put(OPEN_MODES, Actions.unnamed(this::openPopup));
         add(mainButton, BorderLayout.CENTER);
         add(arrowButton, BorderLayout.EAST);
     }

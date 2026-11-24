@@ -14,9 +14,9 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import cl.almejo.vsim.ui.panels.FocusEvents;
+import cl.almejo.vsim.ui.actions.Actions;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -33,7 +33,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -157,7 +156,7 @@ final class MachinePinTable extends JPanel {
         newNameField.addFocusListener(FocusEvents.onLost(this::applyNewNameIfVisible));
         newNameField.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 CANCEL_NEW);
-        newNameField.getActionMap().put(CANCEL_NEW, action(this::closeNewName));
+        newNameField.getActionMap().put(CANCEL_NEW, Actions.unnamed(this::closeNewName));
         problem.setVisible(false);
         refresh();
     }
@@ -381,8 +380,8 @@ final class MachinePinTable extends JPanel {
                 InputEvent.ALT_DOWN_MASK), MOVE_UP);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,
                 InputEvent.ALT_DOWN_MASK), MOVE_DOWN);
-        field.getActionMap().put(MOVE_UP, action(() -> moveBy(row, -1)));
-        field.getActionMap().put(MOVE_DOWN, action(() -> moveBy(row, 1)));
+        field.getActionMap().put(MOVE_UP, Actions.unnamed(() -> moveBy(row, -1)));
+        field.getActionMap().put(MOVE_DOWN, Actions.unnamed(() -> moveBy(row, 1)));
         DragToReorder drag = new DragToReorder(row);
         handle.addMouseListener(drag);
         handle.addMouseMotionListener(drag);
@@ -569,18 +568,6 @@ final class MachinePinTable extends JPanel {
         Font font = UIManager.getFont("Label.font");
         int size = font == null ? 12 : font.getSize();
         return new Font(Font.MONOSPACED, Font.PLAIN, size);
-    }
-
-    private static AbstractAction action(Runnable behaviour) {
-        return new AbstractAction() {
-            @Serial
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behaviour.run();
-            }
-        };
     }
 
     // --- dragging a row by its handle ---

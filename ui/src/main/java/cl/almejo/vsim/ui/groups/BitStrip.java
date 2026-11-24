@@ -3,9 +3,9 @@ package cl.almejo.vsim.ui.groups;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.actions.Actions;
 
 import javax.swing.JComponent;
-import javax.swing.AbstractAction;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import java.awt.BasicStroke;
@@ -16,7 +16,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -77,12 +76,7 @@ final class BitStrip extends JComponent {
 
     private void bindKey(int keyCode, String name, Runnable action) {
         getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
-        getActionMap().put(name, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                action.run();
-            }
-        });
+        getActionMap().put(name, Actions.unnamed(action));
     }
 
     private void moveFocus(int towardsHigher) {

@@ -9,14 +9,13 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
+import cl.almejo.vsim.ui.actions.Actions;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
-import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -149,14 +148,13 @@ public final class SnapFeatures {
         };
     }
 
+    private void flip(BooleanSupplier getter, Consumer<Boolean> setter) {
+        setter.accept(!getter.getAsBoolean());
+        refresh();
+    }
+
     private Action choice(String nameKey, BooleanSupplier getter, Consumer<Boolean> setter) {
-        Action action = new AbstractAction(Messages.text(nameKey)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                setter.accept(!getter.getAsBoolean());
-                refresh();
-            }
-        };
+        Action action = Actions.of(Messages.text(nameKey), () -> flip(getter, setter));
         action.putValue(Action.SELECTED_KEY, getter.getAsBoolean());
         return action;
     }

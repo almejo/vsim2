@@ -13,13 +13,11 @@ import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -79,12 +77,7 @@ public final class MagnifierFeatures {
             }
         });
         presenter.whenThePointerLeavesThePanel(hover::pointerLeftPanel);
-        this.toggle = new AbstractAction(Messages.text("action.magnifier")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                setOn(!on);
-            }
-        };
+        this.toggle = Actions.of(Messages.text("action.magnifier"), () -> setOn(!on));
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.magnifier.tooltip"));
         Icons.install(toggle, MagnifierIcons.EYE);
         toggle.putValue(Action.SELECTED_KEY, false);

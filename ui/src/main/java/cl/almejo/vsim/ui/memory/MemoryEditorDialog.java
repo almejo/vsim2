@@ -27,9 +27,8 @@ import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InstanceNames;
+import cl.almejo.vsim.ui.actions.Actions;
 
-import javax.swing.AbstractAction;
-import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultCellEditor;
 import javax.swing.Icon;
@@ -334,26 +333,17 @@ public final class MemoryEditorDialog {
         });
         resizeColumns();
         table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_C, shortcutMask()), "copy");
-        table.getActionMap().put("copy", unnamed(this::copySelection));
+        table.getActionMap().put("copy", Actions.unnamed(this::copySelection));
         table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_V, shortcutMask()), "paste");
-        table.getActionMap().put("paste", unnamed(this::pasteAtSelection));
+        table.getActionMap().put("paste", Actions.unnamed(this::pasteAtSelection));
         table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutMask()),
                 "memory.undo");
-        table.getActionMap().put("memory.undo", unnamed(this::undo));
+        table.getActionMap().put("memory.undo", Actions.unnamed(this::undo));
         for (int modifiers : new int[]{shortcutMask(), shortcutMask() | InputEvent.SHIFT_DOWN_MASK}) {
             int key = (modifiers & InputEvent.SHIFT_DOWN_MASK) != 0 ? KeyEvent.VK_Z : KeyEvent.VK_Y;
             table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(key, modifiers), "memory.redo");
         }
-        table.getActionMap().put("memory.redo", unnamed(this::redo));
-    }
-
-    private static Action unnamed(Runnable behavior) {
-        return new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent event) {
-                behavior.run();
-            }
-        };
+        table.getActionMap().put("memory.redo", Actions.unnamed(this::redo));
     }
 
     /** The toolbar: framed buttons in groups (file, link, edit, restore) and the base selector last. */

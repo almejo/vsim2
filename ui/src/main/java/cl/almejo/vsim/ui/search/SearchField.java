@@ -5,12 +5,11 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.ProblemBadge;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import cl.almejo.vsim.ui.actions.Actions;
 
-import javax.swing.AbstractAction;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import java.awt.Color;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
@@ -76,11 +75,6 @@ public final class SearchField extends JTextField {
         getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mask), actionKey);
         getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mask | InputEvent.SHIFT_DOWN_MASK),
                 actionKey);
-        getActionMap().put(actionKey, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                // intentionally empty: consuming the keystroke is the point
-            }
-        });
+        getActionMap().put(actionKey, Actions.doNothing()); // consuming the keystroke is the point
     }
 }

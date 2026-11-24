@@ -111,6 +111,11 @@ public final class Actions {
         };
     }
 
+    /** An action that does nothing: bound to a key, it only consumes the keystroke instead of letting it through. */
+    public static Action doNothing() {
+        return unnamed(() -> { });
+    }
+
     /** Like {@link #unnamed(Runnable)}, but {@code isEnabled()} asks {@code condition} each time. */
     public static Action unnamed(BooleanSupplier condition, Runnable behavior) {
         return new AbstractAction() {

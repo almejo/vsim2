@@ -7,12 +7,11 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
+import cl.almejo.vsim.ui.actions.Actions;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JToggleButton;
-import java.awt.event.ActionEvent;
 
 /**
  * The «Valores de los buses» toggle of one editor view: Ver ▸ «Valores de los buses» (a check box, shortcut id
@@ -39,12 +38,8 @@ public final class BusValuesFeatures {
     public BusValuesFeatures(EditorView view) {
         this.view = view;
         this.preferences = view.services().preferences();
-        this.toggle = new AbstractAction(Messages.text("action.busValues")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                preferences.setShowBusValues(!preferences.showBusValues());
-            }
-        };
+        this.toggle = Actions.of(Messages.text("action.busValues"),
+                () -> preferences.setShowBusValues(!preferences.showBusValues()));
         toggle.putValue(Action.SHORT_DESCRIPTION, Messages.text("action.busValues"));
         Icons.install(toggle, BusValuesIcons.BUS_VALUES);
         JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(toggle);

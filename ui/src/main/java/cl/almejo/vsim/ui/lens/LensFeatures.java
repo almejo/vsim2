@@ -16,7 +16,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
@@ -121,12 +120,7 @@ public final class LensFeatures {
         this.view = Objects.requireNonNull(view, "view");
         this.keyBindings = new KeyBindings(view.services().preferences());
         this.dispatchers = Objects.requireNonNull(dispatchers, "dispatchers");
-        this.toggle = new AbstractAction(Messages.text("action.lens")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                setOn(!state.isOn());
-            }
-        };
+        this.toggle = Actions.of(Messages.text("action.lens"), () -> setOn(!state.isOn()));
         toggle.putValue(Action.SELECTED_KEY, false);
         Icons.install(toggle, LensIcons.LENS);
         this.preferences = view.services().preferences();
