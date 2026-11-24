@@ -276,11 +276,39 @@ final class MachineTestTableGrid extends JComponent {
         return component.getFont() != null ? component.getFont() : UIManager.getFont("Label.font");
     }
 
+    /**
+     * A strip around the grid (the edge numbers, the names column, their corner): opaque, its text anti-aliased, on
+     * the diagram's background, then what {@link #paintOn} draws.
+     */
+    abstract class HeaderStrip extends JComponent {
+
+        HeaderStrip() {
+            setOpaque(true);
+        }
+
+        @Override
+        protected final void paintComponent(Graphics graphics) {
+            Graphics2D canvas = (Graphics2D) graphics.create();
+            try {
+                ColorScheme colours = scheme.get();
+                canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                canvas.setColor(colours.diagramBackground());
+                canvas.fillRect(0, 0, getWidth(), getHeight());
+                paintOn(canvas, colours);
+            } finally {
+                canvas.dispose();
+            }
+        }
+
+        /** Draws the strip's own contents over its background with {@code colours}, the scheme of this paint. */
+        abstract void paintOn(Graphics2D canvas, ColorScheme colours);
+    }
+
     /** «1 2 3…» over the columns, the edge's arrow (↓ or ↑) where each edge falls, and nothing over the ghost. */
-    final class Header extends JComponent {
+    final class Header extends HeaderStrip {
 
         Header() {
-            setOpaque(true);
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent event) {
@@ -320,44 +348,34 @@ final class MachineTestTableGrid extends JComponent {
         }
 
         @Override
-        protected void paintComponent(Graphics graphics) {
-            Graphics2D canvas = (Graphics2D) graphics.create();
-            try {
-                ColorScheme colours = scheme.get();
-                canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                canvas.setColor(colours.diagramBackground());
-                canvas.fillRect(0, 0, getWidth(), getHeight());
-                Font plain = font(this);
-                Font bold = plain.deriveFont(Font.BOLD);
-                String arrow = StateMachine.EDGE_RISING.equals(model.machine().edge()) ? "↑" : "↓";
-                int width = model.layout().columnWidth();
-                int headerHeight = model.layout().headerHeight();
-                int inset = model.layout().padding() / 2;
-                for (int column = 0; column < model.columnCount(); column++) {
-                    boolean chosen = column == model.chosenColumn();
-                    canvas.setFont(chosen ? bold : plain);
-                    FontMetrics metrics = canvas.getFontMetrics();
-                    int baseline = (headerHeight + metrics.getAscent() - metrics.getDescent()) / 2;
-                    if (chosen) {
-                        canvas.setColor(PainterSupport.withAlpha(colours.selection(), CHOSEN_HEADER_ALPHA));
-                        canvas.fillRect(column * width, 0, width, headerHeight);
-                    }
-                    String number = String.valueOf(column + 1);
-                    canvas.setColor(colours.diagramTrace());
-                    canvas.drawString(number, column * width + (width - metrics.stringWidth(number)) / 2 - inset,
-                            baseline);
-                    canvas.setFont(plain);
-                    metrics = canvas.getFontMetrics();
-                    canvas.setColor(MachineTestCellPainter.quiet(colours));
-                    canvas.drawString(arrow, (column + 1) * width - metrics.stringWidth(arrow) - inset, baseline);
+        void paintOn(Graphics2D canvas, ColorScheme colours) {
+            Font plain = font(this);
+            Font bold = plain.deriveFont(Font.BOLD);
+            String arrow = StateMachine.EDGE_RISING.equals(model.machine().edge()) ? "↑" : "↓";
+            int width = model.layout().columnWidth();
+            int headerHeight = model.layout().headerHeight();
+            int inset = model.layout().padding() / 2;
+            for (int column = 0; column < model.columnCount(); column++) {
+                boolean chosen = column == model.chosenColumn();
+                canvas.setFont(chosen ? bold : plain);
+                FontMetrics metrics = canvas.getFontMetrics();
+                int baseline = (headerHeight + metrics.getAscent() - metrics.getDescent()) / 2;
+                if (chosen) {
+                    canvas.setColor(PainterSupport.withAlpha(colours.selection(), CHOSEN_HEADER_ALPHA));
+                    canvas.fillRect(column * width, 0, width, headerHeight);
                 }
-                paintPlus(canvas, plain, baselineOf(canvas, plain));
-                canvas.setColor(colours.diagramGrid());
-                canvas.drawLine(0, headerHeight - 1, getWidth(), headerHeight - 1);
-            } finally {
-                canvas.dispose();
+                String number = String.valueOf(column + 1);
+                canvas.setColor(colours.diagramTrace());
+                canvas.drawString(number, column * width + (width - metrics.stringWidth(number)) / 2 - inset,
+                        baseline);
+                canvas.setFont(plain);
+                metrics = canvas.getFontMetrics();
+                canvas.setColor(MachineTestCellPainter.quiet(colours));
+                canvas.drawString(arrow, (column + 1) * width - metrics.stringWidth(arrow) - inset, baseline);
             }
+            paintPlus(canvas, plain, baselineOf(canvas, plain));
+            canvas.setColor(colours.diagramGrid());
+            canvas.drawLine(0, headerHeight - 1, getWidth(), headerHeight - 1);
         }
     }
 
@@ -378,11 +396,7 @@ final class MachineTestTableGrid extends JComponent {
     }
 
     /** The rows' names, as the wave strip's names column writes them; a name cut with «…» shows whole on hover. */
-    final class Names extends JComponent {
-
-        Names() {
-            setOpaque(true);
-        }
+    final class Names extends HeaderStrip {
 
         @Override
         public Dimension getPreferredSize() {
@@ -412,62 +426,34 @@ final class MachineTestTableGrid extends JComponent {
             return shown(found, getFontMetrics(fontOf(found))).equals(found.label()) ? null : found.label();
         }
 
-        // CPD-OFF state-machine branch: the test table's three headers paint their background alike
         @Override
-        protected void paintComponent(Graphics graphics) {
-            Graphics2D canvas = (Graphics2D) graphics.create();
-            try {
-                ColorScheme colours = scheme.get();
-                canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                canvas.setColor(colours.diagramBackground());
-                canvas.fillRect(0, 0, getWidth(), getHeight());
-                for (MachineTestTableModel.Row row : model.rows()) {
-                    canvas.setFont(fontOf(row));
-                    FontMetrics metrics = canvas.getFontMetrics();
-                    int baseline = row.top() + (row.height() + metrics.getAscent() - metrics.getDescent()) / 2;
-                    boolean quiet = row.kind() == MachineTestTableModel.Kind.GROUP
-                            || row.kind() == MachineTestTableModel.Kind.BUS;
-                    canvas.setColor(quiet ? MachineTestCellPainter.quiet(colours) : colours.diagramTrace());
-                    canvas.drawString(shown(row, metrics), model.layout().padding(), baseline);
-                    canvas.setColor(colours.diagramGrid());
-                    canvas.drawLine(0, row.top() + row.height() - 1, getWidth(), row.top() + row.height() - 1);
-                }
-            } finally {
-                canvas.dispose();
+        void paintOn(Graphics2D canvas, ColorScheme colours) {
+            for (MachineTestTableModel.Row row : model.rows()) {
+                canvas.setFont(fontOf(row));
+                FontMetrics metrics = canvas.getFontMetrics();
+                int baseline = row.top() + (row.height() + metrics.getAscent() - metrics.getDescent()) / 2;
+                boolean quiet = row.kind() == MachineTestTableModel.Kind.GROUP
+                        || row.kind() == MachineTestTableModel.Kind.BUS;
+                canvas.setColor(quiet ? MachineTestCellPainter.quiet(colours) : colours.diagramTrace());
+                canvas.drawString(shown(row, metrics), model.layout().padding(), baseline);
+                canvas.setColor(colours.diagramGrid());
+                canvas.drawLine(0, row.top() + row.height() - 1, getWidth(), row.top() + row.height() - 1);
             }
         }
-        // CPD-ON
     }
 
     /** «flanco», over the names and beside the edge numbers. */
-    final class Corner extends JComponent {
+    final class Corner extends HeaderStrip {
 
-        Corner() {
-            setOpaque(true);
-        }
-
-        // CPD-OFF state-machine branch: the test table's three headers paint their background alike
         @Override
-        protected void paintComponent(Graphics graphics) {
-            Graphics2D canvas = (Graphics2D) graphics.create();
-            try {
-                ColorScheme colours = scheme.get();
-                canvas.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                canvas.setColor(colours.diagramBackground());
-                canvas.fillRect(0, 0, getWidth(), getHeight());
-                canvas.setFont(font(this));
-                FontMetrics metrics = canvas.getFontMetrics();
-                canvas.setColor(MachineTestCellPainter.quiet(colours));
-                canvas.drawString(Messages.text("machine.test.header.edge"), model.layout().padding(),
-                        (getHeight() + metrics.getAscent() - metrics.getDescent()) / 2);
-                canvas.setColor(colours.diagramGrid());
-                canvas.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
-            } finally {
-                canvas.dispose();
-            }
+        void paintOn(Graphics2D canvas, ColorScheme colours) {
+            canvas.setFont(font(this));
+            FontMetrics metrics = canvas.getFontMetrics();
+            canvas.setColor(MachineTestCellPainter.quiet(colours));
+            canvas.drawString(Messages.text("machine.test.header.edge"), model.layout().padding(),
+                    (getHeight() + metrics.getAscent() - metrics.getDescent()) / 2);
+            canvas.setColor(colours.diagramGrid());
+            canvas.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
         }
-        // CPD-ON
     }
 }
