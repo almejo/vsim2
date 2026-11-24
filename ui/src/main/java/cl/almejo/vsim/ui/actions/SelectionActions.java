@@ -122,13 +122,15 @@ public final class SelectionActions {
         content = acting;
         refresh();
         refreshPaste();
-        return () -> {
-            if (content.equals(acting)) {
-                content = Optional.empty();
-                refresh();
-                refreshPaste();
-            }
-        };
+        return () -> stopActingOnClipboardContent(acting);
+    }
+
+    private void stopActingOnClipboardContent(Optional<ContentClipboard> acting) {
+        if (content.equals(acting)) {
+            content = Optional.empty();
+            refresh();
+            refreshPaste();
+        }
     }
 
     private void copyContent(ContentClipboard clipboardContent) {
@@ -242,31 +244,34 @@ public final class SelectionActions {
 
     /** Clipboard entries of the canvas context menu (see the class tests for what each target gets). */
     public ContextMenuContributor contributor() {
-        return (menu, target, selection, gridPosition) -> {
-            if (target.isEmpty()) {
-                Optional<GridPoint> openedAt = Optional.of(new GridPoint(
-                        (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
-                Action pasteHere = Actions.of(Messages.text("action.paste"), null, () -> pasteAt(openedAt));
-                Actions.disabledBecause(pasteHere, this::cannotPasteReason);
-                refreshPaste();
-                pasteHere.setEnabled(paste.isEnabled());
-                menu.add(ContextMenuEntry.PASTE.tag(new JMenuItem(pasteHere)));
-                addOnce(menu, selectAll, ContextMenuEntry.SELECT_ALL);
-                return;
-            }
-            boolean multiple = selection.ids().size() > 1;
-            if (!multiple && target.get() instanceof Wire) {
-                return;
-            }
-            addOnce(menu, cut, ContextMenuEntry.CUT);
-            addOnce(menu, copy, ContextMenuEntry.COPY);
-            addOnce(menu, duplicate, ContextMenuEntry.DUPLICATE);
-            if (multiple) {
-                addOnce(menu, editorActions.delete(), ContextMenuEntry.DELETE);
-                addOnce(menu, editorActions.rotateClockwise(), ContextMenuEntry.ROTATE_CLOCKWISE);
-                addOnce(menu, editorActions.rotateCounterClockwise(), ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE);
-            }
-        };
+        return this::contributeClipboardEntries;
+    }
+
+    private void contributeClipboardEntries(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
+                                            Point2D gridPosition) {
+        if (target.isEmpty()) {
+            Optional<GridPoint> openedAt = Optional.of(new GridPoint(
+                    (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
+            Action pasteHere = Actions.of(Messages.text("action.paste"), null, () -> pasteAt(openedAt));
+            Actions.disabledBecause(pasteHere, this::cannotPasteReason);
+            refreshPaste();
+            pasteHere.setEnabled(paste.isEnabled());
+            menu.add(ContextMenuEntry.PASTE.tag(new JMenuItem(pasteHere)));
+            addOnce(menu, selectAll, ContextMenuEntry.SELECT_ALL);
+            return;
+        }
+        boolean multiple = selection.ids().size() > 1;
+        if (!multiple && target.get() instanceof Wire) {
+            return;
+        }
+        addOnce(menu, cut, ContextMenuEntry.CUT);
+        addOnce(menu, copy, ContextMenuEntry.COPY);
+        addOnce(menu, duplicate, ContextMenuEntry.DUPLICATE);
+        if (multiple) {
+            addOnce(menu, editorActions.delete(), ContextMenuEntry.DELETE);
+            addOnce(menu, editorActions.rotateClockwise(), ContextMenuEntry.ROTATE_CLOCKWISE);
+            addOnce(menu, editorActions.rotateCounterClockwise(), ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE);
+        }
     }
 
     private static void addOnce(JPopupMenu menu, Action action, ContextMenuEntry entry) {
