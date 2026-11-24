@@ -1,10 +1,11 @@
 package cl.almejo.vsim.ui.panels;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 import javax.swing.JTextField;
 import javax.swing.event.DocumentListener;
-import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class TextChangesTest {
 

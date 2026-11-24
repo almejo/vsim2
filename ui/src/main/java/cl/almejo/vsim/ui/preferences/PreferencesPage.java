@@ -1,7 +1,7 @@
 package cl.almejo.vsim.ui.preferences;
 
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;

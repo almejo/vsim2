@@ -2,15 +2,8 @@ package cl.almejo.vsim.ui.appearance;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ModalDialogs;
-
 import net.miginfocom.swing.MigLayout;
 
-import java.awt.Component;
-import java.awt.Dialog;
-import java.awt.Font;
-import java.awt.Window;
-import java.util.List;
-import java.util.stream.Collectors;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -18,6 +11,12 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import java.awt.Component;
+import java.awt.Dialog;
+import java.awt.Font;
+import java.awt.Window;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * The connections sheet (mockup 10): a bold title, the pins that will be left to connect by hand and the pieces that

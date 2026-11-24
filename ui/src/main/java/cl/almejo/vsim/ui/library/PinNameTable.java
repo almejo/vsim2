@@ -1,7 +1,7 @@
 package cl.almejo.vsim.ui.library;
 
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import javax.swing.DefaultCellEditor;
 import javax.swing.JTable;

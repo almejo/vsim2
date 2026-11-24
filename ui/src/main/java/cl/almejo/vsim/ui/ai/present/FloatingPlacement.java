@@ -1,8 +1,8 @@
 package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.panels.ComponentEvents;
+import cl.almejo.vsim.ui.window.EditorView;
 
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;

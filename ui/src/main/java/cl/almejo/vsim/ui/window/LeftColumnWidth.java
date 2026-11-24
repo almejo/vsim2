@@ -3,9 +3,9 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.panels.ComponentEvents;
-import java.awt.event.ComponentListener;
 
 import javax.swing.JSplitPane;
+import java.awt.event.ComponentListener;
 import java.util.Objects;
 
 /**

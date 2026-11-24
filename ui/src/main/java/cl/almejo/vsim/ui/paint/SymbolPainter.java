@@ -2,8 +2,8 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
-import cl.almejo.vsim.core.component.appearance.SegmentCurve;
 import cl.almejo.vsim.core.component.appearance.PinStub;
+import cl.almejo.vsim.core.component.appearance.SegmentCurve;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolElement;
 import cl.almejo.vsim.core.component.appearance.SymbolNode;

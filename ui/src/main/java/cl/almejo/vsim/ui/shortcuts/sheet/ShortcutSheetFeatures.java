@@ -15,15 +15,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
 
-import java.awt.Component;
-import java.awt.KeyEventDispatcher;
-import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
-import java.awt.event.ComponentListener;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
-import java.util.List;
-import java.util.Optional;
 import javax.swing.Action;
 import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
@@ -33,6 +24,15 @@ import javax.swing.KeyStroke;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
+import java.awt.Component;
+import java.awt.KeyEventDispatcher;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ComponentListener;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * The sheet of shortcuts of one editor view: a card on a dimmed circuit area (not the menus) with a selection of the

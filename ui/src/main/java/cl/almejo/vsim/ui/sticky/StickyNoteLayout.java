@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.document.StickyItem;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
-
 import cl.almejo.vsim.ui.paint.FallbackText;
 import cl.almejo.vsim.ui.paint.TextFonts;
 

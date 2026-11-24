@@ -2,8 +2,8 @@ package cl.almejo.vsim.ui.actions;
 
 import org.junit.jupiter.api.Test;
 
-import java.awt.event.ActionEvent;
 import javax.swing.Action;
+import java.awt.event.ActionEvent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

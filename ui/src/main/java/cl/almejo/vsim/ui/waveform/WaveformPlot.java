@@ -4,8 +4,8 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.ComponentEvents;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import javax.swing.JComponent;
 import javax.swing.JViewport;

@@ -1,9 +1,9 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.command.EditMachineCommand;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
-import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.machine.DiagramPoint;
 import cl.almejo.vsim.core.machine.MachineChecks;
 import cl.almejo.vsim.core.machine.MachineFinding;
@@ -24,8 +24,8 @@ import cl.almejo.vsim.ui.canvas.WheelNavigation;
 import cl.almejo.vsim.ui.inline.InlineHost;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.problems.ProblemText;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
+import cl.almejo.vsim.ui.problems.ProblemText;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;

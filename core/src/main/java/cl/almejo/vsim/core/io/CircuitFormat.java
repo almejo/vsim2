@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.io;
 
-import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
@@ -36,6 +35,7 @@ import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;

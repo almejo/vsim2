@@ -4,8 +4,8 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
-import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionPin;
 
 import java.util.ArrayList;
 import java.util.HashMap;

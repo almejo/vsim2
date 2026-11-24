@@ -3,16 +3,8 @@ package cl.almejo.vsim.ui.logisim;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
-
 import net.miginfocom.swing.MigLayout;
 
-import java.awt.BorderLayout;
-import java.awt.Cursor;
-import java.awt.Font;
-import java.awt.font.TextAttribute;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -21,6 +13,13 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
+import java.awt.BorderLayout;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.font.TextAttribute;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The content of the report window: the summary on top and, in a scroll pane, the report: a heading per circuit, a

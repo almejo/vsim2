@@ -6,14 +6,8 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.panels.TextRenderers;
 import cl.almejo.vsim.ui.theme.ReadableColors;
-
 import net.miginfocom.swing.MigLayout;
 
-import java.awt.Font;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.BiConsumer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -23,6 +17,11 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import java.awt.Font;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiConsumer;
 
 /**
  * The body of the create/update dialog: target (update), name with its inline message, pin order and names (edited in

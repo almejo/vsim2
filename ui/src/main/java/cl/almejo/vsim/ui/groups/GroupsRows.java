@@ -4,10 +4,10 @@ import cl.almejo.vsim.core.component.standard.BitGroups;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.panels.FocusEvents;
+import cl.almejo.vsim.ui.panels.PropertiesPanel;
+import cl.almejo.vsim.ui.window.EditorView;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;

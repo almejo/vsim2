@@ -1,10 +1,10 @@
 package cl.almejo.vsim.ui.about;
 
-import cl.almejo.vsim.ui.panels.FontFloor;
-import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
-import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.panels.FontFloor;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 

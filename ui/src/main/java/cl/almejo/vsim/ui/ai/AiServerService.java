@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.ai;
 
-import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
@@ -13,6 +12,7 @@ import cl.almejo.vsim.mcp.PortInUseException;
 import cl.almejo.vsim.mcp.RunningServer;
 import cl.almejo.vsim.mcp.VsimMcpServer;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

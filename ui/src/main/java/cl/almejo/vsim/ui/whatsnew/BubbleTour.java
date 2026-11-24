@@ -13,9 +13,14 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutEntry;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets.Side;
 import cl.almejo.vsim.ui.window.EditorView;
-
 import com.formdev.flatlaf.util.UIScale;
 
+import javax.swing.JComponent;
+import javax.swing.JLayeredPane;
+import javax.swing.JRootPane;
+import javax.swing.MenuSelectionManager;
+import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.KeyEventDispatcher;
@@ -31,12 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
-import javax.swing.JComponent;
-import javax.swing.JLayeredPane;
-import javax.swing.JRootPane;
-import javax.swing.MenuSelectionManager;
-import javax.swing.SwingUtilities;
-import javax.swing.text.JTextComponent;
 
 /**
  * One showing of a release's bubbles over a view's window (mockup v4): one bubble at a time, pointing at its target

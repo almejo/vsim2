@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.app.DaemonThreads;
+
 import javax.swing.SwingUtilities;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;

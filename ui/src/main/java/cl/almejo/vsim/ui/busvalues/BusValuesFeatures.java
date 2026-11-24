@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.busvalues;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -7,7 +8,6 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
-import cl.almejo.vsim.ui.actions.Actions;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;

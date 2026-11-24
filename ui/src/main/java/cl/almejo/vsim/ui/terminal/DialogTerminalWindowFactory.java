@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.terminal;
 
 import cl.almejo.vsim.ui.panels.WindowEvents;
+
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.WindowConstants;

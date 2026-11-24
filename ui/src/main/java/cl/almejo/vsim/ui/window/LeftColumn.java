@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.window;
 
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import javax.swing.Action;
 import javax.swing.BorderFactory;

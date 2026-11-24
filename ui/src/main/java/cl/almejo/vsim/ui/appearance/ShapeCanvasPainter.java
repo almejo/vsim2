@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.appearance;
 
-import com.formdev.flatlaf.util.UIScale;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
@@ -12,9 +11,9 @@ import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.appearance.ShapeCanvas.Coincidence;
 import cl.almejo.vsim.ui.appearance.ShapeCanvas.HandleRef;
-import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.canvas.GridPainter;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -22,6 +21,7 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.tools.RubberBand;
+import com.formdev.flatlaf.util.UIScale;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -47,8 +47,8 @@ import java.util.Set;
 
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.BAND_FILL_ALPHA;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.BAND_WIDTH;
-import static cl.almejo.vsim.ui.appearance.ShapeCanvas.boxHandleOffset;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.UNIT;
+import static cl.almejo.vsim.ui.appearance.ShapeCanvas.boxHandleOffset;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.handlePoint;
 import static cl.almejo.vsim.ui.appearance.ShapeCanvas.paintAppearance;
 

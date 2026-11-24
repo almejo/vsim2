@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.theme.ThemeColors;
-
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.AbstractButton;

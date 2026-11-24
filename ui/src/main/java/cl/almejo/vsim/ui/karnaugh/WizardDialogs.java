@@ -3,10 +3,10 @@ package cl.almejo.vsim.ui.karnaugh;
 import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.panels.ModalDialogs;
 
-import java.awt.Component;
-import java.awt.Dialog;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
+import java.awt.Component;
+import java.awt.Dialog;
 
 /**
  * The dialog of the wizard and of the table import. Every way of closing it (Escape, the window's close box, and the

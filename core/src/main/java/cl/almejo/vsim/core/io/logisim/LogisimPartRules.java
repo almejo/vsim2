@@ -1,7 +1,7 @@
 package cl.almejo.vsim.core.io.logisim;
 
-import cl.almejo.vsim.core.component.standard.BitGroups;
 import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
+import cl.almejo.vsim.core.component.standard.BitGroups;
 import cl.almejo.vsim.core.component.standard.KeyboardTypes;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.SequentialTypes;
