@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.machine.MachineKind;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.UIManager;
@@ -47,8 +48,8 @@ final class MachineKindChips {
      * {@link ReadableColors#COMFORTABLE_TEXT_CONTRAST}:1.
      */
     static Color unlitText(ColorScheme scheme) {
-        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), UNLIT_MIX), scheme.background(),
-                ReadableColors.COMFORTABLE_TEXT_CONTRAST);
+        return ReadableColors.readableOn(ThemeColors.mix(scheme.text(), scheme.background(), UNLIT_MIX),
+                scheme.background(), ReadableColors.COMFORTABLE_TEXT_CONTRAST);
     }
 
     /** The chips' font: the interface's label font, read now, so it follows the interface size and the theme. */
@@ -122,10 +123,10 @@ final class MachineKindChips {
                                   ColorScheme scheme) {
         RoundRectangle2D pill = new RoundRectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(),
                 bounds.getHeight(), bounds.getHeight(), bounds.getHeight());
-        Color unlit = mix(scheme.text(), scheme.background(), UNLIT_MIX);
+        Color unlit = ThemeColors.mix(scheme.text(), scheme.background(), UNLIT_MIX);
         if (lit) {
             Color accent = scheme.selection();
-            graphics.setColor(mix(scheme.background(), accent, LIT_FILL_TINT));
+            graphics.setColor(ThemeColors.mix(scheme.background(), accent, LIT_FILL_TINT));
             graphics.fill(pill);
             graphics.setColor(accent);
             graphics.setStroke(new java.awt.BasicStroke(UIScale.scale(1.5f)));
@@ -159,16 +160,4 @@ final class MachineKindChips {
             graphics.dispose();
         }
     }
-
-    // CPD-OFF state-machine code on its own branch: MachineColors has the same mix (ThemeColors.mix after the merge)
-    private static Color mix(Color base, Color towards, double amount) {
-        return new Color(channel(base.getRed(), towards.getRed(), amount),
-                channel(base.getGreen(), towards.getGreen(), amount),
-                channel(base.getBlue(), towards.getBlue(), amount));
-    }
-
-    private static int channel(int base, int towards, double amount) {
-        return (int) Math.round(base + (towards - base) * amount);
-    }
-    // CPD-ON
 }

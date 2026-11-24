@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.machine;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.ThemeColors;
 
 import java.awt.Color;
 
@@ -31,7 +32,7 @@ public final class MachineColors {
 
     /** The inside of the active state: the background tinted with the active colour, opaque. */
     static Color activeFill(ColorScheme scheme) {
-        return mix(scheme.background(), active(scheme), ACTIVE_FILL_TINT);
+        return ThemeColors.mix(scheme.background(), active(scheme), ACTIVE_FILL_TINT);
     }
 
     public static Color stateFill(ColorScheme scheme) {
@@ -55,8 +56,8 @@ public final class MachineColors {
     /** The Moore outputs inside {@code state}: its name's colour a little towards its inside, like {@link #muted}. */
     static Color stateOutputs(ColorScheme scheme, MachineState state) {
         return state.color().map(color -> ReadableColors.readableOn(
-                        mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX), scheme.stateFill(color),
-                        ReadableColors.COMFORTABLE_TEXT_CONTRAST))
+                        ThemeColors.mix(scheme.stateFillText(color), scheme.stateFill(color), MUTED_MIX),
+                        scheme.stateFill(color), ReadableColors.COMFORTABLE_TEXT_CONTRAST))
                 .orElseGet(() -> muted(scheme));
     }
 
@@ -73,8 +74,8 @@ public final class MachineColors {
      * {@link ReadableColors#COMFORTABLE_TEXT_CONTRAST}:1.
      */
     public static Color muted(ColorScheme scheme) {
-        return ReadableColors.readableOn(mix(scheme.text(), scheme.background(), MUTED_MIX), scheme.background(),
-                ReadableColors.COMFORTABLE_TEXT_CONTRAST);
+        return ReadableColors.readableOn(ThemeColors.mix(scheme.text(), scheme.background(), MUTED_MIX),
+                scheme.background(), ReadableColors.COMFORTABLE_TEXT_CONTRAST);
     }
 
     /** A condition that cannot be read: the scheme's red (the conflict's). */
@@ -89,17 +90,6 @@ public final class MachineColors {
 
     static Color selection(ColorScheme scheme) {
         return scheme.selection();
-    }
-
-    /** {@code base} moved {@code amount} (0..1) towards {@code towards}, opaque. */
-    private static Color mix(Color base, Color towards, double amount) {
-        return new Color(channel(base.getRed(), towards.getRed(), amount),
-                channel(base.getGreen(), towards.getGreen(), amount),
-                channel(base.getBlue(), towards.getBlue(), amount));
-    }
-
-    private static int channel(int base, int towards, double amount) {
-        return (int) Math.round(base + (towards - base) * amount);
     }
 
     /** The border around a diagram in test mode, and the bar's accent (hito 4). */
