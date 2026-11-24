@@ -127,23 +127,27 @@ public final class AiPanel extends JPanel {
     }
 
     private void bindButtons() {
-        nextFreePortButton.addActionListener(event -> {
-            int taken = service.effectivePort();
-            if (!service.useNextFreePort()) {
-                noticeText = Messages.format("ai.panel.noFreePort", Integer.toString(taken));
-                refreshState();
-            }
-        });
-        copyButton.addActionListener(event -> {
-            clipboard.accept(service.claudeCodeCommand());
-            noticeText = Messages.text("ai.copyConfiguration.done");
-            service.configurationCopied();
-            refreshState();
-        });
+        nextFreePortButton.addActionListener(event -> moveToNextFreePort());
+        copyButton.addActionListener(event -> copyConfiguration());
         keepSettingsButton.addActionListener(event -> circuitOverride.get().ifPresent(SettingsOverride::keep));
         dropSettingsButton.addActionListener(event -> circuitOverride.get()
                 .ifPresent(SettingsOverride::dropEditorSettings));
         configurationHeader.addActionListener(event -> showConfiguration(configurationHeader.isSelected()));
+    }
+
+    private void moveToNextFreePort() {
+        int taken = service.effectivePort();
+        if (!service.useNextFreePort()) {
+            noticeText = Messages.format("ai.panel.noFreePort", Integer.toString(taken));
+            refreshState();
+        }
+    }
+
+    private void copyConfiguration() {
+        clipboard.accept(service.claudeCodeCommand());
+        noticeText = Messages.text("ai.copyConfiguration.done");
+        service.configurationCopied();
+        refreshState();
     }
 
     private void layOut() {

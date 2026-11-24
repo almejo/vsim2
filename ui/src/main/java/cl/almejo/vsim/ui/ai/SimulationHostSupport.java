@@ -89,25 +89,43 @@ final class SimulationHostSupport {
     }
 
     CompletableFuture<SimulationReceipt> simulate(SimulationRequest request) {
-        return queue.submitAsync(editorThread, result -> {
-            OpenDocument document = document(request.document());
-            DocumentVersion version = versionOf(document);
-            long netlistToken = document.netlistToken();
-            Started started = start(document, version, request);
-            started.report().whenComplete((report, failure) -> editorThread.execute(() -> {
-                if (failure != null) {
-                    result.completeExceptionally(closedOr(failure, request.document()));
-                    return;
-                }
-                try {
-                    result.complete(SimulationReceipt.of(request.document(), version, versionOf(document),
-                            netlistToken, started.eventBudget(), report, started.asked(), started.observed(),
-                            notice -> pauseReason(document, notice)));
-                } catch (RuntimeException exception) {
-                    result.completeExceptionally(exception);
-                }
-            }));
-        });
+        return queue.submitAsync(editorThread, result -> startSimulation(result, request));
+    }
+
+    /** On the EDT: starts the simulation request; its receipt completes {@code result} once its report is in. */
+    private void startSimulation(CompletableFuture<SimulationReceipt> result, SimulationRequest request) {
+        OpenDocument document = document(request.document());
+        DocumentVersion version = versionOf(document);
+        long netlistToken = document.netlistToken();
+        Started started = start(document, version, request);
+        started.report().whenComplete((report, failure) -> editorThread.execute(
+                () -> completeReceipt(result, request, document, version, netlistToken, started, report, failure)));
+    }
+
+    /** On the EDT: the report of the simulation request is in (or failed); completes {@code result} with its receipt. */
+    private void completeReceipt(CompletableFuture<SimulationReceipt> result, SimulationRequest request,
+                                 OpenDocument document, DocumentVersion version, long netlistToken, Started started,
+                                 RequestReport report, Throwable failure) {
+        if (failure != null) {
+            result.completeExceptionally(closedOr(failure, request.document()));
+            return;
+        }
+        try {
+            result.complete(SimulationReceipt.of(request.document(), version, versionOf(document),
+                    netlistToken, started.eventBudget(), report, started.asked(), started.observed(),
+                    notice -> pauseReason(document, notice)));
+        } catch (RuntimeException exception) {
+            result.completeExceptionally(exception);
+        }
+    }
+
+    /** Completes {@code result} with {@code value}, or with {@code failure} (a closed document says so). */
+    private <T> void completeOrFail(CompletableFuture<T> result, DocumentId document, T value, Throwable failure) {
+        if (failure != null) {
+            result.completeExceptionally(closedOr(failure, document));
+        } else {
+            result.complete(value);
+        }
     }
 
     /** Why a part paused {@code document}'s simulation, as its status bar says it (with the part's name); EDT. */
@@ -119,13 +137,7 @@ final class SimulationHostSupport {
     /** The words of memory {@code component} in the simulation now, asked of its thread; the EDT never waits. */
     CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
         return queue.submitAsync(editorThread, result -> document(document).requestMemoryContents(new ElementId(component))
-                .whenComplete((contents, failure) -> {
-                    if (failure != null) {
-                        result.completeExceptionally(closedOr(failure, document));
-                    } else {
-                        result.complete(contents);
-                    }
-                }));
+                .whenComplete((contents, failure) -> completeOrFail(result, document, contents, failure)));
     }
 
     /** What Terminal {@code component} shows in the simulation now, asked of its thread; the EDT never waits. */
@@ -133,13 +145,7 @@ final class SimulationHostSupport {
                                                                 int historyLines, int byteCount) {
         return queue.submitAsync(editorThread, result -> document(document)
                 .requestTerminal(new ElementId(component), historyLines, byteCount)
-                .whenComplete((reading, failure) -> {
-                    if (failure != null) {
-                        result.completeExceptionally(closedOr(failure, document));
-                    } else {
-                        result.complete(reading);
-                    }
-                }));
+                .whenComplete((reading, failure) -> completeOrFail(result, document, reading, failure)));
     }
 
     /**
@@ -147,38 +153,39 @@ final class SimulationHostSupport {
      * full its queue is; the EDT never waits.
      */
     CompletableFuture<TypingOutcome> typeText(DocumentId document, String component, List<byte[]> characters) {
-        return queue.submitAsync(editorThread, result -> {
-            OpenDocument target = document(document);
-            ElementId id = new ElementId(component);
-            target.typeCharacters(component, characters).thenCompose(accepted ->
-                            target.requestTypingQueueSize(id).thenApply(size -> new TypingOutcome(accepted, size)))
-                    .whenComplete((outcome, failure) -> {
-                        if (failure != null) {
-                            result.completeExceptionally(closedOr(failure, document));
-                        } else {
-                            result.complete(outcome);
-                        }
-                    });
-        });
+        return queue.submitAsync(editorThread, result -> typeOnEditor(result, document, component, characters));
+    }
+
+    /** On the EDT: types the characters, then asks how full the queue is; completes {@code result} with both. */
+    private void typeOnEditor(CompletableFuture<TypingOutcome> result, DocumentId document, String component,
+                              List<byte[]> characters) {
+        OpenDocument target = document(document);
+        ElementId id = new ElementId(component);
+        target.typeCharacters(component, characters).thenCompose(accepted ->
+                        target.requestTypingQueueSize(id).thenApply(size -> new TypingOutcome(accepted, size)))
+                .whenComplete((outcome, failure) -> completeOrFail(result, document, outcome, failure));
     }
 
     CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
-        return queue.submit(editorThread, () -> {
-            OpenDocument document = document(request.document());
-            Set<ElementId> scope = new HashSet<>();
-            for (String elementId : request.elementIds()) {
-                ElementId id = elementId(elementId);
-                if (document.document().element(id).isEmpty()) {
-                    throw unknownElement(elementId);
-                }
-                scope.add(id);
+        return queue.submit(editorThread, () -> prepareTruthTableOnEditor(request));
+    }
+
+    /** On the EDT: the truth table's scope (the parts the AI named plus the wires between them) and the version. */
+    private PreparedTruthTable prepareTruthTableOnEditor(TruthTableRequest request) {
+        OpenDocument document = document(request.document());
+        Set<ElementId> scope = new HashSet<>();
+        for (String elementId : request.elementIds()) {
+            ElementId id = elementId(elementId);
+            if (document.document().element(id).isEmpty()) {
+                throw unknownElement(elementId);
             }
-            // Parts named by the AI take the wires between them along (InnerWires, Task 7).
-            Set<ElementId> withWires = scope.isEmpty() ? scope
-                    : InnerWires.of(document.document(), document.registry(), scope).elements();
-            return new PreparedTruthTable(versionOf(document),
-                    TruthTableScope.prepare(document.document(), withWires, document.registry()));
-        });
+            scope.add(id);
+        }
+        // Parts named by the AI take the wires between them along (InnerWires, Task 7).
+        Set<ElementId> withWires = scope.isEmpty() ? scope
+                : InnerWires.of(document.document(), document.registry(), scope).elements();
+        return new PreparedTruthTable(versionOf(document),
+                TruthTableScope.prepare(document.document(), withWires, document.registry()));
     }
 
     private Started start(OpenDocument document, DocumentVersion version, SimulationRequest request) {

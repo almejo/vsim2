@@ -84,7 +84,7 @@ public final class AiExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         AiStatusFeatures status = new AiStatusFeatures(view, service, ids, proposals, System::nanoTime);
         PanelWindow panelWindow = new PanelWindow(view);
-        Action open = Actions.of(Messages.text("action.aiPanel"), () -> panelWindow.show());
+        Action open = Actions.of(Messages.text("action.aiPanel"), panelWindow::show);
         JMenu window = view.menu(MenuId.WINDOW); // last, after a separator: it opens a window of its own
         JSeparator separator = new JPopupMenu.Separator();
         JMenuItem item = new JMenuItem(open);
@@ -93,15 +93,19 @@ public final class AiExtension implements EditorExtension {
         Runnable removeShortcut = view.registerShortcutAction(SHORTCUT_ID, open);
         AiStatusIndicator indicator = new AiStatusIndicator(service, panelWindow::show);
         Runnable removeIndicator = view.statusBar().addIndicator(indicator);
-        return () -> {
-            removeIndicator.run();
-            indicator.dispose();
-            removeShortcut.run();
-            window.remove(item);
-            window.remove(separator);
-            panelWindow.dispose();
-            status.dispose();
-        };
+        return () -> uninstall(window, item, separator, indicator, removeIndicator, removeShortcut, panelWindow, status);
+    }
+
+    private static void uninstall(JMenu window, JMenuItem item, JSeparator separator, AiStatusIndicator indicator,
+                                  Runnable removeIndicator, Runnable removeShortcut, PanelWindow panelWindow,
+                                  AiStatusFeatures status) {
+        removeIndicator.run();
+        indicator.dispose();
+        removeShortcut.run();
+        window.remove(item);
+        window.remove(separator);
+        panelWindow.dispose();
+        status.dispose();
     }
 
     /** The panel of one window, made the first time it is asked for and kept until the view goes. */

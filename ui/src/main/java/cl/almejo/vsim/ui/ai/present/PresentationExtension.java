@@ -120,13 +120,15 @@ public final class PresentationExtension implements EditorExtension {
         PresentationOverlays viewOverlays = PresentationOverlays.install(view, events::addPresentationListener,
                 this::addTaskListener, ids, editorThread, System::nanoTime, features.placement()::coveredIn);
         overlays.put(view, viewOverlays);
-        return () -> {
-            installed.remove(view, features);
-            overlays.remove(view, viewOverlays);
-            viewOverlays.dispose();
-            features.dispose();
-            tasks.viewsChanged(); // the place's last tab closed: the panel goes back to the circuit's tab
-        };
+        return () -> uninstall(view, features, viewOverlays);
+    }
+
+    private void uninstall(EditorView view, PresentationFeatures features, PresentationOverlays viewOverlays) {
+        installed.remove(view, features);
+        overlays.remove(view, viewOverlays);
+        viewOverlays.dispose();
+        features.dispose();
+        tasks.viewsChanged(); // the place's last tab closed: the panel goes back to the circuit's tab
     }
 
     private void refreshEveryPanel() {

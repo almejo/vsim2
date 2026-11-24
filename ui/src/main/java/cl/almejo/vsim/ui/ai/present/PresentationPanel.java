@@ -121,7 +121,7 @@ final class PresentationPanel extends JPanel {
     PresentationPanel(AppPreferences windowPreferences, PresentationControls controls, Runnable close) {
         super(new StackLayout(6));
         this.windowPreferences = Objects.requireNonNull(windowPreferences, "windowPreferences");
-        this.pauseMenu = new PauseMenu(millis -> windowPreferences.setAiPauseMillis(millis));
+        this.pauseMenu = new PauseMenu(windowPreferences::setAiPauseMillis);
         this.controls = Objects.requireNonNull(controls, "controls");
         this.override = SettingsOverride.of(windowPreferences);
         Objects.requireNonNull(close, "close");

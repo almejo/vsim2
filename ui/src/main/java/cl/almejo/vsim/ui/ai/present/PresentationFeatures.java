@@ -107,7 +107,7 @@ final class PresentationFeatures {
         this.tasks = Objects.requireNonNull(tasks, "tasks");
         this.thinking = new ThinkingWatch(nanoClock, this::quiet, this::thinkingChanged);
         this.preferences = view.services().preferences();
-        this.pauseMenu = new PauseMenu(millis -> preferences.setAiPauseMillis(millis));
+        this.pauseMenu = new PauseMenu(preferences::setAiPauseMillis);
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
         this.toggle = Actions.of(Messages.text("action.aiPresent"),
                 () -> preferences.setAiPresenting(!preferences.aiPresenting()));
@@ -291,6 +291,24 @@ final class PresentationFeatures {
         });
     }
 
+    /** On the EDT: a step of the AI was applied; the shown task of it is no longer one the AI switched on alone. */
+    private void applyStep(StepPreview preview) {
+        PresentedTask task = task();
+        if (task != null && task.task().taskId().equals(preview.taskId())) {
+            aiSwitched = false;
+        }
+        onTask(preview.taskId(), shown -> shown.stepApplied(preview));
+    }
+
+    /** On the EDT: a question of the shown task went unattended; its panel says so. */
+    private void showQuestionUnattended(String taskId, String questionId, Duration silentFor) {
+        PresentedTask task = task();
+        if (task != null && task.task().taskId().equals(taskId)) {
+            task.questionUnattended(questionId, silentFor);
+            refreshPanel();
+        }
+    }
+
     private final class OnEditorThread implements PresentationListener {
 
         @Override
@@ -306,13 +324,7 @@ final class PresentationFeatures {
 
         @Override
         public void stepApplied(StepPreview preview) {
-            later(() -> {
-                PresentedTask task = task();
-                if (task != null && task.task().taskId().equals(preview.taskId())) {
-                    aiSwitched = false;
-                }
-                onTask(preview.taskId(), shown -> shown.stepApplied(preview));
-            });
+            later(() -> applyStep(preview));
         }
 
         @Override
@@ -348,13 +360,7 @@ final class PresentationFeatures {
         /** Not a call from the AI: the «Claude está pensando…» watch is left as it is. */
         @Override
         public void questionUnattended(String taskId, String questionId, Duration silentFor) {
-            later(() -> {
-                PresentedTask task = task();
-                if (task != null && task.task().taskId().equals(taskId)) {
-                    task.questionUnattended(questionId, silentFor);
-                    refreshPanel();
-                }
-            });
+            later(() -> showQuestionUnattended(taskId, questionId, silentFor));
         }
     }
 

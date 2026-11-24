@@ -91,31 +91,37 @@ public final class AutomationPresentationControls implements PresentationControl
 
     private void run(String control, Runnable call) {
         Objects.requireNonNull(control, "control");
-        background.execute(() -> {
-            try {
-                call.run();
-            } catch (RuntimeException failure) {
-                // The panel hears the outcome through the presentation listener; a refusal here changes nothing.
-                LOGGER.warn("«Presentar» could not {}: {}", control, failure.getMessage());
-            }
-        });
+        background.execute(() -> runQuietly(control, call));
+    }
+
+    /** In the background: runs {@code call}; a refusal is logged, never thrown. */
+    private static void runQuietly(String control, Runnable call) {
+        try {
+            call.run();
+        } catch (RuntimeException failure) {
+            // The panel hears the outcome through the presentation listener; a refusal here changes nothing.
+            LOGGER.warn("«Presentar» could not {}: {}", control, failure.getMessage());
+        }
     }
 
     /** Runs {@code call} in the background and gives its answer ({@code refused} when it failed) to {@code done}. */
     private <T> void ask(String control, Supplier<T> call, T refused, Consumer<T> done) {
         Objects.requireNonNull(control, "control");
         Objects.requireNonNull(done, "done");
-        background.execute(() -> {
-            T answer;
-            try {
-                answer = call.get();
-            } catch (RuntimeException failure) {
-                // A refusal changes nothing: the panel hears it as the refused answer.
-                LOGGER.warn("«Presentar» could not {}: {}", control, failure.getMessage());
-                answer = refused;
-            }
-            T finished = answer;
-            editorThread.execute(() -> done.accept(finished));
-        });
+        background.execute(() -> askInBackground(control, call, refused, done));
+    }
+
+    /** In the background: asks, then gives the answer ({@code refused} when it failed) to {@code done} on the EDT. */
+    private <T> void askInBackground(String control, Supplier<T> call, T refused, Consumer<T> done) {
+        T answer;
+        try {
+            answer = call.get();
+        } catch (RuntimeException failure) {
+            // A refusal changes nothing: the panel hears it as the refused answer.
+            LOGGER.warn("«Presentar» could not {}: {}", control, failure.getMessage());
+            answer = refused;
+        }
+        T finished = answer;
+        editorThread.execute(() -> done.accept(finished));
     }
 }

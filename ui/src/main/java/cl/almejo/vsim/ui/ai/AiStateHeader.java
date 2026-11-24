@@ -69,16 +69,18 @@ final class AiStateHeader extends JPanel {
         refresh();
     }
 
+    private void toggleServer() {
+        AiServerState state = service.state();
+        if (state.isListening() || state instanceof AiServerState.Starting) {
+            service.deactivate();
+        } else {
+            notices.accept(" ");
+            service.activate();
+        }
+    }
+
     private void bindButtons() {
-        toggleButton.addActionListener(event -> {
-            AiServerState state = service.state();
-            if (state.isListening() || state instanceof AiServerState.Starting) {
-                service.deactivate();
-            } else {
-                notices.accept(" ");
-                service.activate();
-            }
-        });
+        toggleButton.addActionListener(event -> toggleServer());
         restartButton.addActionListener(event ->
                 notices.accept(service.restart() ? " " : Messages.text("ai.panel.restartRefused")));
     }

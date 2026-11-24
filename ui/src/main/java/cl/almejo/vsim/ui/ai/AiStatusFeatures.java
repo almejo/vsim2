@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
+import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -363,15 +364,18 @@ final class AiStatusFeatures {
             return;
         }
         TaskInfo task = shown;
-        service.undoTask(task.taskId(), outcome -> {
-            if (disposed) {
-                return;
-            }
-            view.statusBar().showNotice(AiUndoNotices.of(outcome));
-            if (shown == task && !service.runningTasks().contains(task)) {
-                hide();
-            }
-        });
+        service.undoTask(task.taskId(), outcome -> undone(task, outcome));
+    }
+
+    /** On the EDT: the undo of {@code task} ended; says so, and hides its bar when it is the one shown. */
+    private void undone(TaskInfo task, UndoOutcome outcome) {
+        if (disposed) {
+            return;
+        }
+        view.statusBar().showNotice(AiUndoNotices.of(outcome));
+        if (shown == task && !service.runningTasks().contains(task)) {
+            hide();
+        }
     }
 
     private void followProposals() {

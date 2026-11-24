@@ -56,16 +56,18 @@ final class EditorQueue {
 
     /** The job of {@code result}: skips when already done; a failure of {@code body} completes it exceptionally. */
     static <T> Runnable job(CompletableFuture<T> result, Consumer<CompletableFuture<T>> body) {
-        return () -> {
-            if (skips(result)) {
-                return;
-            }
-            try {
-                body.accept(result);
-            } catch (RuntimeException | Error failure) {
-                result.completeExceptionally(failure);
-            }
-        };
+        return () -> run(result, body);
+    }
+
+    private static <T> void run(CompletableFuture<T> result, Consumer<CompletableFuture<T>> body) {
+        if (skips(result)) {
+            return;
+        }
+        try {
+            body.accept(result);
+        } catch (RuntimeException | Error failure) {
+            result.completeExceptionally(failure);
+        }
     }
 
     /** The AI was turned off: refuses every job still waiting and the next ones. */

@@ -89,15 +89,7 @@ public final class PresentationOverlays {
                 nanoClock, () -> Animations.enabled(view.services().preferences()));
         this.travel = new PresentationTravel(view, covered);
         this.removeGlow = EveryPane.addOverlay(view, glow);
-        this.removePaneOverlays = view.forEachPane(pane -> {
-            CanvasOverlay overlay = (graphics, state) -> {
-                ghosts.paint(graphics, state, pane);
-                callout.paint(graphics, pane);
-                caption.paint(graphics, pane);
-            };
-            pane.addOverlay(overlay);
-            return () -> pane.removeOverlay(overlay);
-        });
+        this.removePaneOverlays = view.forEachPane(this::addPaneOverlay);
         this.removePresentationListener = presentationListeners.apply(new Events());
         this.removeTaskListener = taskEvents.apply(new AiServerService.Listener() {
             @Override
@@ -178,6 +170,17 @@ public final class PresentationOverlays {
         glow.dispose();
         plans.clear();
         shownTask = null;
+    }
+
+    /** Paints the step ghost, the callout and the caption over {@code pane}; gives back the way to take them off. */
+    private Runnable addPaneOverlay(CircuitCanvas pane) {
+        CanvasOverlay overlay = (graphics, state) -> {
+            ghosts.paint(graphics, state, pane);
+            callout.paint(graphics, pane);
+            caption.paint(graphics, pane);
+        };
+        pane.addOverlay(overlay);
+        return () -> pane.removeOverlay(overlay);
     }
 
     private void onEditorThread(Runnable job) {

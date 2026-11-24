@@ -278,15 +278,18 @@ public final class AiServerService {
         failure = null;
         portChanged = false;
         notifyStateChanged();
-        serverThread.execute(() -> {
-            try {
-                if (stopping != null) {
-                    stopping.stop();
-                }
-            } finally {
-                exit.run();
+        serverThread.execute(() -> stopThenExit(stopping, exit));
+    }
+
+    /** On the server thread: stops {@code stopping} (when there is one), then runs {@code exit} whatever happens. */
+    private static void stopThenExit(RunningServer stopping, Runnable exit) {
+        try {
+            if (stopping != null) {
+                stopping.stop();
             }
-        });
+        } finally {
+            exit.run();
+        }
     }
 
     /**
@@ -340,33 +343,36 @@ public final class AiServerService {
         // the AI's waits for «Siguiente», ended when it was last turned off, wait again before the port answers: the
         // AI may call as soon as it does, before this EDT hears that the server listens (review M2)
         tasks.acceptWaits();
-        serverThread.execute(() -> {
-            RunningServer started = null;
-            AiServerState refused = null;
-            // The queue takes work again only here: the stop of a server turned off just before is queued ahead of this
-            // job on the same thread, so a request still reaching that old server stays refused until it has stopped
-            // (AI-4). A start overtaken meanwhile leaves the queue refusing.
-            if (generation == startGeneration) {
-                queuedWork.accept();
-                // «Apagar» on the EDT may have come between the check and the accept: it moves the generation before it
-                // refuses, so in either order the queue ends refusing (review I2)
-                if (generation != startGeneration) {
-                    queuedWork.refuse();
-                }
+        serverThread.execute(() -> bindOnServerThread(generation, port, secret, settled));
+    }
+
+    /** On the server thread: binds the port of the start {@code generation}; the EDT hears how it ended. */
+    private void bindOnServerThread(int generation, int port, String secret, Runnable settled) {
+        RunningServer started = null;
+        AiServerState refused = null;
+        // The queue takes work again only here: the stop of a server turned off just before is queued ahead of this
+        // job on the same thread, so a request still reaching that old server stays refused until it has stopped
+        // (AI-4). A start overtaken meanwhile leaves the queue refusing.
+        if (generation == startGeneration) {
+            queuedWork.accept();
+            // «Apagar» on the EDT may have come between the check and the accept: it moves the generation before it
+            // refuses, so in either order the queue ends refusing (review I2)
+            if (generation != startGeneration) {
+                queuedWork.refuse();
             }
-            try {
-                started = VsimMcpServer.start(api, new McpServerSettings(port, secret));
-            } catch (PortInUseException exception) {
-                refused = exception.otherVsim() ? new AiServerState.OtherVsim(exception.port())
-                        : new AiServerState.PortInUse(exception.port());
-            } catch (RuntimeException exception) {
-                LOGGER.warn("Could not start the AI server on port {}", port, exception);
-                refused = new AiServerState.Failed(port);
-            }
-            RunningServer server = started;
-            AiServerState failed = refused;
-            editorThread.execute(() -> finishStart(generation, server, failed, secret, settled));
-        });
+        }
+        try {
+            started = VsimMcpServer.start(api, new McpServerSettings(port, secret));
+        } catch (PortInUseException exception) {
+            refused = exception.otherVsim() ? new AiServerState.OtherVsim(exception.port())
+                    : new AiServerState.PortInUse(exception.port());
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not start the AI server on port {}", port, exception);
+            refused = new AiServerState.Failed(port);
+        }
+        RunningServer server = started;
+        AiServerState failed = refused;
+        editorThread.execute(() -> finishStart(generation, server, failed, secret, settled));
     }
 
     /** On the EDT: the start of {@code generation} ended; a start overtaken meanwhile frees its port at once. */
@@ -501,18 +507,21 @@ public final class AiServerService {
 
     /** Any thread: the server answered a request, so Claude Code is connected («Claude Code conectado»). */
     public void requestServed() {
-        editorThread.execute(() -> {
-            if (running != null) {
-                requestsServed++;
-                boolean firstRequest = !connected;
-                connected = true;
-                if (firstRequest) {
-                    notifyStateChanged();
-                } else {
-                    listeners.forEach(Listener::requestServed);
-                }
+        editorThread.execute(this::recordRequestServed);
+    }
+
+    /** On the EDT: counts a request served; the first one flips the state to connected. */
+    private void recordRequestServed() {
+        if (running != null) {
+            requestsServed++;
+            boolean firstRequest = !connected;
+            connected = true;
+            if (firstRequest) {
+                notifyStateChanged();
+            } else {
+                listeners.forEach(Listener::requestServed);
             }
-        });
+        }
     }
 
     /**
@@ -677,32 +686,38 @@ public final class AiServerService {
     public void answerQuestion(String questionId, QuestionAnswer answer) {
         Objects.requireNonNull(questionId, "questionId");
         Objects.requireNonNull(answer, "answer");
-        background.execute(() -> {
-            try {
-                if (!tasks.answerQuestion(questionId, answer)) {
-                    LOGGER.info("The AI's question {} was closed already or does not take that answer", questionId);
-                }
-            } catch (RuntimeException exception) {
-                LOGGER.warn("Could not answer the AI's question {}", questionId, exception);
+        background.execute(() -> answerQuestionOffEdt(questionId, answer));
+    }
+
+    /** Off the EDT: hands the answer to the task; a question closed already is logged, never thrown. */
+    private void answerQuestionOffEdt(String questionId, QuestionAnswer answer) {
+        try {
+            if (!tasks.answerQuestion(questionId, answer)) {
+                LOGGER.info("The AI's question {} was closed already or does not take that answer", questionId);
             }
-        });
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not answer the AI's question {}", questionId, exception);
+        }
     }
 
     /** «Deshacer lo que hizo la IA»: undone off the EDT; {@code done} hears the outcome on the EDT. */
     public void undoTask(String taskId, Consumer<UndoOutcome> done) {
         Objects.requireNonNull(taskId, "taskId");
         Objects.requireNonNull(done, "done");
-        background.execute(() -> {
-            UndoOutcome outcome;
-            try {
-                outcome = tasks.undoTask(taskId);
-            } catch (RuntimeException exception) {
-                LOGGER.warn("Could not undo the AI task {}", taskId, exception);
-                outcome = new UndoOutcome(0, false);
-            }
-            UndoOutcome finished = outcome;
-            editorThread.execute(() -> done.accept(finished));
-        });
+        background.execute(() -> undoOffEdt(taskId, done));
+    }
+
+    /** Off the EDT: undoes the task, then hands the outcome to {@code done} on the EDT. */
+    private void undoOffEdt(String taskId, Consumer<UndoOutcome> done) {
+        UndoOutcome outcome;
+        try {
+            outcome = tasks.undoTask(taskId);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not undo the AI task {}", taskId, exception);
+            outcome = new UndoOutcome(0, false);
+        }
+        UndoOutcome finished = outcome;
+        editorThread.execute(() -> done.accept(finished));
     }
 
     public Runnable addListener(Listener listener) {
@@ -741,17 +756,20 @@ public final class AiServerService {
             activate();
             return;
         }
-        activate(() -> {
-            switch (state()) {
-                case AiServerState.PortInUse taken ->
-                        terminal.println(Messages.format("ai.launch.portInUse", Integer.toString(taken.port())));
-                case AiServerState.OtherVsim other ->
-                        terminal.println(Messages.format("ai.launch.otherVsim", Integer.toString(other.port())));
-                case AiServerState.Failed failed ->
-                        terminal.println(Messages.format("ai.launch.failed", Integer.toString(failed.port())));
-                default -> terminal.println(Messages.format("ai.launch.command", claudeCodeCommand()));
-            }
-        });
+        activate(() -> printLaunchOutcome(terminal));
+    }
+
+    /** On the EDT: one line to {@code terminal} with the command to register the server, or why it is not there. */
+    private void printLaunchOutcome(PrintStream terminal) {
+        switch (state()) {
+            case AiServerState.PortInUse taken ->
+                    terminal.println(Messages.format("ai.launch.portInUse", Integer.toString(taken.port())));
+            case AiServerState.OtherVsim other ->
+                    terminal.println(Messages.format("ai.launch.otherVsim", Integer.toString(other.port())));
+            case AiServerState.Failed failed ->
+                    terminal.println(Messages.format("ai.launch.failed", Integer.toString(failed.port())));
+            default -> terminal.println(Messages.format("ai.launch.command", claudeCodeCommand()));
+        }
     }
 
     /** The property wins over the environment when both are given. */
