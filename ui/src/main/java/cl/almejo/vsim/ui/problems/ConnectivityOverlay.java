@@ -93,12 +93,15 @@ final class ConnectivityOverlay implements CanvasOverlay {
             }
         }
         for (PinRef pin : openDocument.loosenedPins()) {
-            state.document().component(pin.componentId()).ifPresent(component -> {
-                ComponentType type = openDocument.registry().typeOf(component);
-                if (pin.pinIndex() < type.pinCount()) {
-                    markPin(graphics, type.pinLocation(component, pin.pinIndex()), type.bounds(component), colors);
-                }
-            });
+            state.document().component(pin.componentId())
+                    .ifPresent(component -> markLoosenedPin(graphics, component, pin, colors));
+        }
+    }
+
+    private void markLoosenedPin(Graphics2D graphics, Component component, PinRef pin, ColorScheme colors) {
+        ComponentType type = openDocument.registry().typeOf(component);
+        if (pin.pinIndex() < type.pinCount()) {
+            markPin(graphics, type.pinLocation(component, pin.pinIndex()), type.bounds(component), colors);
         }
     }
 

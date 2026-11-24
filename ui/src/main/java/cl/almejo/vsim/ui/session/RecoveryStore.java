@@ -147,14 +147,7 @@ public final class RecoveryStore {
         Instant oldest = now.minus(MAXIMUM_AGE);
         Instant emptySince = now.minus(EMPTY_FOLDER_AGE);
         for (Path folder : otherFolders()) {
-            Optional<Boolean> empty = whileLocked(folder, () -> {
-                for (RecoveryCopy copy : copiesIn(folder)) {
-                    if (copy.savedAt().isBefore(oldest)) {
-                        deleteQuietly(copy);
-                    }
-                }
-                return copiesIn(folder).isEmpty() && lastModified(folder.resolve(LOCK_FILE)).isBefore(emptySince);
-            });
+            Optional<Boolean> empty = whileLocked(folder, () -> deleteOldCopies(folder, oldest, emptySince));
             if (empty.orElse(false)) {
                 try {
                     deleteFolder(folder); // after the lock was released: Windows cannot delete a locked file
@@ -163,6 +156,16 @@ public final class RecoveryStore {
                 }
             }
         }
+    }
+
+    /** Under the folder's lock: deletes its copies older than {@code oldest}; whether it is now empty and stale. */
+    private boolean deleteOldCopies(Path folder, Instant oldest, Instant emptySince) {
+        for (RecoveryCopy copy : copiesIn(folder)) {
+            if (copy.savedAt().isBefore(oldest)) {
+                deleteQuietly(copy);
+            }
+        }
+        return copiesIn(folder).isEmpty() && lastModified(folder.resolve(LOCK_FILE)).isBefore(emptySince);
     }
 
     /** Releases the lock and leaves the copies where they are, as a process that crashed would. For tests only. */

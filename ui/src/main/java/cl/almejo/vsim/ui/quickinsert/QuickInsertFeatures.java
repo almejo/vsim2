@@ -128,13 +128,15 @@ final class QuickInsertFeatures {
                 ? selectTool.addDelegate((context, event) -> doubleClicked(canvas, context, event))
                 : () -> {
                 };
-        return () -> {
-            if (popupCanvas == canvas) {
-                close();
-            }
-            removeDelegate.run();
-            canvas.setFindActionKey(Optional::empty);
-        };
+        return () -> uninstallFrom(canvas, removeDelegate);
+    }
+
+    private void uninstallFrom(CircuitCanvas canvas, Runnable removeDelegate) {
+        if (popupCanvas == canvas) {
+            close();
+        }
+        removeDelegate.run();
+        canvas.setFindActionKey(Optional::empty);
     }
 
     private SelectToolDelegate.Press doubleClicked(CircuitCanvas canvas, ToolContext context,
@@ -314,15 +316,17 @@ final class QuickInsertFeatures {
         }
         recents.used(row.key());
         close();
-        later.accept(() -> {
-            if (disposed || !row.action().isEnabled()) {
-                return;
-            }
-            row.action().actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED, row.name()));
-            if (!opensADialog(row)) {
-                notices.accept(Messages.format("commandPalette.done", row.name()));
-            }
-        });
+        later.accept(() -> performAction(row));
+    }
+
+    private void performAction(ActionRow row) {
+        if (disposed || !row.action().isEnabled()) {
+            return;
+        }
+        row.action().actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED, row.name()));
+        if (!opensADialog(row)) {
+            notices.accept(Messages.format("commandPalette.done", row.name()));
+        }
     }
 
     /** By the menus' convention, a text ending in «…» opens a dialog the user may cancel: no «Hecho» then. */

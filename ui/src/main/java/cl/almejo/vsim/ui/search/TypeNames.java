@@ -19,7 +19,7 @@ public final class TypeNames {
 
     /** The name of {@code nameId}: a type id, or a preset's ({@code nand}, {@link StandardComponentTypes#nameId}). */
     public static String of(String nameId, ComponentTypeRegistry registry) {
-        return registry.find(nameId).map(type -> Messages.componentName(type))
+        return registry.find(nameId).map(Messages::componentName)
                 .orElseGet(() -> Messages.componentName(nameId));
     }
 

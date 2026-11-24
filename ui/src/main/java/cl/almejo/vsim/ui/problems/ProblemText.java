@@ -152,7 +152,7 @@ public final class ProblemText {
                     InstanceNames.routeText(problem.elementId(), document));
             case UNSUPPORTED_DRAWING -> Messages.format("problem.unsupportedDrawing", document
                     .definition(problem.netId().substring(ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX.length()))
-                    .map(definition -> definition.name()).orElse(problem.elementId()));
+                    .map(ComponentDefinition::name).orElse(problem.elementId()));
         };
     }
 

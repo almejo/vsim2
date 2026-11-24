@@ -250,15 +250,17 @@ public final class ProblemsController {
         pane.addSnapshotListener(paneSnapshots);
         pane.bindKey(NEXT_KEY, "nextProblem", nextProblem);
         pane.bindKey(PREVIOUS_KEY, "previousProblem", previousProblem);
-        return () -> {
-            pane.removeSnapshotListener(paneSnapshots);
-            pane.removeOverlay(pulse);
-            pane.removeOverlay(blink);
-            pane.removeOverlay(connectivityOverlay);
-            pane.clearToolTipProvider();
-            pane.unbindKey(NEXT_KEY, "nextProblem");
-            pane.unbindKey(PREVIOUS_KEY, "previousProblem");
-        };
+        return () -> uninstallFrom(pane, paneSnapshots);
+    }
+
+    private void uninstallFrom(CircuitCanvas pane, Consumer<SimulationSnapshot> paneSnapshots) {
+        pane.removeSnapshotListener(paneSnapshots);
+        pane.removeOverlay(pulse);
+        pane.removeOverlay(blink);
+        pane.removeOverlay(connectivityOverlay);
+        pane.clearToolTipProvider();
+        pane.unbindKey(NEXT_KEY, "nextProblem");
+        pane.unbindKey(PREVIOUS_KEY, "previousProblem");
     }
 
     /** Called with every new displayed snapshot; the parts only rebuild when their problems change. */

@@ -105,14 +105,16 @@ public final class RecentFiles {
         return entries;
     }
 
+    private static boolean fitsInPreferences(Entry entry) {
+        boolean fits = SessionKeys.fitsInPreferences(entry.path());
+        if (!fits) {
+            LOGGER.warn("Not adding a path of {} characters to the recent files", entry.path().toString().length());
+        }
+        return fits;
+    }
+
     private void write(List<Entry> allEntries) {
-        List<Entry> entries = allEntries.stream().filter(entry -> {
-            boolean fits = SessionKeys.fitsInPreferences(entry.path());
-            if (!fits) {
-                LOGGER.warn("Not adding a path of {} characters to the recent files", entry.path().toString().length());
-            }
-            return fits;
-        }).toList();
+        List<Entry> entries = allEntries.stream().filter(RecentFiles::fitsInPreferences).toList();
         try {
             Preferences recentNode = preferences.recentNode();
             SessionKeys.removeChildren(recentNode);
