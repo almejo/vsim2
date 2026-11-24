@@ -131,7 +131,7 @@ public final class WaveformPanel extends JPanel {
         add(toolBar, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
         timer = new Timer(TIMER_MILLISECONDS, event -> timerTick());
-        rowBlink = new Blink(names::repaint, () -> animations.getAsBoolean());
+        rowBlink = new Blink(names::repaint, this::animationsOn);
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 updateTimer();
@@ -383,6 +383,11 @@ public final class WaveformPanel extends JPanel {
         return y >= 0 && row < ids.size() ? Optional.of(ids.get(row)) : Optional.empty();
     }
 
+    /** Read at each call: {@link #setAnimations} replaces the supplier. */
+    private boolean animationsOn() {
+        return animations.getAsBoolean();
+    }
+
     boolean isBlinkLit(String probeId) {
         return rowBlink.isLit() && probeId.equals(blinkingProbe);
     }
@@ -392,8 +397,8 @@ public final class WaveformPanel extends JPanel {
         long floor = (long) Math.floor(axis.timeAt(x));
         List<Long> candidates = new ArrayList<>();
         for (Trace trace : ownTraces()) {
-            trace.previousEdge(floor + 1).ifPresent(edge -> candidates.add(edge));
-            trace.nextEdge(floor).ifPresent(edge -> candidates.add(edge));
+            trace.previousEdge(floor + 1).ifPresent(candidates::add);
+            trace.nextEdge(floor).ifPresent(candidates::add);
         }
         axis.setCursor(axis.snap(x, candidates));
         axisChanged();

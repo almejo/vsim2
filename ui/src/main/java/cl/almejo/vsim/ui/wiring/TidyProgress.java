@@ -47,46 +47,48 @@ public interface TidyProgress {
 
         /** A modal-less {@link JDialog}. */
         static Factory dialog() {
-            return (parent, onCancel) -> {
-                JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(parent),
-                        Messages.text("tidy.progress.title"), JDialog.ModalityType.MODELESS);
-                JLabel label = new JLabel(Messages.text("tidy.progress.working"));
-                JProgressBar bar = new JProgressBar();
-                bar.setIndeterminate(true);
-                JButton cancel = new JButton(Messages.text("tidy.cancel"));
-                cancel.addActionListener(event -> onCancel.run());
-                javax.swing.JPanel content = new javax.swing.JPanel(
-                        new net.miginfocom.swing.MigLayout("wrap 1, insets 12", "[grow, fill, 260::]"));
-                content.add(label);
-                content.add(bar);
-                javax.swing.JPanel buttons = new javax.swing.JPanel(new FlowLayout(FlowLayout.RIGHT));
-                buttons.add(cancel);
-                dialog.add(content, BorderLayout.CENTER);
-                dialog.add(buttons, BorderLayout.SOUTH);
-                dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-                dialog.getRootPane().registerKeyboardAction(event -> onCancel.run(),
-                        javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
-                        javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
-                dialog.addWindowListener(new java.awt.event.WindowAdapter() {
-                    @Override
-                    public void windowClosing(java.awt.event.WindowEvent event) {
-                        onCancel.run();
-                    }
-                });
-                dialog.pack();
-                dialog.setLocationRelativeTo(parent);
-                dialog.setVisible(true);
-                return new TidyProgress() {
-                    @Override
-                    public void stage(CircuitTidyProgress.Stage stage, int done, int total) {
-                        label.setText(describe(stage, done, total));
-                    }
+            return Factory::openDialog;
+        }
 
-                    @Override
-                    public void close() {
-                        dialog.dispose();
-                    }
-                };
+        private static TidyProgress openDialog(Component parent, Runnable onCancel) {
+            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(parent),
+                    Messages.text("tidy.progress.title"), JDialog.ModalityType.MODELESS);
+            JLabel label = new JLabel(Messages.text("tidy.progress.working"));
+            JProgressBar bar = new JProgressBar();
+            bar.setIndeterminate(true);
+            JButton cancel = new JButton(Messages.text("tidy.cancel"));
+            cancel.addActionListener(event -> onCancel.run());
+            javax.swing.JPanel content = new javax.swing.JPanel(
+                    new net.miginfocom.swing.MigLayout("wrap 1, insets 12", "[grow, fill, 260::]"));
+            content.add(label);
+            content.add(bar);
+            javax.swing.JPanel buttons = new javax.swing.JPanel(new FlowLayout(FlowLayout.RIGHT));
+            buttons.add(cancel);
+            dialog.add(content, BorderLayout.CENTER);
+            dialog.add(buttons, BorderLayout.SOUTH);
+            dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+            dialog.getRootPane().registerKeyboardAction(event -> onCancel.run(),
+                    javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                    javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
+            dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent event) {
+                    onCancel.run();
+                }
+            });
+            dialog.pack();
+            dialog.setLocationRelativeTo(parent);
+            dialog.setVisible(true);
+            return new TidyProgress() {
+                @Override
+                public void stage(CircuitTidyProgress.Stage stage, int done, int total) {
+                    label.setText(describe(stage, done, total));
+                }
+
+                @Override
+                public void close() {
+                    dialog.dispose();
+                }
             };
         }
     }

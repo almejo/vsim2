@@ -15,6 +15,13 @@ final class SettledWindow implements WhatsNewExtension.WindowReadiness {
 
     static final int SETTLE_MILLISECONDS = 1_500;
 
+    private static void readyIfShowing(EditorView view, HierarchyListener showing, Runnable ready) {
+        if (view.isShowing()) {
+            view.removeHierarchyListener(showing);
+            ready.run();
+        }
+    }
+
     @Override
     public Runnable whenReady(EditorView view, Runnable ready) {
         Timer timer = new Timer(SETTLE_MILLISECONDS, null);
@@ -32,12 +39,7 @@ final class SettledWindow implements WhatsNewExtension.WindowReadiness {
                 }
             }
         };
-        timer.addActionListener(event -> {
-            if (view.isShowing()) {
-                view.removeHierarchyListener(showing);
-                ready.run();
-            }
-        });
+        timer.addActionListener(event -> readyIfShowing(view, showing, ready));
         view.addHierarchyListener(showing);
         if (view.isShowing()) {
             timer.start();
