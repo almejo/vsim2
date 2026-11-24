@@ -1,17 +1,23 @@
 package cl.almejo.vsim.ui.wiring;
 
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.WrapsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.snap.SnappedMove;
+import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -147,5 +153,23 @@ class SelectionMovesTest {
         moves.move(openDocument, selection, Set.of(gate.id()), 0, 2, true);
         assertThat(selection.ids()).containsExactly(gate.id());
         assertThat(changes).isEmpty();
+    }
+
+    @Test
+    void aSnappedMoveStopsAtTheWallOfALockedFrameAndKeepsOnlyTheLinesThatHold() {
+        try (TestToolContext context = TestToolContext.withNewDocument()) {
+            Frame wall = new Frame(context.openDocument().document().newFrameId(), new GridPoint(0, 0), 20, 12,
+                    "Muro", FrameTint.BLUE, true);
+            context.openDocument().execute(new CreateFrameCommand(wall));
+            Component inside = place(context.openDocument(), StandardComponentTypes.BUFFER, 4, 4,
+                    Map.of(StandardComponentTypes.NEGATE, true));
+            Set<ElementId> moved = Set.of(inside.id());
+            SnappedMove limited = SelectionMoves.limited(context, moved, SnappedMove.unsnapped(30, -2));
+            assertThat(limited.deltaX()).isEqualTo(12); // its right side (x 8) stops on the wall (x 20)
+            assertThat(limited.deltaY()).isEqualTo(-2);
+            assertThat(limited.matches()).isEmpty();
+            SnappedMove free = SnappedMove.unsnapped(3, 1);
+            assertThat(SelectionMoves.limited(context, moved, free)).isSameAs(free);
+        }
     }
 }

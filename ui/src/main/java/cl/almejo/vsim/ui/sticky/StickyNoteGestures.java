@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.ElementDrag;
 import cl.almejo.vsim.ui.tools.ElementDragDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
@@ -109,7 +110,7 @@ public final class StickyNoteGestures extends ElementDragDelegate {
         Selection selection = context.selection();
         if (event.shiftDown() && !event.controlDown()) {
             // Shift+click toggles the note; Shift+drag moves the selection with it (the key inverts the mode)
-            grab(note, false, event);
+            grab(note, ElementDrag.Grab.MOVE, event);
             drag.toggleOnPress(selection, note.id());
             return Press.GRABBED;
         }
@@ -127,16 +128,16 @@ public final class StickyNoteGestures extends ElementDragDelegate {
             }
             return Press.HANDLED;
         }
-        grab(note, resize, event);
+        grab(note, resize ? ElementDrag.Grab.RESIZE : ElementDrag.Grab.MOVE, event);
         unfoldOnRelease = note.folded();
         drag.selectOnPress(selection, note.id());
         return Press.GRABBED;
     }
 
-    private void grab(StickyNote note, boolean resize, CanvasMouseEvent event) {
+    private void grab(StickyNote note, ElementDrag.Grab grab, CanvasMouseEvent event) {
         grabbed = note;
-        resizing = resize;
-        drag.start(event, resize);
+        resizing = grab == ElementDrag.Grab.RESIZE;
+        drag.start(event, grab);
     }
 
     @Override

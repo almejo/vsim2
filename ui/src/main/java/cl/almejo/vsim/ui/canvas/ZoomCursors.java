@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.ui.icons.DrawnCursors;
+import cl.almejo.vsim.ui.icons.SignedCursors;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -9,6 +10,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 /**
  * The zoom tool's magnifier with a «+» (a click zooms in) or a «−» (with Alt or Shift: zooms out), zoom spec §4.3.
@@ -29,39 +31,29 @@ public final class ZoomCursors {
     /** The arm of the lens's «+» and «−», in pixels of a 32-pixel cursor. */
     private static final double SIGN_ARM = 4.5;
 
-    private static Cursor zoomIn;
-    private static Cursor zoomOut;
+    private static final SignedCursors CURSORS = new SignedCursors(
+            Map.of(DrawnCursors.Sign.PLUS, "vsim-zoom-in", DrawnCursors.Sign.MINUS, "vsim-zoom-out"),
+            ZoomCursors::paint, HOTSPOT, Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 
     private ZoomCursors() {
     }
 
     /** The magnifier with a «+» (EDT only, like every cursor change). */
     public static Cursor zoomIn() {
-        if (zoomIn == null) {
-            zoomIn = create(false);
-        }
-        return zoomIn;
+        return CURSORS.cursor(DrawnCursors.Sign.PLUS);
     }
 
     /** The magnifier with a «−». */
     public static Cursor zoomOut() {
-        if (zoomOut == null) {
-            zoomOut = create(true);
-        }
-        return zoomOut;
-    }
-
-    private static Cursor create(boolean zoomsOut) {
-        return DrawnCursors.create(zoomsOut ? "vsim-zoom-out" : "vsim-zoom-in", size -> image(size, zoomsOut),
-                DrawnCursors.scaledHotspot(HOTSPOT), Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+        return CURSORS.cursor(DrawnCursors.Sign.MINUS);
     }
 
     /** The cursor's picture, {@code size} pixels square: the lens top left, the handle towards the bottom right. */
-    static BufferedImage image(int size, boolean zoomsOut) {
-        return DrawnCursors.picture(size, graphics -> paint(graphics, zoomsOut));
+    static BufferedImage image(int size, DrawnCursors.Sign sign) {
+        return CURSORS.image(size, sign);
     }
 
-    private static void paint(Graphics2D graphics, boolean zoomsOut) {
+    private static void paint(Graphics2D graphics, DrawnCursors.Sign sign) {
         double centre = HOTSPOT;
         double radius = LENS_RADIUS;
         Ellipse2D.Double lens = new Ellipse2D.Double(centre - radius, centre - radius, 2 * radius, 2 * radius);
@@ -80,6 +72,6 @@ public final class ZoomCursors {
         graphics.draw(handle);
         graphics.setStroke(new BasicStroke(2.5f));
         graphics.draw(lens);
-        DrawnCursors.paintSign(graphics, centre, centre, SIGN_ARM, zoomsOut);
+        DrawnCursors.paintSign(graphics, centre, centre, SIGN_ARM, sign);
     }
 }

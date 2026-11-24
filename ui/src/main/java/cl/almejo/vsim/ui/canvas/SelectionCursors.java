@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.ui.icons.DrawnCursors;
+import cl.almejo.vsim.ui.icons.SignedCursors;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -8,6 +9,7 @@ import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 /**
  * M6.8: the arrow with a «+» (add to the selection) or «−» (take out of it) badge. The cursors are drawn once, the
@@ -26,40 +28,33 @@ public final class SelectionCursors {
     /** The badge's centre (on both axes) and its sign's arm, in pixels of a 32-pixel cursor. */
     private static final double BADGE_CENTRE = 23.5;
     private static final double BADGE_ARM = 4.5;
+    private static final DrawnCursors.Badge BADGE = new DrawnCursors.Badge(BADGE_CENTRE, BADGE_CENTRE, BADGE_ARM,
+            OUTLINE);
 
-    private static Cursor adding;
-    private static Cursor removing;
+    private static final SignedCursors CURSORS = new SignedCursors(
+            Map.of(DrawnCursors.Sign.PLUS, "vsim-add-to-selection", DrawnCursors.Sign.MINUS,
+                    "vsim-remove-from-selection"),
+            SelectionCursors::paint, HOTSPOT, Cursor.getDefaultCursor());
 
     private SelectionCursors() {
     }
 
     /** The arrow with a «+» badge (EDT only, like every cursor change). */
     public static Cursor adding() {
-        if (adding == null) {
-            adding = create(false);
-        }
-        return adding;
+        return CURSORS.cursor(DrawnCursors.Sign.PLUS);
     }
 
     /** The arrow with a «−» badge. */
     public static Cursor removing() {
-        if (removing == null) {
-            removing = create(true);
-        }
-        return removing;
-    }
-
-    private static Cursor create(boolean removes) {
-        return DrawnCursors.create(removes ? "vsim-remove-from-selection" : "vsim-add-to-selection",
-                size -> image(size, removes), DrawnCursors.scaledHotspot(HOTSPOT), Cursor.getDefaultCursor());
+        return CURSORS.cursor(DrawnCursors.Sign.MINUS);
     }
 
     /** The cursor's picture, {@code size} pixels square: the arrow from the top-left corner, the badge bottom right. */
-    static BufferedImage image(int size, boolean removes) {
-        return DrawnCursors.picture(size, graphics -> paint(graphics, removes));
+    static BufferedImage image(int size, DrawnCursors.Sign sign) {
+        return CURSORS.image(size, sign);
     }
 
-    private static void paint(Graphics2D graphics, boolean removes) {
+    private static void paint(Graphics2D graphics, DrawnCursors.Sign sign) {
         Path2D.Double arrow = new Path2D.Double();
         arrow.moveTo(HOTSPOT, HOTSPOT);
         arrow.lineTo(HOTSPOT, HOTSPOT + 17);
@@ -74,7 +69,6 @@ public final class SelectionCursors {
         graphics.draw(arrow);
         graphics.setColor(ARROW);
         graphics.fill(arrow);
-        DrawnCursors.paintBadge(graphics, BADGE_CENTRE, BADGE_CENTRE, OUTLINE, removes ? REMOVE_BADGE : ADD_BADGE,
-                BADGE_ARM, removes);
+        DrawnCursors.paintBadge(graphics, BADGE, sign == DrawnCursors.Sign.MINUS ? REMOVE_BADGE : ADD_BADGE, sign);
     }
 }

@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import java.awt.Cursor;
 import java.awt.event.KeyEvent;
 
 /**
@@ -8,7 +7,7 @@ import java.awt.event.KeyEvent;
  * one and goes back to the default tool (with Shift it stays, to place another); a secondary click or Escape goes back
  * without placing. Dragging is moving. The crosshair shows where.
  */
-public abstract class PlacingTool implements Tool {
+public abstract class PlacingTool implements CrosshairTool {
 
     /** Places one part for the primary press {@code event}. */
     protected abstract void place(ToolContext context, CanvasMouseEvent event);
@@ -45,10 +44,5 @@ public abstract class PlacingTool implements Tool {
             return true;
         }
         return false;
-    }
-
-    @Override
-    public Cursor cursor() {
-        return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 }

@@ -29,6 +29,21 @@ public final class DrawnCursors {
     /** The thickness of a badge's or a lens's «+» and «−» arms, in design pixels. */
     private static final double SIGN_THICKNESS = 2;
     private static final double BADGE_RADIUS = 7;
+    /** The rim around a badge, in the badge's outline colour, in design pixels. */
+    private static final BasicStroke BADGE_RIM = new BasicStroke(2f);
+
+    /** The sign a badge or a lens carries: «+» (add, zoom in) or «−» (take out, zoom out). */
+    public enum Sign {
+        PLUS,
+        MINUS
+    }
+
+    /**
+     * Where a cursor puts its badge and how it looks apart from its fill: the centre, the arm of its sign and the
+     * colour of its rim, in design pixels.
+     */
+    public record Badge(double centreX, double centreY, double armLength, Color outline) {
+    }
 
     private DrawnCursors() {
     }
@@ -76,29 +91,27 @@ public final class DrawnCursors {
         return image;
     }
 
-    /**
-     * A round badge centred at ({@code centreX}, {@code centreY}): {@code fill} with an {@code outline} rim, and a
-     * white «−», or «+» unless {@code minus}, with arms of {@code armLength}.
-     */
-    public static void paintBadge(Graphics2D graphics, double centreX, double centreY, Color outline, Color fill,
-                                  double armLength, boolean minus) {
-        Ellipse2D.Double badge = new Ellipse2D.Double(centreX - BADGE_RADIUS, centreY - BADGE_RADIUS,
-                2 * BADGE_RADIUS, 2 * BADGE_RADIUS);
-        graphics.setColor(outline);
-        graphics.setStroke(new BasicStroke(2f));
-        graphics.draw(badge);
+    /** The round {@code badge}: {@code fill} with a rim of its outline, and a white {@code sign}. */
+    public static void paintBadge(Graphics2D graphics, Badge badge, Color fill, Sign sign) {
+        Ellipse2D.Double circle = new Ellipse2D.Double(badge.centreX() - BADGE_RADIUS,
+                badge.centreY() - BADGE_RADIUS, 2 * BADGE_RADIUS, 2 * BADGE_RADIUS);
+        graphics.setColor(badge.outline());
+        graphics.setStroke(BADGE_RIM);
+        graphics.draw(circle);
         graphics.setColor(fill);
-        graphics.fill(badge);
+        graphics.fill(circle);
         graphics.setColor(Color.WHITE);
-        paintSign(graphics, centreX, centreY, armLength, minus);
+        paintSign(graphics, badge.centreX(), badge.centreY(), badge.armLength(), sign);
     }
 
-    /** A «−», or a «+» unless {@code minus}, centred at ({@code centreX}, {@code centreY}), in the current colour. */
-    public static void paintSign(Graphics2D graphics, double centreX, double centreY, double armLength,
-                                 boolean minus) {
+    /**
+     * The {@code sign}, its arms {@code armLength} long, centred at ({@code centreX}, {@code centreY}), in the current
+     * colour.
+     */
+    public static void paintSign(Graphics2D graphics, double centreX, double centreY, double armLength, Sign sign) {
         graphics.fill(new Rectangle2D.Double(centreX - armLength, centreY - SIGN_THICKNESS / 2, 2 * armLength,
                 SIGN_THICKNESS));
-        if (!minus) {
+        if (sign == Sign.PLUS) {
             graphics.fill(new Rectangle2D.Double(centreX - SIGN_THICKNESS / 2, centreY - armLength, SIGN_THICKNESS,
                     2 * armLength));
         }

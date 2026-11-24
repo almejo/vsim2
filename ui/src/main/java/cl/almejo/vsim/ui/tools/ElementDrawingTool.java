@@ -10,7 +10,7 @@ import java.awt.event.KeyEvent;
  * other panes of the window, Escape drops a drawing in progress (with none, it goes back to the default tool, like
  * Cable and Mover vista), and the release creates the element as one undo step, selects it and opens its text.
  */
-public abstract class ElementDrawingTool implements Tool {
+public abstract class ElementDrawingTool implements CrosshairTool {
 
     /** Whether a press started a drawing that is not released yet. */
     protected abstract boolean drawing();

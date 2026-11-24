@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.ui.icons.DrawnCursors;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Cursor;
@@ -21,8 +22,8 @@ class ZoomCursorsTest {
 
     @Test
     void theMagnifierHasADarkRingAroundTheLensAndAPlusOrAMinus() {
-        BufferedImage zoomIn = ZoomCursors.image(32, false);
-        BufferedImage zoomOut = ZoomCursors.image(32, true);
+        BufferedImage zoomIn = ZoomCursors.image(32, DrawnCursors.Sign.PLUS);
+        BufferedImage zoomOut = ZoomCursors.image(32, DrawnCursors.Sign.MINUS);
         assertThat(zoomIn.getWidth()).isEqualTo(32);
         int lensCentre = ZoomCursors.HOTSPOT;
         int ring = zoomIn.getRGB(lensCentre + ZoomCursors.LENS_RADIUS, lensCentre);

@@ -160,13 +160,12 @@ public final class SelectTool implements Tool {
      * double click that click began can put the value back and edit it.
      */
     private ToggledBusInput lastBusInputToggle;
-    private boolean narrowOnRelease;
+    /** What the press on an element left for a release without moving: narrow the selection or take it out. */
+    private final SelectionOnRelease selectionOnRelease = new SelectionOnRelease();
     /** The press was on a memory's ▾ / ▸ square: a release without moving folds or unfolds its window. */
     private boolean foldOnRelease;
     /** The press was a Shift click on an element: a release without moving only adjusts the selection. */
     private boolean selectionClick;
-    /** That Shift click was on an element already selected: a release without moving takes it out. */
-    private boolean removeOnRelease;
     private int deltaX;
     private int deltaY;
     /** The drag's delta before the locked-frame walls: what a Ctrl copy uses, as copies leave the originals. */
@@ -521,11 +520,7 @@ public final class SelectTool implements Tool {
             // Shift+click toggles the element; Shift+drag moves the selection with it (the key inverts the mode)
             pressedElement = target.get();
             selectionClick = true;
-            if (context.selection().contains(target.get().id())) {
-                removeOnRelease = true;
-            } else {
-                context.selection().add(target.get().id());
-            }
+            selectionOnRelease.toggleOnPress(context.selection(), target.get().id());
             pressPoint = event.snapped();
             return;
         }
@@ -545,7 +540,7 @@ public final class SelectTool implements Tool {
         boolean continuous = wireMode(context) == WireMode.CONTINUOUS;
         if (grabsSelection(context, pin.component())) {
             pressPoint = event.snapped();
-            narrowOnRelease = true;
+            selectionOnRelease.selectOnPress(context.selection(), pin.component().id()); // selected: it narrows
             pathOnClickAt = continuous ? pin.point() : null;
         } else if (continuous) {
             continuousWire.start(context, pin.point(), event);
@@ -577,11 +572,7 @@ public final class SelectTool implements Tool {
     /** A plain press on an element: selects it, or keeps a selection that holds it (to move it or narrow it). */
     private void pressElement(ToolContext context, CanvasMouseEvent event, DocumentElement element) {
         foldOnRelease = element instanceof Component component && onFoldToggle(context, component, event);
-        if (context.selection().contains(element.id())) {
-            narrowOnRelease = context.selection().size() > 1;
-        } else {
-            context.selection().select(element.id());
-        }
+        selectionOnRelease.selectOnPress(context.selection(), element.id());
         pressPoint = event.snapped();
     }
 
@@ -703,27 +694,49 @@ public final class SelectTool implements Tool {
      * otherwise a click that adjusts the selection or toggles a switch (unless the magnet pulled the drag back).
      */
     private void releaseMove(ToolContext context, CanvasMouseEvent event) {
-        boolean pointerMoved = pointerDeltaX != 0 || pointerDeltaY != 0;
-        if (deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0) {
+        if (hasDelta()) {
             commitMove(context, event);
-        } else if (pointerMoved) {
-            // the magnet (or a locked frame's wall) pulled the drag back to where it started: nothing to do
-        } else if (pathOnClickAt != null) {
+        } else if (isClick()) {
+            clickWithoutMoving(context, event);
+        }
+    }
+
+    /** Whether the drag has a delta to move or copy by (after the magnet; a move after the locked-frame walls too). */
+    private boolean hasDelta() {
+        return deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0;
+    }
+
+    /**
+     * Whether the press is still a click: the pointer is at the press point. A drag the magnet (or a locked frame's
+     * wall) pulled back to where it started moves nothing, and it is no click either.
+     */
+    private boolean isClick() {
+        return !hasDelta() && !pointerMoved();
+    }
+
+    /** Whether the pointer was away from the press point at the last drag, before the magnet and the walls. */
+    private boolean pointerMoved() {
+        return pointerDeltaX != 0 || pointerDeltaY != 0;
+    }
+
+    /**
+     * The release of a press that did not move: starts the path a pin click asked for, or adjusts the selection and,
+     * unless it was a Shift click, folds the memory or toggles the switch that was pressed.
+     */
+    private void clickWithoutMoving(ToolContext context, CanvasMouseEvent event) {
+        if (pathOnClickAt != null) {
             continuousWire.startAfterClick(context, pathOnClickAt);
-        } else if (selectionClick) {
-            if (removeOnRelease) {
-                context.selection().remove(pressedElement.id());
-            }
+            return;
+        }
+        selectionOnRelease.released(context.selection(), pressedElement.id());
+        if (selectionClick) {
+            return;
+        }
+        if (foldOnRelease) {
+            toggleMemoryContents(context, (Component) pressedElement);
         } else {
-            if (narrowOnRelease) {
-                context.selection().select(pressedElement.id());
-            }
-            if (foldOnRelease) {
-                toggleMemoryContents(context, (Component) pressedElement);
-            } else {
-                toggleIfInteractive(context, event);
-                captureKeyboardIfTyping(context);
-            }
+            toggleIfInteractive(context, event);
+            captureKeyboardIfTyping(context);
         }
     }
 
@@ -767,10 +780,9 @@ public final class SelectTool implements Tool {
         copyDeltaX = deltaX;
         copyDeltaY = deltaY;
         if (!copy && !context.selection().isEmpty()) {
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, deltaX, deltaY);
-            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
-            deltaX = limited.x();
-            deltaY = limited.y();
+            snappedMove = SelectionMoves.limited(context, moved, snappedMove);
+            deltaX = snappedMove.deltaX();
+            deltaY = snappedMove.deltaY();
         }
     }
 
@@ -1335,7 +1347,7 @@ public final class SelectTool implements Tool {
 
     /** A press on a selected or just selected element has been dragged: a click that did not move says nothing yet. */
     private boolean isMovingTheSelection() {
-        return pressPoint != null && lastDrag != null && (pointerDeltaX != 0 || pointerDeltaY != 0)
+        return pressPoint != null && lastDrag != null && pointerMoved()
                 && bandStart == null && labelComponent == null && activeDelegate == null && heldButton == null;
     }
 
@@ -1623,10 +1635,9 @@ public final class SelectTool implements Tool {
     private void reset() {
         pressedElement = null;
         pressPoint = null;
-        narrowOnRelease = false;
+        selectionOnRelease.reset();
         foldOnRelease = false;
         selectionClick = false;
-        removeOnRelease = false;
         wire = null;
         wirePress = null;
         wirePressStart = null;

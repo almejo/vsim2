@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.ElementDrag;
 import cl.almejo.vsim.ui.tools.ElementDragDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
@@ -81,7 +82,7 @@ public final class FrameGestures extends ElementDragDelegate {
     private void grab(Frame frame, FramePart hitPart, CanvasMouseEvent event) {
         grabbed = frame;
         part = hitPart;
-        drag.start(event, hitPart.resizes());
+        drag.start(event, hitPart.resizes() ? ElementDrag.Grab.RESIZE : ElementDrag.Grab.MOVE);
     }
 
     /** The padlock toggles the lock; the ⋯ button opens the frame menu. */

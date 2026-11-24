@@ -84,4 +84,16 @@ class SimulationThreadPushButtonTest {
         assertThat(thread.latestSnapshot().failure()).isEmpty();
         assertThat(thread.latestSnapshot().running()).isTrue();
     }
+
+    @Test
+    void aPausedPressOfAButtonThatIsGoneIsNoStepAndNoFailure() {
+        thread.update(circuit());
+        thread.tick();
+
+        thread.pressButton("ghost");
+        thread.tick();
+
+        assertThat(thread.latestSnapshot().failure()).isEmpty();
+        assertThat(thread.latestStep()).isEmpty();
+    }
 }

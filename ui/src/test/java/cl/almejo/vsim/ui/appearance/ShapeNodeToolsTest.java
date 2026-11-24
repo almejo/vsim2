@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.DrawnCursors;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import org.junit.jupiter.api.Test;
 
@@ -143,8 +144,8 @@ class ShapeNodeToolsTest {
 
     @Test
     void theAddAndRemoveCursorsLookDifferent() {
-        BufferedImage add = ShapeCursors.image(32, false);
-        BufferedImage remove = ShapeCursors.image(32, true);
+        BufferedImage add = ShapeCursors.image(32, DrawnCursors.Sign.PLUS);
+        BufferedImage remove = ShapeCursors.image(32, DrawnCursors.Sign.MINUS);
         int different = 0;
         for (int x = 0; x < 32; x++) {
             for (int y = 0; y < 32; y++) {

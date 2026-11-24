@@ -26,11 +26,16 @@ import java.util.Set;
  */
 public final class ElementDrag {
 
+    /** What the press grabbed the element for: to move it (with the selection) or to resize it. */
+    public enum Grab {
+        MOVE,
+        RESIZE
+    }
+
     private GridPoint pressPoint;
     private boolean resizes;
-    private boolean narrowOnRelease;
-    /** A Shift press on a selected element: a release without moving takes it out of the selection. */
-    private boolean removeOnRelease;
+    /** What the press left for a release without moving: narrow the selection to the element or take it out. */
+    private final SelectionOnRelease selectionOnRelease = new SelectionOnRelease();
     /** Whether the pointer left the press point: a drag a wall stopped is still not a click. */
     private boolean pointerMoved;
     private int deltaX;
@@ -41,10 +46,10 @@ public final class ElementDrag {
     private final MovePreview movePreview = new MovePreview();
     private SnappedMove snappedMove = SnappedMove.unsnapped(0, 0);
 
-    /** Starts a drag at {@code event}'s snapped point; {@code resizes} when the grab resizes instead of moving. */
-    public void start(CanvasMouseEvent event, boolean resizes) {
+    /** Starts a drag at {@code event}'s snapped point, to move or to resize the element as {@code grab} says. */
+    public void start(CanvasMouseEvent event, Grab grab) {
         this.pressPoint = event.snapped();
-        this.resizes = resizes;
+        this.resizes = grab == Grab.RESIZE;
     }
 
     /** Whether a drag started and has not been released or cancelled. */
@@ -62,11 +67,7 @@ public final class ElementDrag {
      * (Shift+drag moves the selection with it instead), an unselected one joins it now.
      */
     public void toggleOnPress(Selection selection, ElementId id) {
-        if (selection.contains(id)) {
-            removeOnRelease = true;
-        } else {
-            selection.add(id);
-        }
+        selectionOnRelease.toggleOnPress(selection, id);
     }
 
     /**
@@ -74,10 +75,8 @@ public final class ElementDrag {
      * with the others, and a move's release without moving narrows the selection to it.
      */
     public void selectOnPress(Selection selection, ElementId id) {
-        if (!selection.contains(id)) {
-            selection.select(id);
-        } else if (!resizes) {
-            narrowOnRelease = selection.size() > 1;
+        if (!resizes || !selection.contains(id)) {
+            selectionOnRelease.selectOnPress(selection, id);
         }
     }
 
@@ -92,13 +91,10 @@ public final class ElementDrag {
         pointerMoved |= deltaX != 0 || deltaY != 0;
         if (!resizes) {
             Set<ElementId> moved = context.selection().effectiveIds();
-            snappedMove = SnappedMove.of(context, moved, false, deltaX, deltaY);
             // an element inside a locked frame stops at its border, like any content
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, snappedMove.deltaX(),
-                    snappedMove.deltaY());
-            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
-            deltaX = limited.x();
-            deltaY = limited.y();
+            snappedMove = SelectionMoves.limited(context, moved, SnappedMove.of(context, moved, false, deltaX, deltaY));
+            deltaX = snappedMove.deltaX();
+            deltaY = snappedMove.deltaY();
         }
         followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
@@ -135,13 +131,17 @@ public final class ElementDrag {
         if (deltaX != 0 || deltaY != 0) {
             context.selectionMoves().move(context.openDocument(), context.selection(),
                     context.selection().effectiveIds(), deltaX, deltaY, followWires);
-        } else if (pointerMoved) {
-            // a drag stopped by a locked frame's wall moved nothing, and it was no click either
-        } else if (removeOnRelease) {
-            context.selection().remove(id);
-        } else if (narrowOnRelease) {
-            context.selection().select(id);
+        } else if (isClick()) {
+            selectionOnRelease.released(context.selection(), id);
         }
+    }
+
+    /**
+     * Whether the gesture so far is a click: the pointer never left the press point. A drag stopped by a locked
+     * frame's wall (or brought back to the press point) moved nothing, and it is no click either.
+     */
+    public boolean isClick() {
+        return deltaX == 0 && deltaY == 0 && !pointerMoved;
     }
 
     /** The wires the move's preview redraws itself, hidden from the canvas while the wires follow. */
@@ -189,8 +189,7 @@ public final class ElementDrag {
     public void reset() {
         pressPoint = null;
         resizes = false;
-        narrowOnRelease = false;
-        removeOnRelease = false;
+        selectionOnRelease.reset();
         pointerMoved = false;
         deltaX = 0;
         deltaY = 0;
