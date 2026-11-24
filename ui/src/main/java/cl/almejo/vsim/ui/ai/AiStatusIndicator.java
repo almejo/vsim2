@@ -1,13 +1,11 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 
 import javax.swing.JLabel;
-import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Cursor;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.Objects;
 
 /**
@@ -34,14 +32,7 @@ final class AiStatusIndicator extends JLabel {
         setIcon(AiStateDot.icon(service::state, DOT_SIZE));
         setIconTextGap(DOT_TEXT_GAP);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                if (SwingUtilities.isLeftMouseButton(event)) {
-                    openPanel.run();
-                }
-            }
-        });
+        addMouseListener(MouseClicks.onLeftClick(openPanel));
         this.removeServiceListener = service.addListener(new AiServerService.Listener() {
             @Override
             public void stateChanged() {

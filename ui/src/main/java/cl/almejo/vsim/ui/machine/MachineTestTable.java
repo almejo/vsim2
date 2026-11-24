@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.waveform.PinToggle;
 import cl.almejo.vsim.ui.panels.FocusEvents;
+import cl.almejo.vsim.ui.panels.PopupMouseListener;
 import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 
@@ -28,7 +29,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -98,16 +98,7 @@ public final class MachineTestTable extends JPanel {
         tabs.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_CLOSE_CALLBACK,
                 (BiConsumer<JTabbedPane, Integer>) (pane, index) -> deleteTest(index));
         tabs.addChangeListener(event -> tabChosen());
-        tabs.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                tabPopupIfTrigger(event);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent event) {
-                tabPopupIfTrigger(event);
-            }
+        tabs.addMouseListener(new PopupMouseListener(this::tabPopupIfTrigger) {
 
             @Override
             public void mouseClicked(MouseEvent event) {

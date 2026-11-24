@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.panels.Keycaps;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.theme.SwitchBox;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
@@ -106,7 +107,7 @@ final class ShortcutSheetPanel extends JPanel {
                 }
             }
         });
-        card.addMouseListener(new MouseAdapter() { }); // a click on the card is the card's
+        card.addMouseListener(MouseClicks.swallowing()); // a click on the card is the card's
         add(card);
         columnsPanel.setOpaque(false);
         prepareScroll();
@@ -145,12 +146,7 @@ final class ShortcutSheetPanel extends JPanel {
         showUsedShortcuts.setFocusable(false);
         showUsedShortcuts.addActionListener(event -> showUsedShortcutsChosen.accept(showUsedShortcuts.isSelected()));
         showUsedShortcutsLabel.setLabelFor(showUsedShortcuts);
-        showUsedShortcutsLabel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                showUsedShortcuts.doClick(0);
-            }
-        });
+        showUsedShortcutsLabel.addMouseListener(MouseClicks.onClick(() -> showUsedShortcuts.doClick(0)));
         allShortcuts.addActionListener(event -> allShortcutsChosen.run());
         JPanel foot = new JPanel(new MigLayout("insets 0, fillx", "[][][grow, center][]"));
         foot.setOpaque(false);

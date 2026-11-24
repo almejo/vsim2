@@ -11,7 +11,6 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
@@ -269,12 +268,7 @@ public final class StatusBar extends JPanel {
                 shortCircuits.setToolTipText(clickTooltip());
             }
         });
-        shortCircuits.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                action.run();
-            }
-        });
+        shortCircuits.addMouseListener(MouseClicks.onClick(action));
     }
 
     /**
@@ -352,14 +346,12 @@ public final class StatusBar extends JPanel {
         runStateClickable = true;
         simulation.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         simulation.setToolTipText(runStateTip());
-        simulation.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                if (SwingUtilities.isLeftMouseButton(event)) {
-                    (running ? whenRunning : whenPaused).run();
-                }
-            }
-        });
+        simulation.addMouseListener(MouseClicks.onLeftClick(() -> clickRunState(whenRunning, whenPaused)));
+    }
+
+    /** Runs what the run state asks for <em>now</em>: the state may have changed since the listener was added. */
+    private void clickRunState(Runnable whenRunning, Runnable whenPaused) {
+        (running ? whenRunning : whenPaused).run();
     }
 
     private String runStateTip() {

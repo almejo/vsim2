@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.AbstractButton;
@@ -12,7 +13,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -57,8 +57,7 @@ final class NewsBubble extends JComponent {
         add(done);
         add(previous);
         add(next);
-        addMouseListener(new MouseAdapter() {
-        }); // swallows the clicks on the bubble's body
+        addMouseListener(MouseClicks.swallowing()); // the clicks on the bubble's body stop here
     }
 
     void show(Content shown) {

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.panels.PopupMouseListener;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
@@ -15,7 +16,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Optional;
@@ -38,16 +38,11 @@ final class ChannelNameColumn extends JComponent {
         this.panel = panel;
         setOpaque(true);
         ToolTipManager.sharedInstance().registerComponent(this);
-        addMouseListener(new MouseAdapter() {
+        addMouseListener(new PopupMouseListener(this::popupIfTrigger) {
             @Override
             public void mousePressed(MouseEvent event) {
                 probeAt(event.getY()).ifPresent(panel::selectProbe);
-                popupIfTrigger(event);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent event) {
-                popupIfTrigger(event);
+                super.mousePressed(event);
             }
 
             @Override

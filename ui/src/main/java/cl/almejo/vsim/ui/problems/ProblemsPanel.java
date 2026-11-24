@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.PopupMouseListener;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.Action;
@@ -17,7 +18,6 @@ import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import java.awt.Rectangle;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Collections;
 import java.util.List;
@@ -88,16 +88,7 @@ public final class ProblemsPanel extends JPanel {
                         focused);
             }
         });
-        list.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                showQuickActions(event);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent event) {
-                showQuickActions(event);
-            }
+        list.addMouseListener(new PopupMouseListener(this::showQuickActions) {
 
             @Override
             public void mouseClicked(MouseEvent event) {

@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -163,7 +164,7 @@ public final class InlineTextEditor {
         panel.setOpaque(false);
         // a press on the empty parts of the editor stops here instead of reaching the canvas tool, and the
         // canvas tool's cursor (a resize arrow on a frame's edge) never shows through
-        panel.addMouseListener(new MouseAdapter() { });
+        panel.addMouseListener(MouseClicks.swallowing());
         panel.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
         problemText.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
         field.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));

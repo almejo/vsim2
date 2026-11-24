@@ -53,7 +53,6 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -459,15 +458,10 @@ public final class PalettePanel extends JPanel {
         }
         tree.setTransferHandler(transferHandler);
         tree.setDropMode(DropMode.ON); // a file dragged over the tree must not change the selection (it starts placing)
-        tree.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                showPopup(event);
-            }
-
+        tree.addMouseListener(new PopupMouseListener(this::showPopup) {
             @Override
             public void mouseReleased(MouseEvent event) {
-                showPopup(event);
+                super.mouseReleased(event);
                 handOverFocusAfterChoice(event);
             }
         });
