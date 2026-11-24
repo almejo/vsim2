@@ -9,8 +9,20 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
+
 import net.miginfocom.swing.MigLayout;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -22,16 +34,6 @@ import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.text.JTextComponent;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Insets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Callable;
 
 /**
  * Herramientas ▸ «Circuito desde expresiones…» (spec §3): one {@code NOMBRE = expresión} line per output, each read
@@ -144,7 +146,8 @@ public final class ExpressionsPanel extends JPanel {
         this.legend = new ExpressionLegend(this::insert);
 
         // The left side scrolls only up and down: it takes the dialog's width, so the lines fill it and shrink with it.
-        content = new WidthTrackingPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""));
+        content = new VerticalScrollPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""),
+                false);
         content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
         content.add(title, "growx 0, wmin 200");
         content.add(linesPanel, "span 2, growx, wmin 0, gaptop 8");

@@ -1,12 +1,10 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
+
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractButton;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
@@ -16,13 +14,17 @@ import java.awt.RenderingHints;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Consumer;
+import javax.swing.AbstractButton;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
 /**
  * The side panel of «Circuito desde expresiones» (spec §3): short instructions and the notation, one row per
  * operation with its symbols and an example. Clicking the button of a row inserts its operator into the line the
  * user was typing in ({@code insert}). Open by default; «Notación» collapses it.
  */
-final class ExpressionLegend extends WidthTrackingPanel {
+final class ExpressionLegend extends VerticalScrollPanel {
 
     /** A row of the notation; {@code insertion} is what its button types, empty for a row that only explains. */
     enum Row {
@@ -65,7 +67,7 @@ final class ExpressionLegend extends WidthTrackingPanel {
     private Runnable onToggle = () -> { };
 
     ExpressionLegend(Consumer<String> insert) {
-        super(new BorderLayout(0, 8));
+        super(new BorderLayout(0, 8), false);
         Paragraph instructions = new Paragraph(Messages.text("expressions.legend.instructions"));
         content.add(instructions, "span 4, growx, wmin 100, gapbottom 8");
         for (Row row : Row.values()) {

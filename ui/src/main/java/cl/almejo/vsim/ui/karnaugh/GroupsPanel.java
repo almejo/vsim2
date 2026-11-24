@@ -7,17 +7,10 @@ import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
+
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.Action;
-import javax.swing.AbstractButton;
-import javax.swing.BorderFactory;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JToggleButton;
-import javax.swing.KeyStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -33,6 +26,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
+import javax.swing.AbstractButton;
+import javax.swing.Action;
+import javax.swing.BorderFactory;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JToggleButton;
+import javax.swing.KeyStroke;
 
 /**
  * Step 3 «Grupos» (spec §3): the map of each output with its minimal groups, a legend (① B'C, ② BD…) in the groups'
@@ -93,8 +95,8 @@ final class GroupsPanel extends JPanel implements WizardStep {
         why.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
         rules.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
 
-        JPanel right = new WidthTrackingPanel(new MigLayout("insets 0 0 0 8, fillx, wrap 1, hidemode 3",
-                "[grow, fill]"));
+        JPanel right = new VerticalScrollPanel(new MigLayout("insets 0 0 0 8, fillx, wrap 1, hidemode 3",
+                "[grow, fill]"), false);
         solutionSide.add(header, "wmin 100");
         solutionSide.add(specialCase, "wmin 100");
         solutionSide.add(legend, "gaptop 6");

@@ -2,8 +2,17 @@ package cl.almejo.vsim.ui.logisim;
 
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
+
 import net.miginfocom.swing.MigLayout;
 
+import java.awt.BorderLayout;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.font.TextAttribute;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -11,17 +20,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
-import java.awt.BorderLayout;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Rectangle;
-import java.awt.font.TextAttribute;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * The content of the report window: the summary on top and, in a scroll pane, the report: a heading per circuit, a
@@ -49,7 +48,8 @@ final class ImportReportPanel extends JPanel {
     }
 
     private JComponent content(ImportReport report, ReportHost host) {
-        JPanel content = new WidthTrackingPanel(new MigLayout("insets 0, wrap 1, fillx, gapy 2", "[grow, fill]"));
+        JPanel content = new VerticalScrollPanel(new MigLayout("insets 0, wrap 1, fillx, gapy 2", "[grow, fill]"),
+                false);
         for (ImportReport.CircuitGroup circuit : report.circuits()) {
             JLabel circuitLabel = new JLabel(circuit.title());
             circuitLabel.setFont(circuitLabel.getFont().deriveFont(Font.BOLD, circuitLabel.getFont().getSize2D() + 2));
@@ -106,38 +106,5 @@ final class ImportReportPanel extends JPanel {
         button.addActionListener(action -> host.goTo(element));
         placeButtons.add(button);
         return button;
-    }
-
-    /** A panel that is as wide as the scroll pane's viewport, so its wrapping text follows the window's width. */
-    private static final class WidthTrackingPanel extends JPanel implements Scrollable {
-
-        WidthTrackingPanel(MigLayout layout) {
-            super(layout);
-        }
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-            return 16;
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-            return Math.max(16, visible.height - 32);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
     }
 }
