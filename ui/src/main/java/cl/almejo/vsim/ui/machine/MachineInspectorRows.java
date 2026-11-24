@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
+import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
@@ -843,26 +844,29 @@ final class MachineInspectorRows extends VerticalScrollPanel {
     }
 
     private boolean applyOutputs(String stateId, String text) {
-        MachineOutputsText.Reading reading = MachineOutputsText.read(text);
-        if (reading.problem().isPresent()) {
-            MachineOutputsText.Problem wrong = reading.problem().get();
-            showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
-            return false;
-        }
-        return applyWithinLimits(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
+        return applyOutputsText(text, outputs -> machine -> MachineEdits.withMooreOutputs(machine, stateId, outputs));
     }
 
-    // CPD-OFF state-machine code on its own branch: the twin of applyOutputs above stays until the branch merges
     private boolean applyMealyOutputs(String transitionId, String text) {
+        return applyOutputsText(text,
+                outputs -> machine -> MachineEdits.withMealyOutputs(machine, transitionId, outputs));
+    }
+
+    /**
+     * Reads an outputs text ({@code Z=1, Y=0}) and applies {@code change} with what it says (a state's Moore outputs
+     * or an arrow's Mealy ones), within the pin limits; a wrong text only says what is wrong. Returns whether it
+     * applied.
+     */
+    private boolean applyOutputsText(String text,
+                                     Function<List<OutputAssignment>, UnaryOperator<StateMachine>> change) {
         MachineOutputsText.Reading reading = MachineOutputsText.read(text);
         if (reading.problem().isPresent()) {
             MachineOutputsText.Problem wrong = reading.problem().get();
             showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
             return false;
         }
-        return applyWithinLimits(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
+        return applyWithinLimits(change.apply(reading.outputs()));
     }
-    // CPD-ON
 
     /**
      * {@link #apply} when the machine after it still has pins for every name (16 inputs, 16 outputs); else says why
