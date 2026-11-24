@@ -185,17 +185,20 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
         canvas.getActionMap().put(EDIT_TEXT, editText);
         Runnable stopFollowing = selection.addListener(this::refreshActions);
         refreshActions();
-        return () -> {
-            stopFollowing.run();
-            canvas.removeMouseListener(mouse);
-            canvas.removeMouseMotionListener(mouse);
-            canvas.removeKeyListener(keys);
-            canvas.showGestures(MachineCanvas.Gestures.NONE);
-            canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
-            canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(EDIT_TEXT_KEY);
-            canvas.getActionMap().remove(CANCEL);
-            canvas.getActionMap().remove(EDIT_TEXT);
-        };
+        return () -> uninstall(stopFollowing, mouse, keys);
+    }
+
+    /** Takes back what {@link #install} put on the canvas: the selection's listener, the mouse, the keys. */
+    private void uninstall(Runnable stopFollowing, MouseHandler mouse, KeyAdapter keys) {
+        stopFollowing.run();
+        canvas.removeMouseListener(mouse);
+        canvas.removeMouseMotionListener(mouse);
+        canvas.removeKeyListener(keys);
+        canvas.showGestures(MachineCanvas.Gestures.NONE);
+        canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+        canvas.getInputMap(JComponent.WHEN_FOCUSED).remove(EDIT_TEXT_KEY);
+        canvas.getActionMap().remove(CANCEL);
+        canvas.getActionMap().remove(EDIT_TEXT);
     }
 
     /** What asks before a note's ✕ deletes it (the circuit note's dialog; tests give a fake). */
@@ -413,23 +416,32 @@ final class MachineTool implements MachineCanvas.Gestures, ContentDeletion {
      * pointer (hand test of hito 3, 2026-11-17).
      */
     private Optional<MachineDiagramGeometry.Arrow> pendingArrow(Drag current) {
-        return canvas.machine().filter(machine -> machine.state(current.stateId).isPresent()).map(machine -> {
-            if (joinTarget(current).filter(current.stateId::equals).isPresent()) {
-                StateMachine withLoop = MachineEdits.withNewTransition(machine, current.stateId, current.stateId,
-                        loopSideAt(machine, current));
-                return MachineDiagramGeometry.of(withLoop).arrow(MachineEdits.lastTransition(withLoop).id());
-            }
-            MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
-            Point2D centre = geometry.centre(current.stateId);
-            double distance = centre.distance(current.pointer.x(), current.pointer.y());
-            double radius = geometry.radius(current.stateId);
-            Point2D start = distance <= radius ? centre : new Point2D.Double(
-                    centre.getX() + (current.pointer.x() - centre.getX()) * radius / distance,
-                    centre.getY() + (current.pointer.y() - centre.getY()) * radius / distance);
-            Point2D end = asPoint(current.pointer);
-            return new MachineDiagramGeometry.Arrow("", MachineDiagramGeometry.ArrowKind.STRAIGHT,
-                    new Line2D.Double(start, end), start, end, start, end);
-        });
+        return canvas.machine().filter(machine -> machine.state(current.stateId).isPresent())
+                .map(machine -> pendingArrowOn(machine, current));
+    }
+
+    /** {@link #pendingArrow} on {@code machine}, which has the start state: the loop, or the line to the pointer. */
+    private MachineDiagramGeometry.Arrow pendingArrowOn(StateMachine machine, Drag current) {
+        if (joinTarget(current).filter(current.stateId::equals).isPresent()) {
+            StateMachine withLoop = MachineEdits.withNewTransition(machine, current.stateId, current.stateId,
+                    loopSideAt(machine, current));
+            return MachineDiagramGeometry.of(withLoop).arrow(MachineEdits.lastTransition(withLoop).id());
+        }
+        return straightArrowToPointer(machine, current);
+    }
+
+    /** A straight line from the start state's border (its centre, while inside it) to the pointer. */
+    private static MachineDiagramGeometry.Arrow straightArrowToPointer(StateMachine machine, Drag current) {
+        MachineDiagramGeometry geometry = MachineDiagramGeometry.of(machine);
+        Point2D centre = geometry.centre(current.stateId);
+        double distance = centre.distance(current.pointer.x(), current.pointer.y());
+        double radius = geometry.radius(current.stateId);
+        Point2D start = distance <= radius ? centre : new Point2D.Double(
+                centre.getX() + (current.pointer.x() - centre.getX()) * radius / distance,
+                centre.getY() + (current.pointer.y() - centre.getY()) * radius / distance);
+        Point2D end = asPoint(current.pointer);
+        return new MachineDiagramGeometry.Arrow("", MachineDiagramGeometry.ArrowKind.STRAIGHT,
+                new Line2D.Double(start, end), start, end, start, end);
     }
 
     /** The state a release of the arrow {@code current} would join to: the one under the pointer, if any. */

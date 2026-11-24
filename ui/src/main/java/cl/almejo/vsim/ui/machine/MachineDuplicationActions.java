@@ -9,8 +9,10 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.PlaceDefinitionTool;
+import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -56,17 +58,15 @@ final class MachineDuplicationActions {
         List<Runnable> removals = new ArrayList<>();
         removals.add(view.addContextMenuContributor(pieceContributor(view)));
         removals.add(view.palette().addUserMenuContributor(paletteContributor(view)));
-        return () -> {
-            removals.forEach(Runnable::run);
-            view.openDocument().removeChangeListener(refresh);
-            view.selection().removeListener(refresh);
-            edit.remove(item);
-        };
+        removals.add(() -> view.openDocument().removeChangeListener(refresh));
+        removals.add(() -> view.selection().removeListener(refresh));
+        removals.add(() -> edit.remove(item));
+        return () -> removals.forEach(Runnable::run);
     }
 
     /** Right after «Actualizar componente», where the circuit's own components are made; at the end without it. */
     private static int indexAfterTheComponentItems(EditorView view, JMenu edit) {
-        Optional<Action> update = view.templateActions().map(actions -> actions.updateComponent());
+        Optional<Action> update = view.templateActions().map(TemplateActions::updateComponent);
         for (int index = 0; index < edit.getItemCount(); index++) {
             JMenuItem entry = edit.getItem(index);
             if (entry != null && update.isPresent() && entry.getAction() == update.get()) {
@@ -103,15 +103,23 @@ final class MachineDuplicationActions {
     }
 
     private static ContextMenuContributor pieceContributor(EditorView view) {
-        return (menu, target, selection, gridPosition) -> {
-            Optional<DocumentElement> element = target.filter(found -> selection.size() == 1
-                    && selection.contains(found.id()));
-            if (element.isPresent() && element.get() instanceof Component piece
-                    && isMachinePiece(view.openDocument(), piece)) {
-                menu.add(new JMenuItem(Actions.of(Messages.text("machine.duplicate"),
-                        () -> duplicate(view, piece))));
-            }
-        };
+        return (menu, target, selection, gridPosition) -> soleMachinePiece(view.openDocument(), target, selection)
+                .ifPresent(piece -> menu.add(new JMenuItem(Actions.of(Messages.text("machine.duplicate"),
+                        () -> duplicate(view, piece)))));
+    }
+
+    /**
+     * The machine piece of {@code place} that {@code target} (what a right click is on) is, when it is the only thing
+     * chosen; empty otherwise. The piece's right-click entries are offered only then.
+     */
+    static Optional<Component> soleMachinePiece(OpenDocument place, Optional<DocumentElement> target,
+                                                Selection selection) {
+        Optional<DocumentElement> element = target.filter(found -> selection.size() == 1
+                && selection.contains(found.id()));
+        if (element.isPresent() && element.get() instanceof Component piece && isMachinePiece(place, piece)) {
+            return Optional.of(piece);
+        }
+        return Optional.empty();
     }
 
     /** On a machine's entry of the palette: arms placing a duplicate of it, as choosing an entry arms placing it. */

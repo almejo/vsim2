@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.labels.TextTool;
 import cl.almejo.vsim.ui.sticky.StickyNoteTool;
 import cl.almejo.vsim.ui.tools.PanTool;
+import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -75,8 +76,8 @@ final class MachineEditing {
         canvas.setAnimations(() -> Animations.enabled(view.services().preferences()));
         undo.add(Animations.onChange(view.services().preferences(), canvas::animationsChanged));
         undo.add(tool.install());
-        undo.add(followStickyNoteTool(view, palette));
-        undo.add(followTextTool(view, palette));
+        undo.add(followPaletteTool(view, StickyNoteTool.class, palette.noteButton()));
+        undo.add(followPaletteTool(view, TextTool.class, palette.textButton()));
         undo.add(followPanTool(view, canvas, palette));
         if (view.inspector().title(InspectorPanel.PROPERTIES).isPresent()) {
             undo.add(view.inspector().showInstead(InspectorPanel.PROPERTIES, rows.inScrollPane()));
@@ -129,48 +130,33 @@ final class MachineEditing {
     }
 
     /**
-     * The toolbar's «Nota adhesiva» (and its menu item and shortcut) chooses the palette's «Nota» in this tab instead
-     * of the circuit's note tool, and the two show the same choice: the toolbar's button is pressed while «Nota» is
-     * chosen, and Selección is pressed again once it is used or dropped. Returns what takes it back.
+     * The toolbar's tool {@code toolType} (its «Nota adhesiva» or «Texto», with their menu items and shortcuts)
+     * chooses the palette's {@code paletteButton} («Nota», «Texto») in this tab instead of the circuit's tool, and the
+     * two show the same choice: the toolbar's button is pressed while the palette's is chosen, and Selección is
+     * pressed again once it is used or dropped. Returns what takes it back.
      */
-    private static Runnable followStickyNoteTool(EditorView view, MachinePalette palette) {
-        JToggleButton note = palette.noteButton();
-        Runnable stopChoosing = view.chooseToolInstead(StickyNoteTool.class, () -> note.setSelected(true));
-        ItemListener follow = event -> {
-            Optional<JToggleButton> toolbarButton = view.toolButton(StickyNoteTool.class);
-            if (event.getStateChange() == ItemEvent.SELECTED) {
-                toolbarButton.ifPresent(button -> button.setSelected(true));
-            } else if (toolbarButton.filter(JToggleButton::isSelected).isPresent()) {
-                view.useDefaultToolOnEveryPane();
-            }
-        };
-        note.addItemListener(follow);
+    private static Runnable followPaletteTool(EditorView view, Class<? extends Tool> toolType,
+                                              JToggleButton paletteButton) {
+        Runnable stopChoosing = view.chooseToolInstead(toolType, () -> paletteButton.setSelected(true));
+        ItemListener follow = event -> showPaletteChoiceOnToolbar(view, toolType, event);
+        paletteButton.addItemListener(follow);
         return () -> {
-            note.removeItemListener(follow);
+            paletteButton.removeItemListener(follow);
             stopChoosing.run();
         };
     }
 
     /**
-     * The toolbar's «Texto» (and its menu item and shortcut) chooses the palette's «Texto» in this tab instead of the
-     * circuit's text tool, and the two show the same choice, as with the sticky note. Returns what takes it back.
+     * The palette's button of {@code toolType} was chosen or dropped ({@code event}): the toolbar's button of the
+     * same tool is pressed with it, and Selección takes its place when it is dropped.
      */
-    private static Runnable followTextTool(EditorView view, MachinePalette palette) {
-        JToggleButton text = palette.textButton();
-        Runnable stopChoosing = view.chooseToolInstead(TextTool.class, () -> text.setSelected(true));
-        ItemListener follow = event -> {
-            Optional<JToggleButton> toolbarButton = view.toolButton(TextTool.class);
-            if (event.getStateChange() == ItemEvent.SELECTED) {
-                toolbarButton.ifPresent(button -> button.setSelected(true));
-            } else if (toolbarButton.filter(JToggleButton::isSelected).isPresent()) {
-                view.useDefaultToolOnEveryPane();
-            }
-        };
-        text.addItemListener(follow);
-        return () -> {
-            text.removeItemListener(follow);
-            stopChoosing.run();
-        };
+    private static void showPaletteChoiceOnToolbar(EditorView view, Class<? extends Tool> toolType, ItemEvent event) {
+        Optional<JToggleButton> toolbarButton = view.toolButton(toolType);
+        if (event.getStateChange() == ItemEvent.SELECTED) {
+            toolbarButton.ifPresent(button -> button.setSelected(true));
+        } else if (toolbarButton.filter(JToggleButton::isSelected).isPresent()) {
+            view.useDefaultToolOnEveryPane();
+        }
     }
 
     /**
@@ -180,15 +166,7 @@ final class MachineEditing {
      * take each other's place, and Esc on the diagram puts the hand down. Returns what takes it back.
      */
     private static Runnable followPanTool(EditorView view, MachineCanvas canvas, MachinePalette palette) {
-        Runnable follow = () -> {
-            boolean chosen = view.canvas().tool() instanceof PanTool;
-            if (chosen && !canvas.isPanning()) {
-                palette.clearTool();
-                canvas.handChosen(view::useDefaultToolOnEveryPane);
-            } else if (!chosen && canvas.isPanning()) {
-                canvas.handPutDown();
-            }
-        };
+        Runnable follow = () -> followPanChoice(view, canvas, palette);
         Runnable stopFollowingPanes = view.forEachPane(pane -> pane.addToolListener(tool -> follow.run()));
         ItemListener putHandDown = event -> {
             if (event.getStateChange() == ItemEvent.SELECTED && canvas.isPanning()) {
@@ -199,11 +177,26 @@ final class MachineEditing {
                 palette.noteButton(), palette.textButton());
         paletteTools.forEach(button -> button.addItemListener(putHandDown));
         follow.run();
-        return () -> {
-            paletteTools.forEach(button -> button.removeItemListener(putHandDown));
-            stopFollowingPanes.run();
+        return () -> stopFollowingPanTool(paletteTools, putHandDown, stopFollowingPanes, canvas);
+    }
+
+    /** The hand was chosen or dropped on the panes: the diagram pans with it, and the palette's tool is dropped. */
+    private static void followPanChoice(EditorView view, MachineCanvas canvas, MachinePalette palette) {
+        boolean chosen = view.canvas().tool() instanceof PanTool;
+        if (chosen && !canvas.isPanning()) {
+            palette.clearTool();
+            canvas.handChosen(view::useDefaultToolOnEveryPane);
+        } else if (!chosen && canvas.isPanning()) {
             canvas.handPutDown();
-        };
+        }
+    }
+
+    /** Takes back what {@link #followPanTool} put: the palette's listeners, the panes' and the hand on the diagram. */
+    private static void stopFollowingPanTool(List<JToggleButton> paletteTools, ItemListener putHandDown,
+                                             Runnable stopFollowingPanes, MachineCanvas canvas) {
+        paletteTools.forEach(button -> button.removeItemListener(putHandDown));
+        stopFollowingPanes.run();
+        canvas.handPutDown();
     }
 
     /**

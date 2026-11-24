@@ -93,15 +93,18 @@ final class MachineInlineEditor {
         }
         editor.open(InlineEditRequest.wrapped(MachineNotePainting.textArea(note.get()), TextFonts.labelFont(),
                         note.get().text(), text -> Optional.empty(),
-                        text -> {
-                            String words = text.strip();
-                            // an edit that leaves only blanks keeps the note as it was (as a free text does)
-                            if (!words.isEmpty() && !words.equals(note.get().text())) {
-                                canvas.edit(current -> current.withNote(noteId, found -> found.withText(words)));
-                            }
-                        }),
+                        text -> applyNoteText(noteId, note.get().text(), text)),
                 () -> canvas.machine().filter(current -> current.notes().stream()
                         .anyMatch(candidate -> candidate.id().equals(noteId))).isPresent());
+    }
+
+    /** Puts {@code typed} as the note's text unless it is blank or still {@code shown}; one edit. */
+    private void applyNoteText(String noteId, String shown, String typed) {
+        String words = typed.strip();
+        // an edit that leaves only blanks keeps the note as it was (as a free text does)
+        if (!words.isEmpty() && !words.equals(shown)) {
+            canvas.edit(current -> current.withNote(noteId, found -> found.withText(words)));
+        }
     }
 
     /**
@@ -111,16 +114,20 @@ final class MachineInlineEditor {
      */
     void addText(DiagramPoint topLeft) {
         editor.open(InlineEditRequest.multiLine(MachineTextPainting.emptyLinesAt(topLeft.x(), topLeft.y()),
-                LabelLayout.font(), "", text -> Optional.empty(), raw -> {
-                    String words = raw.strip();
-                    if (words.isEmpty()) {
-                        return;
-                    }
-                    if (canvas.edit(current -> MachineEdits.withNewText(current, topLeft, words))) {
-                        canvas.machine().map(MachineEdits::lastText).map(MachineText::id)
-                                .ifPresent(canvas.selection()::selectText);
-                    }
-                }), () -> canvas.machine().isPresent());
+                LabelLayout.font(), "", text -> Optional.empty(), raw -> addTypedText(topLeft, raw)),
+                () -> canvas.machine().isPresent());
+    }
+
+    /** Adds {@code raw} as a new free text at {@code topLeft} and selects it, as one edit; a blank adds nothing. */
+    private void addTypedText(DiagramPoint topLeft, String raw) {
+        String words = raw.strip();
+        if (words.isEmpty()) {
+            return;
+        }
+        if (canvas.edit(current -> MachineEdits.withNewText(current, topLeft, words))) {
+            canvas.machine().map(MachineEdits::lastText).map(MachineText::id)
+                    .ifPresent(canvas.selection()::selectText);
+        }
     }
 
     /**
@@ -135,14 +142,18 @@ final class MachineInlineEditor {
             return;
         }
         editor.open(InlineEditRequest.multiLine(MachineTextPainting.linesArea(text.get()), LabelLayout.font(),
-                        text.get().text(), words -> Optional.empty(), raw -> {
-                            String words = raw.strip();
-                            if (!words.isEmpty() && !words.equals(text.get().text())) {
-                                canvas.edit(current -> MachineEdits.withTextWords(current, textId, words));
-                            }
-                        }),
+                        text.get().text(), words -> Optional.empty(),
+                        raw -> applyTextWords(textId, text.get().text(), raw)),
                 () -> canvas.machine().filter(current -> current.texts().stream()
                         .anyMatch(candidate -> candidate.id().equals(textId))).isPresent());
+    }
+
+    /** Puts {@code raw} as the free text's words unless it is blank or still {@code shown}; one edit. */
+    private void applyTextWords(String textId, String shown, String raw) {
+        String words = raw.strip();
+        if (!words.isEmpty() && !words.equals(shown)) {
+            canvas.edit(current -> MachineEdits.withTextWords(current, textId, words));
+        }
     }
 
     /** Closes an open edit without applying it (the tab leaves machine mode). */

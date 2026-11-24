@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.PlaceBar;
 
+import java.awt.Component;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -42,7 +43,7 @@ public final class MachineMode {
     private final Listeners<Runnable> testModeListeners = new Listeners<>();
     private MachineTestQuestions questions = MachineTestQuestions.DIALOG;
     /** Asks through whatever {@link #questions} is when the question comes (set after the test may have started). */
-    private final MachineTestQuestions asking = (parent, message, options) -> questions.ask(parent, message, options);
+    private final MachineTestQuestions asking = this::askThroughTheQuestionsNow;
     private Optional<MachineTestMode> testMode = Optional.empty();
     private final MachineTestHelp help;
     private Runnable stopLockingTheName = () -> { };
@@ -102,17 +103,25 @@ public final class MachineMode {
             PlaceBar.of(view).ifPresent(bar -> bar.machineTesting(mode.isTesting()));
         });
         view.putClientProperty(MachineMode.class, mode);
-        return () -> {
-            // the tab goes (or leaves machine mode): it leaves the test, which goes on in the machine's other views
-            // that test, else its draft goes, unwritten
-            mode.help.close();
-            mode.testMode.ifPresent(MachineTestMode::leave);
-            view.putClientProperty(MachineMode.class, null);
-            for (Runnable undo : List.of(hideBarActions, showProbes, editing::uninstall, stopFeedingThePanes,
-                    enableCircuitActions, showPalette, showDiagram, canvas::dispose)) {
-                undo.run();
-            }
-        };
+        List<Runnable> undos = List.of(hideBarActions, showProbes, editing::uninstall, stopFeedingThePanes,
+                enableCircuitActions, showPalette, showDiagram, canvas::dispose);
+        return () -> mode.uninstall(undos);
+    }
+
+    /**
+     * The tab goes (or leaves machine mode): it leaves the test, which goes on in the machine's other views that test,
+     * else its draft goes, unwritten; then {@code undos} run in order.
+     */
+    private void uninstall(List<Runnable> undos) {
+        help.close();
+        testMode.ifPresent(MachineTestMode::leave);
+        view.putClientProperty(MachineMode.class, null);
+        undos.forEach(Runnable::run);
+    }
+
+    /** Asks through whatever {@link #questions} is now (a test may set them after the test mode started). */
+    private int askThroughTheQuestionsNow(Component parent, String message, List<String> options) {
+        return questions.ask(parent, message, options);
     }
 
     /** The machine mode of {@code view}; empty for a circuit's tab or a user component's. */
@@ -209,13 +218,16 @@ public final class MachineMode {
     }
 
     private void followTheTestMode() {
-        testMode.ifPresent(started -> {
-            stopLockingTheName = editing.rows().lockMachineName(Messages.text("machine.test.renameLater"));
-            stopHoldingTheLibraryButton = PlaceBar.of(view)
-                    .map(bar -> bar.holdLibraryButton(Messages.text("machine.test.libraryLater")))
-                    .orElse(() -> { });
-            testModeListeners.fire(Runnable::run);
-        });
+        testMode.ifPresent(started -> testModeStarted());
+    }
+
+    /** While the test runs the machine's name and «Mis componentes» wait; the listeners hear it started. */
+    private void testModeStarted() {
+        stopLockingTheName = editing.rows().lockMachineName(Messages.text("machine.test.renameLater"));
+        stopHoldingTheLibraryButton = PlaceBar.of(view)
+                .map(bar -> bar.holdLibraryButton(Messages.text("machine.test.libraryLater")))
+                .orElse(() -> { });
+        testModeListeners.fire(Runnable::run);
     }
 
     private void testEnded() {

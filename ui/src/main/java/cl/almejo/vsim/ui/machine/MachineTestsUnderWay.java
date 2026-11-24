@@ -51,12 +51,15 @@ final class MachineTestsUnderWay {
     static Runnable add(OpenDocument circuit, String definitionId, MachineTestUnderWay test) {
         Objects.requireNonNull(test, "test");
         UNDER_WAY.computeIfAbsent(circuit, key -> new HashMap<>()).put(definitionId, test);
-        return () -> {
-            Map<String, MachineTestUnderWay> tests = UNDER_WAY.get(circuit);
-            if (tests != null && tests.remove(definitionId, test) && tests.isEmpty()) {
-                UNDER_WAY.remove(circuit);
-            }
-        };
+        return () -> remove(circuit, definitionId, test);
+    }
+
+    /** {@code test} no longer tests {@code definitionId} of {@code circuit}; nothing when another test took it. */
+    private static void remove(OpenDocument circuit, String definitionId, MachineTestUnderWay test) {
+        Map<String, MachineTestUnderWay> tests = UNDER_WAY.get(circuit);
+        if (tests != null && tests.remove(definitionId, test) && tests.isEmpty()) {
+            UNDER_WAY.remove(circuit);
+        }
     }
 
     /** The circuit {@code place} belongs to: its parent for a body place, itself for a circuit. */

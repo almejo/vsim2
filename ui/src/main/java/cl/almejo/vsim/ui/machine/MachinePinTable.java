@@ -118,6 +118,14 @@ final class MachinePinTable extends JPanel {
     private boolean settingBus;
     private transient Optional<Integer> dropIndex = Optional.empty();
 
+    /** The user ticked or cleared «Como un bus» (not a refresh showing the machine's): one undo step. */
+    private void busChosen() {
+        if (!settingBus) {
+            boolean asBus = busBox.isSelected();
+            host.edit(machine -> MachinePinEdits.asBus(machine, side, asBus));
+        }
+    }
+
     /** The pin list of {@code side}, editing through {@code host}. */
     MachinePinTable(Side side, Host host) {
         // the name field may be narrow (32lp, was 40lp): at 150 % the row fits the panel (fix round 4)
@@ -128,12 +136,7 @@ final class MachinePinTable extends JPanel {
         setOpaque(false);
         busBox.setToolTipText(Messages.text(isInputs() ? "machine.pins.asBus.inputs.tooltip"
                 : "machine.pins.asBus.outputs.tooltip"));
-        busBox.addActionListener(event -> {
-            if (!settingBus) {
-                boolean asBus = busBox.isSelected();
-                host.edit(machine -> MachinePinEdits.asBus(machine, side, asBus));
-            }
-        });
+        busBox.addActionListener(event -> busChosen());
         busLabel.setFont(monospaced());
         helpButton.setToolTipText(Messages.text("machine.pins.hint"));
         helpButton.getAccessibleContext().setAccessibleName(Messages.text("machine.pins.help.title"));

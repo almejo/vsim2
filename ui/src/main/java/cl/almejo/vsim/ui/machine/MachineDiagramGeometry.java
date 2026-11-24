@@ -112,12 +112,15 @@ final class MachineDiagramGeometry {
             looks.put(state.id(), lookOf(state, centre));
         }
         placeArrows(machine);
-        initialMark = machine.initialStateId().map(initialId -> {
-            Point2D centre = centres.get(initialId);
-            double radius = radius(initialId);
-            return new Line2D.Double(centre.getX() - radius - INITIAL_MARK_LENGTH, centre.getY(),
-                    centre.getX() - radius, centre.getY());
-        });
+        initialMark = machine.initialStateId().map(this::initialMarkOf);
+    }
+
+    /** The short line that comes into the initial state {@code initialId} from its left. */
+    private Line2D initialMarkOf(String initialId) {
+        Point2D centre = centres.get(initialId);
+        double radius = radius(initialId);
+        return new Line2D.Double(centre.getX() - radius - INITIAL_MARK_LENGTH, centre.getY(),
+                centre.getX() - radius, centre.getY());
     }
 
     /** How {@code state} at {@code centre} is drawn: the radius its name and its outputs need. */

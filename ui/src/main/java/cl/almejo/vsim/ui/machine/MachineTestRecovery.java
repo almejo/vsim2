@@ -63,16 +63,21 @@ public final class MachineTestRecovery implements RecoveryDrafts {
     /** The drafts of {@code document}'s machines being tested that hold something the circuit does not, by id. */
     private static Map<String, StateMachine> unwritten(OpenDocument document) {
         Map<String, StateMachine> drafts = new TreeMap<>();
-        MachineTestsUnderWay.of(document).forEach((definitionId, test) -> {
-            if (test.isOver()) {
-                return;
-            }
-            MachineDraft draft = test.draft();
-            document.document().definition(definitionId).flatMap(ComponentDefinition::machine)
-                    .filter(real -> draft.diagramDiffersFrom(real) || draft.testsDifferFrom(real))
-                    .ifPresent(real -> drafts.put(definitionId, draft.current()));
-        });
+        MachineTestsUnderWay.of(document).forEach((definitionId, test) -> unwrittenDraft(document, definitionId, test)
+                .ifPresent(draft -> drafts.put(definitionId, draft)));
         return drafts;
+    }
+
+    /** The draft of {@code test} on {@code definitionId} when it holds something the circuit does not; else empty. */
+    private static Optional<StateMachine> unwrittenDraft(OpenDocument document, String definitionId,
+                                                         MachineTestUnderWay test) {
+        if (test.isOver()) {
+            return Optional.empty();
+        }
+        MachineDraft draft = test.draft();
+        return document.document().definition(definitionId).flatMap(ComponentDefinition::machine)
+                .filter(real -> draft.diagramDiffersFrom(real) || draft.testsDifferFrom(real))
+                .map(real -> draft.current());
     }
 
     /** The drafts the recovery copy {@code copy} carries, by definition id; empty when none or unreadable. */
@@ -93,15 +98,19 @@ public final class MachineTestRecovery implements RecoveryDrafts {
     public static void resume(WindowTabs tabs, OpenDocument document, Map<String, StateMachine> drafts) {
         // every tab first, then the tests: entering the next machine never leaves a test with a changed diagram
         Map<EditorView, StateMachine> views = new LinkedHashMap<>();
-        drafts.forEach((definitionId, draft) -> {
-            Optional<ComponentDefinition> definition = document.document().definition(definitionId)
-                    .filter(ComponentDefinition::isMachine);
-            if (definition.isEmpty()) {
-                LOGGER.warn("The recovered test draft of {} has no machine in the circuit", definitionId);
-                return;
-            }
-            views.put(tabs.enter(document, definitionId, Optional.empty(), Optional.empty()), draft);
-        });
+        drafts.forEach((definitionId, draft) -> enterMachine(tabs, document, definitionId)
+                .ifPresent(view -> views.put(view, draft)));
         views.forEach((view, draft) -> MachineMode.of(view).ifPresent(mode -> mode.resumeTest(draft)));
+    }
+
+    /** The tab of the machine {@code definitionId} in {@code tabs}, entered; empty when the circuit lacks it. */
+    private static Optional<EditorView> enterMachine(WindowTabs tabs, OpenDocument document, String definitionId) {
+        Optional<ComponentDefinition> definition = document.document().definition(definitionId)
+                .filter(ComponentDefinition::isMachine);
+        if (definition.isEmpty()) {
+            LOGGER.warn("The recovered test draft of {} has no machine in the circuit", definitionId);
+            return Optional.empty();
+        }
+        return Optional.of(tabs.enter(document, definitionId, Optional.empty(), Optional.empty()));
     }
 }

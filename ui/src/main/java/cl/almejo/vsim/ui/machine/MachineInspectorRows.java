@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.machine.MachineNote;
 import cl.almejo.vsim.core.machine.MachineState;
 import cl.almejo.vsim.core.machine.MachineText;
 import cl.almejo.vsim.core.machine.MachineTransition;
+import cl.almejo.vsim.core.machine.OutputAssignment;
 import cl.almejo.vsim.core.machine.StateColor;
 import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.core.simulation.MachineProblem;
@@ -24,6 +25,7 @@ import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
 import cl.almejo.vsim.ui.panels.ColorSwatches;
 import cl.almejo.vsim.ui.panels.NoteColorSwatches;
 import cl.almejo.vsim.ui.panels.NoteTextArea;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
@@ -33,15 +35,11 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.ScrollPaneConstants;
-import javax.swing.Scrollable;
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Rectangle;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -73,11 +71,10 @@ import java.util.function.UnaryOperator;
  * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
  * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
-final class MachineInspectorRows extends JPanel implements Scrollable {
+final class MachineInspectorRows extends VerticalScrollPanel {
 
     private static final long serialVersionUID = 1L;
     private static final String WIDE = "span 2, growx, wmin 0";
-    private static final int UNIT_INCREMENT = 16;
     private static final String MACHINE_ROWS = "machine";
     private static final String SEVERAL_ROWS = "several:";
     private static final String NO_ROWS = "none";
@@ -147,7 +144,8 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
     MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library,
                          Consumer<String> notices, BooleanSupplier animations, Consumer<String> editNote,
                          Supplier<String> deleteKey) {
-        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60lp::]"));
+        // the rows keep their own height, short or tall (only the height scrolls)
+        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60lp::]"), false);
         this.notices = Objects.requireNonNull(notices, "notices");
         this.animations = Objects.requireNonNull(animations, "animations");
         this.canvas = Objects.requireNonNull(canvas, "canvas");
@@ -163,43 +161,6 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         // a running copy's problems (an input in Z at the edge) come with the simulation, not with a change
         stopFollowingFrames = canvas.addFrameListener(this::refreshProblemList);
         rebuild();
-    }
-
-    /** This panel in a scroll pane that only scrolls up and down, as the circuit's «Propiedades». */
-    JScrollPane inScrollPane() {
-        JScrollPane scroll = new JScrollPane(this, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setBorder(null);
-        scroll.getVerticalScrollBar().setUnitIncrement(UNIT_INCREMENT);
-        return scroll;
-    }
-
-    // --- Scrollable: the rows take the panel's width (fix round 4: at 150 % and 200 % they stuck out on the right,
-    // cut, since the pane never scrolls sideways); only the height scrolls ---
-
-    @Override
-    public Dimension getPreferredScrollableViewportSize() {
-        return getPreferredSize();
-    }
-
-    @Override
-    public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-        return UNIT_INCREMENT;
-    }
-
-    @Override
-    public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-        return Math.max(UNIT_INCREMENT, visible.height - UNIT_INCREMENT);
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportWidth() {
-        return true;
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportHeight() {
-        return false;
     }
 
     /** A condition's problem as the user reads it: «Falta cerrar un paréntesis (posición 3)». */
@@ -244,12 +205,15 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         Optional<String> lock = Optional.of(reason);
         nameLock = lock;
         applyNameLock();
-        return () -> {
-            if (nameLock == lock) {
-                nameLock = Optional.empty();
-                applyNameLock();
-            }
-        };
+        return () -> unlockMachineName(lock);
+    }
+
+    /** Takes {@code lock} off the machine's «Nombre», unless another lock replaced it since. */
+    private void unlockMachineName(Optional<String> lock) {
+        if (nameLock == lock) {
+            nameLock = Optional.empty();
+            applyNameLock();
+        }
     }
 
     private void applyNameLock() {
@@ -571,19 +535,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         String textId = text.id();
         NoteTextArea area = new NoteTextArea(text.text());
         String[] applied = {text.text()};
-        BooleanSupplier applyIfChanged = () -> {
-            String typed = area.getText().strip();
-            if (typed.equals(applied[0])) {
-                return true;
-            }
-            if (typed.isEmpty()) {
-                area.setText(applied[0]); // a blank text is ignored, as the circuit's is
-                return true;
-            }
-            applied[0] = typed;
-            apply(machine -> MachineEdits.withTextWords(machine, textId, typed));
-            return true;
-        };
+        BooleanSupplier applyIfChanged = () -> applyTextWordsIfChanged(textId, area, applied);
         area.addConfirmListener(applyIfChanged::getAsBoolean);
         area.addFocusListener(new FocusAdapter() {
             @Override
@@ -594,19 +546,41 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
             }
         });
         pendingApplies.add(applyIfChanged::getAsBoolean);
-        refreshers.add(() -> {
-            Optional<String> held = canvas.machine().flatMap(machineNow -> textOf(machineNow, textId))
-                    .map(MachineText::text);
-            boolean typing = !area.getText().strip().equals(applied[0]);
-            if (!typing && !area.hasFocus() && held.isPresent() && !held.get().equals(area.getText())) {
-                area.setText(held.get());
-                applied[0] = held.get();
-            }
-        });
+        refreshers.add(() -> refreshTextWords(textId, area, applied));
         addRow(Messages.text("properties.text"), area);
         textArea = Optional.of(area);
         addTextStyleRows(List.of(textId));
         add(hint(Messages.format("machine.properties.textHint", deleteKey.get())), WIDE);
+    }
+
+    /**
+     * Puts the words typed in {@code area} on the free text {@code textId} when they changed since {@code applied[0]}
+     * (the last words applied, which it updates); a blank text is ignored and the area shows the words again. Always
+     * true: the area keeps what it took.
+     */
+    private boolean applyTextWordsIfChanged(String textId, NoteTextArea area, String[] applied) {
+        String typed = area.getText().strip();
+        if (typed.equals(applied[0])) {
+            return true;
+        }
+        if (typed.isEmpty()) {
+            area.setText(applied[0]); // a blank text is ignored, as the circuit's is
+            return true;
+        }
+        applied[0] = typed;
+        apply(machine -> MachineEdits.withTextWords(machine, textId, typed));
+        return true;
+    }
+
+    /** {@code area} takes the free text's words as the machine holds them now, unless it has the focus or typing. */
+    private void refreshTextWords(String textId, NoteTextArea area, String[] applied) {
+        Optional<String> held = canvas.machine().flatMap(machineNow -> textOf(machineNow, textId))
+                .map(MachineText::text);
+        boolean typing = !area.getText().strip().equals(applied[0]);
+        if (!typing && !area.hasFocus() && held.isPresent() && !held.get().equals(area.getText())) {
+            area.setText(held.get());
+            applied[0] = held.get();
+        }
     }
 
     /**
@@ -629,17 +603,22 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
             }
             swatches.addChoiceListener(() -> apply(machineNow -> withStyled(machineNow, textIds, role,
                     swatches.selectedValue())));
-            refreshers.add(() -> canvas.machine().ifPresent(machineNow -> {
-                List<NoteColor> now = textIds.stream().map(id -> textOf(machineNow, id)).flatMap(Optional::stream)
-                        .map(text -> text.style().color(role)).distinct().toList();
-                if (now.size() == 1 && swatches.selectedValue() != now.getFirst()) {
-                    swatches.select(now.getFirst());
-                }
-            }));
+            refreshers.add(() -> canvas.machine()
+                    .ifPresent(machineNow -> showSharedTextColor(machineNow, textIds, role, swatches)));
             addRow(NoteColorNames.of(role), swatches);
             rows.put(role, swatches);
         }
         textStyle = rows;
+    }
+
+    /** {@code swatches} choose the colour of {@code role} the texts {@code textIds} share in {@code machine}. */
+    private static void showSharedTextColor(StateMachine machine, List<String> textIds, NoteStyle.Role role,
+                                            ColorSwatches<NoteColor> swatches) {
+        List<NoteColor> now = textIds.stream().map(id -> textOf(machine, id)).flatMap(Optional::stream)
+                .map(text -> text.style().color(role)).distinct().toList();
+        if (now.size() == 1 && swatches.selectedValue() != now.getFirst()) {
+            swatches.select(now.getFirst());
+        }
     }
 
     /** {@code machine} with {@code role} of the texts {@code textIds} painted {@code color}. */
@@ -702,14 +681,17 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
      */
     Consumer<Boolean> enterTestWith(Runnable start) {
         startTest = Objects.requireNonNull(start, "start");
-        return nowTesting -> {
-            testing = nowTesting;
-            testButton.ifPresent(button -> {
-                button.setEnabled(!nowTesting);
-                button.setToolTipText(Messages.text(nowTesting ? "machine.test.alreadyTesting"
-                        : "machine.palette.testHint"));
-            });
-        };
+        return this::testingChanged;
+    }
+
+    /** The test mode started ({@code nowTesting}) or ended: «Probar…» is disabled while it runs, and says why. */
+    private void testingChanged(boolean nowTesting) {
+        testing = nowTesting;
+        testButton.ifPresent(button -> {
+            button.setEnabled(!nowTesting);
+            button.setToolTipText(Messages.text(nowTesting ? "machine.test.alreadyTesting"
+                    : "machine.palette.testHint"));
+        });
     }
 
     /** Where the machine assigns outputs: in its states (Moore), on its arrows (Mealy) or both; Moore when nowhere. */
@@ -767,26 +749,35 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         }
         swatches.addChoiceListener(() -> {
             Optional<StateColor> chosen = swatches.selectedValue();
-            apply(machine -> {
-                StateMachine coloured = machine;
-                for (String stateId : stateIds) {
-                    if (coloured.state(stateId).isPresent()) {
-                        coloured = coloured.withState(stateId, found -> found.withColor(chosen));
-                    }
-                }
-                return coloured;
-            });
+            apply(machine -> withStatesColoured(machine, stateIds, chosen));
         });
-        refreshers.add(() -> canvas.machine().ifPresent(machineNow -> {
-            Optional<Optional<StateColor>> now = sharedColor(machineNow, stateIds);
-            if (now.isEmpty()) {
-                swatches.showNoChoice();
-            } else if (swatches.showsNoChoice() || !swatches.selectedValue().equals(now.get())) {
-                swatches.select(now.get());
-            }
-        }));
+        refreshers.add(() -> canvas.machine()
+                .ifPresent(machineNow -> showSharedStateColor(machineNow, stateIds, swatches)));
         addRow(Messages.text("machine.properties.stateColor"), swatches);
         stateColor = Optional.of(swatches);
+    }
+
+    /** {@code machine} with the states of {@code stateIds} it still has coloured {@code chosen} (none is a colour). */
+    private static StateMachine withStatesColoured(StateMachine machine, List<String> stateIds,
+                                           Optional<StateColor> chosen) {
+        StateMachine coloured = machine;
+        for (String stateId : stateIds) {
+            if (coloured.state(stateId).isPresent()) {
+                coloured = coloured.withState(stateId, found -> found.withColor(chosen));
+            }
+        }
+        return coloured;
+    }
+
+    /** {@code swatches} show the colour the states {@code stateIds} share in {@code machine}, or no choice. */
+    private static void showSharedStateColor(StateMachine machine, List<String> stateIds,
+                                             ColorSwatches<Optional<StateColor>> swatches) {
+        Optional<Optional<StateColor>> now = sharedColor(machine, stateIds);
+        if (now.isEmpty()) {
+            swatches.showNoChoice();
+        } else if (swatches.showsNoChoice() || !swatches.selectedValue().equals(now.get())) {
+            swatches.select(now.get());
+        }
     }
 
     /** The colour every state of {@code stateIds} has (none is a colour too); empty when they differ. */
@@ -818,13 +809,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         addRow(Messages.text("machine.properties.goes"), ends);
         JTextField condition = textRow(Messages.text("machine.properties.condition"), transition.condition(),
                 machineNow -> machineNow.transition(transition.id()).map(MachineTransition::condition),
-                text -> {
-                    if (!applyWithinLimits(current -> MachineEdits.withCondition(current, transition.id(), text))) {
-                        return false;
-                    }
-                    showProblem(MachineConditions.parse(text).problem().map(MachineInspectorRows::describe));
-                    return true; // a condition that cannot be read is kept as written
-                });
+                text -> applyCondition(transition.id(), text));
         add(hint(Messages.text(transition.isOtherwise() ? "machine.properties.otherwise"
                 : "machine.properties.conditionHint")), WIDE);
         JTextField mealy = textRow(Messages.text("machine.properties.mealyOutputs"),
@@ -843,6 +828,18 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
                 .ifPresent(current -> showProblem(MachineConditions.parse(current.condition()).problem()
                         .map(MachineInspectorRows::describe))));
         showProblem(MachineConditions.parse(transition.condition()).problem().map(MachineInspectorRows::describe));
+    }
+
+    /**
+     * Puts {@code text} as the arrow's condition (within the pin limits) and says what is wrong in it; a condition
+     * that cannot be read is kept as written. Returns whether it applied.
+     */
+    private boolean applyCondition(String transitionId, String text) {
+        if (!applyWithinLimits(current -> MachineEdits.withCondition(current, transitionId, text))) {
+            return false;
+        }
+        showProblem(MachineConditions.parse(text).problem().map(MachineInspectorRows::describe));
+        return true; // a condition that cannot be read is kept as written
     }
 
     private static String nameOf(StateMachine machine, String stateId) {
@@ -883,26 +880,29 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
     }
 
     private boolean applyOutputs(String stateId, String text) {
-        MachineOutputsText.Reading reading = MachineOutputsText.read(text);
-        if (reading.problem().isPresent()) {
-            MachineOutputsText.Problem wrong = reading.problem().get();
-            showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
-            return false;
-        }
-        return applyWithinLimits(machine -> MachineEdits.withMooreOutputs(machine, stateId, reading.outputs()));
+        return applyOutputsText(text, outputs -> machine -> MachineEdits.withMooreOutputs(machine, stateId, outputs));
     }
 
-    // CPD-OFF state-machine code on its own branch: the twin of applyOutputs above stays until the branch merges
     private boolean applyMealyOutputs(String transitionId, String text) {
+        return applyOutputsText(text,
+                outputs -> machine -> MachineEdits.withMealyOutputs(machine, transitionId, outputs));
+    }
+
+    /**
+     * Reads an outputs text ({@code Z=1, Y=0}) and applies {@code change} with what it says (a state's Moore outputs
+     * or an arrow's Mealy ones), within the pin limits; a wrong text only says what is wrong. Returns whether it
+     * applied.
+     */
+    private boolean applyOutputsText(String text,
+                                     Function<List<OutputAssignment>, UnaryOperator<StateMachine>> change) {
         MachineOutputsText.Reading reading = MachineOutputsText.read(text);
         if (reading.problem().isPresent()) {
             MachineOutputsText.Problem wrong = reading.problem().get();
             showProblem(Optional.of(Messages.format(wrong.key(), wrong.arguments().toArray())));
             return false;
         }
-        return applyWithinLimits(machine -> MachineEdits.withMealyOutputs(machine, transitionId, reading.outputs()));
+        return applyWithinLimits(change.apply(reading.outputs()));
     }
-    // CPD-ON
 
     /**
      * {@link #apply} when the machine after it still has pins for every name (16 inputs, 16 outputs); else says why
@@ -950,19 +950,7 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
                                Predicate<String> onApply) {
         JTextField field = FragmentRefusingTransferHandler.install(new JTextField(text));
         String[] applied = {text};
-        BooleanSupplier applyIfChanged = () -> {
-            String typed = field.getText();
-            if (typed.equals(applied[0])) {
-                return true;
-            }
-            String before = applied[0];
-            applied[0] = typed;
-            boolean taken = onApply.test(typed);
-            if (!taken) {
-                applied[0] = before;
-            }
-            return taken;
-        };
+        BooleanSupplier applyIfChanged = () -> applyFieldIfChanged(field, applied, onApply);
         field.addActionListener(event -> applyIfChanged.getAsBoolean());
         field.addFocusListener(new FocusAdapter() {
             @Override
@@ -977,16 +965,37 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
             }
         });
         pendingApplies.add(applyIfChanged::getAsBoolean);
-        refreshers.add(() -> {
-            boolean typing = !field.getText().equals(applied[0]);
-            Optional<String> held = canvas.machine().flatMap(modelText);
-            if (!typing && !field.hasFocus() && held.isPresent() && !held.get().equals(field.getText())) {
-                field.setText(held.get());
-                applied[0] = held.get();
-            }
-        });
+        refreshers.add(() -> refreshField(field, applied, modelText));
         addRow(caption, field);
         return field;
+    }
+
+    /**
+     * Gives {@code onApply} what {@code field} says when it changed since {@code applied[0]} (the last text applied,
+     * which it updates, and puts back when {@code onApply} refuses the text). Returns whether the text was taken.
+     */
+    private static boolean applyFieldIfChanged(JTextField field, String[] applied, Predicate<String> onApply) {
+        String typed = field.getText();
+        if (typed.equals(applied[0])) {
+            return true;
+        }
+        String before = applied[0];
+        applied[0] = typed;
+        boolean taken = onApply.test(typed);
+        if (!taken) {
+            applied[0] = before;
+        }
+        return taken;
+    }
+
+    /** {@code field} takes what the machine holds for it ({@code modelText}), unless it has the focus or typing. */
+    private void refreshField(JTextField field, String[] applied, Function<StateMachine, Optional<String>> modelText) {
+        boolean typing = !field.getText().equals(applied[0]);
+        Optional<String> held = canvas.machine().flatMap(modelText);
+        if (!typing && !field.hasFocus() && held.isPresent() && !held.get().equals(field.getText())) {
+            field.setText(held.get());
+            applied[0] = held.get();
+        }
     }
 
     private void addRow(String caption, java.awt.Component editor) {

@@ -42,15 +42,18 @@ final class MachineDiagramFrame extends JPanel {
         setBorder(new TestModeBorder());
         revalidate();
         repaint();
-        return () -> {
-            if (bar.isPresent() && bar.get() == testBar) {
-                remove(testBar);
-                bar = Optional.empty();
-                setBorder(null);
-                revalidate();
-                repaint();
-            }
-        };
+        return () -> hideTestMode(testBar);
+    }
+
+    /** Takes {@code testBar} and the border away, unless another bar replaced it since. */
+    private void hideTestMode(JComponent testBar) {
+        if (bar.isPresent() && bar.get() == testBar) {
+            remove(testBar);
+            bar = Optional.empty();
+            setBorder(null);
+            revalidate();
+            repaint();
+        }
     }
 
     /** The border of the test mode: its colour asked of the scheme each time it is painted. */

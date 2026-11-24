@@ -201,12 +201,15 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
         addMouseMotionListener(mouse);
         addMouseWheelListener(mouse);
         ToolTipManager.sharedInstance().registerComponent(this);
-        addHierarchyListener(event -> {
-            if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
-                followFrames(isShowing());
-                updateAnts();
-            }
-        });
+        addHierarchyListener(this::hierarchyChanged);
+    }
+
+    /** Shown or hidden: follows the running copy's frames and the marching ants only while shown. */
+    private void hierarchyChanged(HierarchyEvent event) {
+        if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
+            followFrames(isShowing());
+            updateAnts();
+        }
     }
 
     /** The machine definition this diagram shows. */
@@ -502,14 +505,18 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     /** Shows the given states and arrows, now or once the canvas has a size; whether it has one now. */
     private boolean bringIntoView(Set<String> stateIds, Set<String> transitionIds) {
         boolean sized = getWidth() > 0 && getHeight() > 0;
-        machine().flatMap(machine -> boundsOf(machine, stateIds, transitionIds)).ifPresent(bounds -> {
-            if (sized) {
-                showCentred(bounds, Math.min(viewport.zoom(), fitZoom(bounds)));
-            } else {
-                pendingReveal = Optional.of(bounds);
-            }
-        });
+        machine().flatMap(machine -> boundsOf(machine, stateIds, transitionIds))
+                .ifPresent(bounds -> revealBounds(bounds, sized));
         return sized;
+    }
+
+    /** Shows {@code bounds} centred when the canvas is {@code sized}, else keeps them for when it is. */
+    private void revealBounds(Rectangle2D bounds, boolean sized) {
+        if (sized) {
+            showCentred(bounds, Math.min(viewport.zoom(), fitZoom(bounds)));
+        } else {
+            pendingReveal = Optional.of(bounds);
+        }
     }
 
     /** Ends what an earlier reveal showed and, with {@code blink}, starts blinking (once sized). */
@@ -558,14 +565,17 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
             usesLight.stop();
             blinkTimer.stop();
         });
-        revealed.ifPresent(finding -> {
-            if (!selection.stateIds().equals(new LinkedHashSet<>(MachineGlows.statesOf(finding)))
-                    || !selection.transitionIds().equals(new LinkedHashSet<>(MachineGlows.transitionsOf(finding)))) {
-                revealed = Optional.empty();
-                blinkTimer.stop();
-            }
-        });
+        revealed.ifPresent(this::endRevealUnlessSelected);
         repaint();
+    }
+
+    /** Ends the reveal of {@code finding} when the selection is no longer what it is about. */
+    private void endRevealUnlessSelected(MachineFinding finding) {
+        if (!selection.stateIds().equals(new LinkedHashSet<>(MachineGlows.statesOf(finding)))
+                || !selection.transitionIds().equals(new LinkedHashSet<>(MachineGlows.transitionsOf(finding)))) {
+            revealed = Optional.empty();
+            blinkTimer.stop();
+        }
     }
 
     /** Whether a revealed problem is blinking now. */
@@ -874,13 +884,16 @@ public final class MachineCanvas extends JComponent implements ContentZoom {
     }
 
     private Optional<Rectangle2D> diagramBounds() {
-        return machine().flatMap(machine -> {
-            Optional<Rectangle2D> diagram = MachineDiagramGeometry.of(machine).bounds();
-            Optional<Rectangle2D> beside = MachineNotePainting.bounds(machine).map(notes ->
-                    MachineTextPainting.bounds(machine).map(notes::createUnion).orElse(notes))
-                    .or(() -> MachineTextPainting.bounds(machine));
-            return diagram.map(found -> beside.map(found::createUnion).orElse(found)).or(() -> beside);
-        });
+        return machine().flatMap(MachineCanvas::boundsOfAll);
+    }
+
+    /** What {@code machine} covers: its states and arrows, its notes and its texts. */
+    private static Optional<Rectangle2D> boundsOfAll(StateMachine machine) {
+        Optional<Rectangle2D> diagram = MachineDiagramGeometry.of(machine).bounds();
+        Optional<Rectangle2D> beside = MachineNotePainting.bounds(machine).map(notes ->
+                MachineTextPainting.bounds(machine).map(notes::createUnion).orElse(notes))
+                .or(() -> MachineTextPainting.bounds(machine));
+        return diagram.map(found -> beside.map(found::createUnion).orElse(found)).or(() -> beside);
     }
 
     private double fitZoom(Rectangle2D bounds) {

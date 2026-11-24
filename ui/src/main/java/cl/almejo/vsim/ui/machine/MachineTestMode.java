@@ -119,16 +119,19 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
     static Optional<MachineTestMode> recovered(EditorView view, MachineCanvas canvas, MachineDiagramFrame frame,
                                                StateMachine recovered, MachineTestQuestions questions,
                                                Runnable ended) {
-        return canvas.standardSource().machine().map(real -> {
-            MachineDraft draft = new MachineDraft(real);
-            StateMachine withPins = recovered.withUsedNamesAdded();
-            if (!withPins.equals(real)) {
-                draft.edited(withPins, Messages.text("machine.test.recoveredStep"));
-            }
-            return started(view, canvas, frame, new Carried(MachineTestUnderWay.begin(
-                    MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(), draft), 0, 0),
-                    questions, ended);
-        });
+        return canvas.standardSource().machine().map(real -> started(view, canvas, frame, new Carried(
+                MachineTestUnderWay.begin(MachineTestsUnderWay.circuitOf(canvas.place()), canvas.definitionId(),
+                        recoveredDraft(real, recovered)), 0, 0), questions, ended));
+    }
+
+    /** The draft of {@code real} whose one step, when they differ, makes it {@code recovered} (its pins added). */
+    private static MachineDraft recoveredDraft(StateMachine real, StateMachine recovered) {
+        MachineDraft draft = new MachineDraft(real);
+        StateMachine withPins = recovered.withUsedNamesAdded();
+        if (!withPins.equals(real)) {
+            draft.edited(withPins, Messages.text("machine.test.recoveredStep"));
+        }
+        return draft;
     }
 
     /**
@@ -415,15 +418,18 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
             end();
         }
 
+        /** Takes the history back to {@code taken}, the test's written step; says so when it went elsewhere. */
+        private void rollBackTo(History.Checkpoint taken) {
+            if (!canvas.place().history().rollBackTo(taken)) {
+                // the history went elsewhere meanwhile: the written step stays, Deshacer takes it back
+                LOGGER.warn("Could not take back the test's step in {}", machineName());
+            }
+        }
+
         @Override
         public void takeBack() {
             test.setClosing(false);
-            checkpoint.ifPresent(taken -> {
-                if (!canvas.place().history().rollBackTo(taken)) {
-                    // the history went elsewhere meanwhile: the written step stays, Deshacer takes it back
-                    LOGGER.warn("Could not take back the test's step in {}", machineName());
-                }
-            });
+            checkpoint.ifPresent(this::rollBackTo);
             checkpoint = Optional.empty();
             if (!isOver()) {
                 test.changed();
@@ -439,22 +445,25 @@ final class MachineTestMode implements MachineTestSession, EditorActions.StepSou
      */
     @Override
     public Optional<Consumer<EditorView>> traveller() {
-        return Optional.of(arrived -> {
-            if (isOver()) {
-                return;
+        return Optional.of(this::travelTo);
+    }
+
+    /** This view's tab arrived in another window as {@code arrived}: the test goes on there ({@link #traveller}). */
+    private void travelTo(EditorView arrived) {
+        if (isOver()) {
+            return;
+        }
+        Optional<MachineMode> there = MachineMode.of(arrived);
+        if (there.isEmpty()) {
+            if (test.views().size() == 1) {
+                exit();
+            } else {
+                leave();
             }
-            Optional<MachineMode> there = MachineMode.of(arrived);
-            if (there.isEmpty()) {
-                if (test.views().size() == 1) {
-                    exit();
-                } else {
-                    leave();
-                }
-                return;
-            }
-            there.get().goOnTesting(carried()); // first: the test never has no view meanwhile
-            leave();
-        });
+            return;
+        }
+        there.get().goOnTesting(carried()); // first: the test never has no view meanwhile
+        leave();
     }
 
     /** Said only when the draft holds something the circuit does not (review finding 11). */

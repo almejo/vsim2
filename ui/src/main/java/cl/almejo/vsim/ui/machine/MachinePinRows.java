@@ -109,14 +109,17 @@ final class MachinePinRows extends JPanel {
                         selected, focused);
             }
         });
-        edgeBox.addActionListener(event -> {
-            if (!settingEdge) {
-                String edge = edgeBox.getSelectedIndex() == RISING_INDEX ? StateMachine.EDGE_RISING
-                        : StateMachine.EDGE_FALLING;
-                edit(machine -> machine.withEdge(edge));
-            }
-        });
+        edgeBox.addActionListener(event -> edgeChosen());
         refresh();
+    }
+
+    /** The user chose an edge in «Flanco» (not {@link #refresh()} showing the machine's): one undo step. */
+    private void edgeChosen() {
+        if (!settingEdge) {
+            String edge = edgeBox.getSelectedIndex() == RISING_INDEX ? StateMachine.EDGE_RISING
+                    : StateMachine.EDGE_FALLING;
+            edit(machine -> machine.withEdge(edge));
+        }
     }
 
     /** What the closed «Flanco» box says for the item {@code value}: «Bajada» for «Bajada (como los flip-flops)». */
@@ -139,17 +142,20 @@ final class MachinePinRows extends JPanel {
     void refresh() {
         inputs.refresh();
         outputs.refresh();
-        canvas.machine().ifPresent(machine -> {
-            int index = StateMachine.EDGE_RISING.equals(machine.edge()) ? RISING_INDEX : FALLING_INDEX;
-            if (edgeBox.getSelectedIndex() != index) {
-                settingEdge = true;
-                try {
-                    edgeBox.setSelectedIndex(index);
-                } finally {
-                    settingEdge = false;
-                }
+        canvas.machine().ifPresent(this::showEdge);
+    }
+
+    /** «Flanco» shows {@code machine}'s edge, without taking it as the user's choice. */
+    private void showEdge(StateMachine machine) {
+        int index = StateMachine.EDGE_RISING.equals(machine.edge()) ? RISING_INDEX : FALLING_INDEX;
+        if (edgeBox.getSelectedIndex() != index) {
+            settingEdge = true;
+            try {
+                edgeBox.setSelectedIndex(index);
+            } finally {
+                settingEdge = false;
             }
-        });
+        }
     }
 
     /**

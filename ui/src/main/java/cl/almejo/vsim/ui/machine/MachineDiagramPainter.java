@@ -169,12 +169,16 @@ final class MachineDiagramPainter {
             graphics.draw(arrow.path());
             paintHead(graphics, arrow.headFrom(), arrow.end());
         });
-        overlay.rubberBand().ifPresent(band -> {
-            // a band that takes away is red, as on the circuit
-            Color colour = overlay.bandRemoves() ? MachineColors.problem(scheme) : highlight;
-            RubberBand.paint(graphics, band, colour, overlay.bandRemoves() ? REMOVING_BAND_ALPHA : RUBBER_BAND_ALPHA,
-                    BAND_WIDTH, antsPhase);
-        });
+        overlay.rubberBand().ifPresent(band -> paintBand(graphics, band, overlay.bandRemoves(), highlight, antsPhase,
+                scheme));
+    }
+
+    /** The rubber band {@code band}: in {@code highlight}, or red when it {@code removes}, as on the circuit. */
+    private static void paintBand(Graphics2D graphics, Rectangle2D band, boolean removes, Color highlight,
+                                  double antsPhase, ColorScheme scheme) {
+        Color colour = removes ? MachineColors.problem(scheme) : highlight;
+        RubberBand.paint(graphics, band, colour, removes ? REMOVING_BAND_ALPHA : RUBBER_BAND_ALPHA, BAND_WIDTH,
+                antsPhase);
     }
 
     /**
@@ -468,14 +472,18 @@ final class MachineDiagramPainter {
             drawCentred(graphics, lines.get(index),
                     new Point2D.Double(centre.getX(), top + (index + 0.5) * lineHeight));
         }
-        geometry.outputsBounds(state.id()).ifPresent(outputs -> {
-            graphics.setColor(MachineColors.stateOutputs(scheme, state));
-            graphics.setFont(outputsFont());
-            drawCentred(graphics, mooreLabelOf(state.outputs()),
-                    new Point2D.Double(outputs.getCenterX(), outputs.getCenterY()));
-        });
+        geometry.outputsBounds(state.id()).ifPresent(outputs -> paintMooreOutputs(graphics, state, outputs, scheme));
         glow.ifPresent(found -> paintBadge(graphics, stateBadgeCentre(geometry, state.id()),
                 glowColour(found, scheme), scheme));
+    }
+
+    /** {@code state}'s Moore outputs ({@code Z=1}) centred in {@code outputs}, the room the geometry gave them. */
+    private static void paintMooreOutputs(Graphics2D graphics, MachineState state, Rectangle2D outputs,
+                                          ColorScheme scheme) {
+        graphics.setColor(MachineColors.stateOutputs(scheme, state));
+        graphics.setFont(outputsFont());
+        drawCentred(graphics, mooreLabelOf(state.outputs()),
+                new Point2D.Double(outputs.getCenterX(), outputs.getCenterY()));
     }
 
     /** Draws {@code text} centred on {@code centre}, both ways. */

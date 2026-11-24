@@ -54,13 +54,20 @@ final class MachineWaveStrip {
         if (openedHere) {
             dock.showDock();
         }
-        return () -> {
-            stopFollowing.run();
-            showProbes.run();
-            if (openedHere && !features.panel().hasChannels()) {
-                dock.hideDock();
-            }
-        };
+        return () -> uninstall(stopFollowing, showProbes, openedHere, features, dock);
+    }
+
+    /**
+     * Stops following the diagram and gives the panel its probes back; the dock this strip opened closes again when
+     * the panel has nothing left to show.
+     */
+    private static void uninstall(Runnable stopFollowing, Runnable showProbes, boolean openedHere,
+                                  WaveformFeatures features, BottomDock dock) {
+        stopFollowing.run();
+        showProbes.run();
+        if (openedHere && !features.panel().hasChannels()) {
+            dock.hideDock();
+        }
     }
 
     /** The copy a top-level piece is: only those have probes, which live in the main circuit. */
