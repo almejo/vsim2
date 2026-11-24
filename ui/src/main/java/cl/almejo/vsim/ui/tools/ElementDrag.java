@@ -135,13 +135,21 @@ public final class ElementDrag {
         if (deltaX != 0 || deltaY != 0) {
             context.selectionMoves().move(context.openDocument(), context.selection(),
                     context.selection().effectiveIds(), deltaX, deltaY, followWires);
-        } else if (pointerMoved) {
-            // a drag stopped by a locked frame's wall moved nothing, and it was no click either
-        } else if (removeOnRelease) {
-            context.selection().remove(id);
-        } else if (narrowOnRelease) {
-            context.selection().select(id);
+        } else if (isClick()) {
+            if (removeOnRelease) {
+                context.selection().remove(id);
+            } else if (narrowOnRelease) {
+                context.selection().select(id);
+            }
         }
+    }
+
+    /**
+     * Whether the gesture so far is a click: the pointer never left the press point. A drag stopped by a locked
+     * frame's wall (or brought back to the press point) moved nothing, and it is no click either.
+     */
+    public boolean isClick() {
+        return deltaX == 0 && deltaY == 0 && !pointerMoved;
     }
 
     /** The wires the move's preview redraws itself, hidden from the canvas while the wires follow. */
