@@ -143,4 +143,56 @@ class JavadocRulesTest {
         assertThat(problems).hasSize(1);
         assertThat(problems.get(0)).startsWith("line 6:").contains("size");
     }
+
+    @Test
+    void aMethodLinkWithoutParenthesesAndASeeToItselfAreCaught() {
+        String source = """
+                class Sample {
+                    /** Same as {@link #size}. */
+                    int size() {
+                        return 0;
+                    }
+                    /**
+                     * Counts.
+                     *
+                     * @see #count
+                     */
+                    int count() {
+                        return 0;
+                    }
+                    /** A {@link #size} link elsewhere is fine. */
+                    int other() {
+                        return 0;
+                    }
+                }
+                """;
+
+        List<String> problems = JavadocRules.problems(source);
+
+        assertThat(problems).hasSize(2);
+        assertThat(problems.get(0)).startsWith("line 2:").contains("size");
+        assertThat(problems.get(1)).startsWith("line 6:").contains("count");
+    }
+
+    @Test
+    void aLinkWithoutParenthesesIsNotSelfPointingWhenAFieldOrAnOverloadHasThatName() {
+        String source = """
+                class Sample {
+                    private int revision;
+                    /** The field is {@link #revision}. */
+                    int revision() {
+                        return revision;
+                    }
+                    /** {@link #plan} is the first overload. */
+                    int plan(int value) {
+                        return 0;
+                    }
+                    int plan(int value, int delta) {
+                        return 0;
+                    }
+                }
+                """;
+
+        assertThat(JavadocRules.problems(source)).isEmpty();
+    }
 }

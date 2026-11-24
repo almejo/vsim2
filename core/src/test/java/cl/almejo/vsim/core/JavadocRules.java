@@ -42,7 +42,8 @@ final class JavadocRules {
             "strictfp");
     private static final Set<String> STATEMENT_WORDS = Set.of("return", "throw", "new", "if", "for", "while", "switch",
             "else", "try", "do", "yield", "assert", "case", "break", "continue", "import", "this", "super", "var");
-    private static final Pattern LINK = Pattern.compile("\\{@(?:link|linkplain|value)\\s+#(\\w+)(?:\\(([^)]*)\\))?");
+    private static final Pattern LINK = Pattern.compile(
+            "(?:\\{@(?:link|linkplain|value)|@see)\\s+#(\\w+)(?:\\(([^)]*)\\))?");
     private static final Pattern CONSTANT_NAME = Pattern.compile("[A-Z][A-Z0-9_]*");
 
     private JavadocRules() {
@@ -63,7 +64,7 @@ final class JavadocRules {
                         + " // or /* */ comment or move it onto the declaration)");
                 continue;
             }
-            String selfLink = selfLink(token.text(), declaration);
+            String selfLink = selfLink(token.text(), declaration, tokens);
             if (selfLink != null) {
                 problems.add("line " + token.line() + ": Javadoc links to itself ({@link " + selfLink + "}), the"
                         + " member it documents");
@@ -72,7 +73,7 @@ final class JavadocRules {
         return problems;
     }
 
-    private static String selfLink(String doc, Declaration declaration) {
+    private static String selfLink(String doc, Declaration declaration, List<Token> tokens) {
         Matcher matcher = LINK.matcher(doc);
         while (matcher.find()) {
             if (!matcher.group(1).equals(declaration.name())) {
@@ -90,12 +91,40 @@ final class JavadocRules {
                     if (matcher.group(2) != null && parameterTypes(matcher.group(2)).equals(declaration.parameterTypes())) {
                         return "#" + declaration.name() + "(...)";
                     }
+                    // «#name» without parentheses is the method itself unless a field or an overload shares the name.
+                    if (matcher.group(2) == null && !matcher.group().endsWith(")")
+                            && declaration.kind() == DeclarationKind.METHOD
+                            && declarationCount(tokens, declaration.name(), "(") == 1
+                            && declarationCount(tokens, declaration.name(), ";", "=", ",") == 0) {
+                        return "#" + declaration.name();
+                    }
                 }
                 default -> {
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * How many times {@code name} is declared in the file followed by one of {@code followers}: a type-like word (or a
+     * closing {@code >} / {@code ]}) before it, and the follower after it. Fields and methods only; a local variable
+     * or a call can be counted too, which only makes the rule report less.
+     */
+    private static int declarationCount(List<Token> tokens, String name, String... followers) {
+        int count = 0;
+        for (int index = 1; index + 1 < tokens.size(); index++) {
+            Token token = tokens.get(index);
+            Token before = tokens.get(index - 1);
+            Token after = tokens.get(index + 1);
+            boolean typeBefore = (before.kind() == Kind.WORD && !STATEMENT_WORDS.contains(before.text()))
+                    || before.isSymbol(">") || before.isSymbol("]");
+            if (token.isWord(name) && typeBefore && List.of(followers).contains(after.text())
+                    && after.kind() == Kind.SYMBOL) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /** What the Javadoc whose token precedes {@code start} documents, or null when it documents nothing. */
