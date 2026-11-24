@@ -4,11 +4,29 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.panels.WindowEvents;
+
 import net.miginfocom.swing.MigLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -25,28 +43,9 @@ import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * The content of «Exportar a PDF» (spec §3.3, §3.5, §3.6): the options on the left in three short sections («Qué
@@ -138,24 +137,11 @@ public final class PdfExportDialog extends JPanel {
         }
 
         private static void showModal(Component parent, PdfExportDialog content) {
-            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(parent), content.title(),
-                    JDialog.DEFAULT_MODALITY_TYPE);
-            dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+            JDialog dialog = ModalDialogs.over(parent, content.title(), JDialog.DEFAULT_MODALITY_TYPE,
+                    content::cancel);
             dialog.add(content, BorderLayout.CENTER);
             dialog.getRootPane().setDefaultButton(content.defaultButton());
-            dialog.getRootPane().registerKeyboardAction(event -> content.cancel(),
-                    KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
-            dialog.addWindowListener(new WindowAdapter() {
-                @Override
-                public void windowOpened(WindowEvent event) {
-                    content.initialFocus().requestFocusInWindow();
-                }
-
-                @Override
-                public void windowClosing(WindowEvent event) {
-                    content.cancel();
-                }
-            });
+            dialog.addWindowListener(WindowEvents.onOpened(() -> content.initialFocus().requestFocusInWindow()));
             content.onClose(dialog::dispose);
             content.onContentGrew(() -> growToFit(dialog));
             dialog.pack();

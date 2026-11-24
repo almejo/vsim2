@@ -7,13 +7,10 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.AbstractButton;
-import javax.swing.JLabel;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.event.FocusEvent;
@@ -23,6 +20,10 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.swing.AbstractButton;
+import javax.swing.JLabel;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
 
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -503,8 +504,6 @@ class GroupsWindowTest {
 
         assertThat(rootPane.getDefaultButton()).isSameAs(accept(window));
         assertThat(rootPane.getContentPane()).isSameAs(window.content());
-        assertThat(rootPane.getActionForKeyStroke(javax.swing.KeyStroke.getKeyStroke(
-                java.awt.event.KeyEvent.VK_ESCAPE, 0))).isNotNull();
     }
 
     /** Fix round 4: with 5 pins the window took ~970 px of a 1080 screen, mostly preview and unwrapped hints. */

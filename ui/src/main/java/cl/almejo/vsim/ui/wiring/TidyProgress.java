@@ -2,15 +2,17 @@ package cl.almejo.vsim.ui.wiring;
 
 import cl.almejo.vsim.core.layout.CircuitTidyProgress;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.FlowLayout;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
-import java.awt.Component;
-import java.awt.FlowLayout;
-import java.awt.BorderLayout;
 
 /** The small window of a tidy that takes long: «Ordenando circuito…», a bar, the stage with its count and «Cancelar». */
 public interface TidyProgress {
@@ -67,15 +69,8 @@ public interface TidyProgress {
             dialog.add(content, BorderLayout.CENTER);
             dialog.add(buttons, BorderLayout.SOUTH);
             dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-            dialog.getRootPane().registerKeyboardAction(event -> onCancel.run(),
-                    javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
-                    javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
-            dialog.addWindowListener(new java.awt.event.WindowAdapter() {
-                @Override
-                public void windowClosing(java.awt.event.WindowEvent event) {
-                    onCancel.run();
-                }
-            });
+            ModalDialogs.closeOnEscape(dialog.getRootPane(), onCancel);
+            dialog.addWindowListener(WindowEvents.onClosing(onCancel));
             dialog.pack();
             dialog.setLocationRelativeTo(parent);
             dialog.setVisible(true);

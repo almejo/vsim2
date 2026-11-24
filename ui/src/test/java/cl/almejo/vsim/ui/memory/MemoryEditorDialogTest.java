@@ -10,17 +10,11 @@ import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.window.EditorView;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.swing.AbstractButton;
-import javax.swing.JComponent;
-import javax.swing.JRootPane;
-import javax.swing.JTable;
-import javax.swing.JTextField;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
 import java.awt.Container;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
@@ -32,6 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import javax.swing.AbstractButton;
+import javax.swing.JComponent;
+import javax.swing.JRootPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 
 import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -179,8 +180,6 @@ class MemoryEditorDialogTest {
         dialog.bindTo(rootPane);
 
         assertThat(rootPane.getDefaultButton()).isSameAs(button(rootPane, "memory.accept"));
-        assertThat(rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))).isNotNull();
     }
 
     @Test

@@ -1,17 +1,12 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.panels.DialogButtons;
-import cl.almejo.vsim.ui.panels.WindowEvents;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
 
-import javax.swing.JComponent;
-import javax.swing.JDialog;
-import javax.swing.JRootPane;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Dialog;
-import java.awt.event.KeyEvent;
-import java.awt.event.WindowListener;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
 
 /**
  * The dialog of the wizard and of the table import. Every way of closing it (Escape, the window's close box, and the
@@ -27,23 +22,8 @@ final class WizardDialogs {
 
     /** A dialog over {@code parent}'s window showing {@code content}; closing it runs {@code requestClose}. */
     static JDialog create(Component parent, String title, JComponent content, Runnable requestClose) {
-        JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent), title,
-                Dialog.ModalityType.DOCUMENT_MODAL);
-        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        dialog.addWindowListener(closeBox(requestClose));
+        JDialog dialog = ModalDialogs.over(parent, title, Dialog.ModalityType.DOCUMENT_MODAL, requestClose);
         dialog.setContentPane(DialogButtons.scrolling(content)); // a dialog cut to the screen scrolls, never cuts
-        bindEscape(dialog.getRootPane(), requestClose);
         return dialog;
-    }
-
-    /** The window's close box runs {@code requestClose} (the dialog does nothing on close by itself). */
-    static WindowListener closeBox(Runnable requestClose) {
-        return WindowEvents.onClosing(requestClose);
-    }
-
-    /** Escape anywhere in the window runs {@code requestClose}. */
-    static void bindEscape(JRootPane rootPane, Runnable requestClose) {
-        rootPane.registerKeyboardAction(event -> requestClose.run(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 }

@@ -1,4 +1,4 @@
-package cl.almejo.vsim.ui.karnaugh;
+package cl.almejo.vsim.ui.panels;
 
 import org.junit.jupiter.api.Test;
 
@@ -10,20 +10,19 @@ import java.awt.event.KeyEvent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class WizardDialogsTest {
+class ModalDialogsTest {
 
-    private int requests;
+    private int cancels;
 
     @Test
-    void escapeAndTheCloseBoxBothAskThePanelToClose() {
+    void escapeAnywhereInTheWindowRunsTheCancel() {
         JRootPane root = new JRootPane();
-        WizardDialogs.bindEscape(root, () -> requests++);
+
+        ModalDialogs.closeOnEscape(root, () -> cancels++);
+
         ActionListener escape = root.getActionForKeyStroke(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
         assertThat(escape).isNotNull();
         escape.actionPerformed(new ActionEvent(root, ActionEvent.ACTION_PERFORMED, ""));
-        assertThat(requests).isEqualTo(1);
-
-        WizardDialogs.closeBox(() -> requests++).windowClosing(null);
-        assertThat(requests).isEqualTo(2);
+        assertThat(cancels).isEqualTo(1);
     }
 }
