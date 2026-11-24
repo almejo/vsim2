@@ -1290,17 +1290,14 @@ public final class EditorView extends JPanel implements CanvasHost {
         revalidate();
         repaint();
         fullScreenLayoutListeners.fire(Runnable::run);
-        return () -> leaveFullScreen(stage, keptWidth, inspectorDivider, stopFollowingTheInspector, unregisterRight,
-                unregisterLeft);
+        return () -> leaveFullScreen(stage, keptWidth, inspectorDivider,
+                List.of(stopFollowingTheInspector, unregisterRight, unregisterLeft));
     }
 
     /** Puts every piece back where it was before {@link #layOutForFullScreen}, the dividers included. */
     private void leaveFullScreen(FullScreenStage stage, LeftColumnWidth.Kept keptWidth, int inspectorDivider,
-                                 Runnable stopFollowingTheInspector, Runnable unregisterRight,
-                                 Runnable unregisterLeft) {
-        stopFollowingTheInspector.run();
-        unregisterRight.run();
-        unregisterLeft.run();
+                                 List<Runnable> stopFollowingTheBars) {
+        stopFollowingTheBars.forEach(Runnable::run);
         remove(stage);
         stage.removeAll();
         fullScreenStage = null;
@@ -1476,8 +1473,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         });
         Consumer<SimulationSnapshot> snapshotListener = snapshot -> showSnapshotOf(pane, snapshot);
         pane.addSnapshotListener(snapshotListener);
-        return () -> releasePane(pane, bound, stopFollowingAnimations, removeToolListener, removeViewListener,
-                snapshotListener);
+        return () -> releasePane(pane, bound, snapshotListener,
+                List.of(stopFollowingAnimations, removeToolListener, removeViewListener));
     }
 
     /** The status bar follows the simulation of the active pane only. */
@@ -1491,13 +1488,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     /** What {@link #configurePane} did to {@code pane} is undone: it goes away. */
-    private void releasePane(CircuitCanvas pane, Map<KeyStroke, String> bound, Runnable stopFollowingAnimations,
-                             Runnable removeToolListener, Runnable removeViewListener,
-                             Consumer<SimulationSnapshot> snapshotListener) {
+    private void releasePane(CircuitCanvas pane, Map<KeyStroke, String> bound,
+                             Consumer<SimulationSnapshot> snapshotListener, List<Runnable> stopFollowing) {
         inlineEditor.cancelIfOpenIn(pane); // the edit's field lives on the pane that goes away
-        stopFollowingAnimations.run();
-        removeToolListener.run();
-        removeViewListener.run();
+        stopFollowing.forEach(Runnable::run); // animations, tool listener, view listener
         pane.removeSnapshotListener(snapshotListener);
         bound.forEach(pane::unbindKey);
     }
