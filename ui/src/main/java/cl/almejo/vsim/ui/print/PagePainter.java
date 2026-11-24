@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
@@ -163,25 +164,28 @@ public final class PagePainter {
         boolean showsValues = options.withValues() && input.hasValues();
         PaintPolicy policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes())
                 .withBusValues(input.showBusValues());
-        return TextFonts.withFont(input.textFont(), () -> {
-            Optional<CircuitImage> circuit = circuitImage(input, area, showsValues, options.includeStickyNotes());
-            if (circuit.isEmpty()) {
-                return OptionalDouble.empty();
-            }
-            double[] smallest = {Double.POSITIVE_INFINITY};
-            BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D target = scratch.createGraphics();
-            try {
-                circuit.get().paint(SharedStreamGraphics.measuring(target, size -> {
-                    if (size >= SMALLEST_COUNTED_TEXT_PIXELS) {
-                        smallest[0] = Math.min(smallest[0], size);
-                    }
-                }), 1, policy);
-            } finally {
-                target.dispose();
-            }
-            return Double.isInfinite(smallest[0]) ? OptionalDouble.empty() : OptionalDouble.of(smallest[0]);
-        });
+        return TextFonts.withFont(input.textFont(), () -> measureSmallestText(input, area, showsValues, options, policy));
+    }
+
+    private static OptionalDouble measureSmallestText(PrintInput input, PrintArea area, boolean showsValues,
+                                                      PrintOptions options, PaintPolicy policy) {
+        Optional<CircuitImage> circuit = circuitImage(input, area, showsValues, options.includeStickyNotes());
+        if (circuit.isEmpty()) {
+            return OptionalDouble.empty();
+        }
+        double[] smallest = {Double.POSITIVE_INFINITY};
+        BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D target = scratch.createGraphics();
+        try {
+            circuit.get().paint(SharedStreamGraphics.measuring(target, size -> {
+                if (size >= SMALLEST_COUNTED_TEXT_PIXELS) {
+                    smallest[0] = Math.min(smallest[0], size);
+                }
+            }), 1, policy);
+        } finally {
+            target.dispose();
+        }
+        return Double.isInfinite(smallest[0]) ? OptionalDouble.empty() : OptionalDouble.of(smallest[0]);
     }
 
     private static Set<ElementId> busWires(PrintInput input) {
@@ -209,20 +213,23 @@ public final class PagePainter {
                 }
             }
             for (Component component : components) {
-                input.registry().findTypeOf(component).ifPresent(type -> {
-                    for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-                        if (contains(vertical, type.pinLocation(component, pinIndex))) {
-                            companions.add(component.id());
-                            return;
-                        }
-                    }
-                });
+                input.registry().findTypeOf(component).filter(type -> hasPinOn(type, component, vertical))
+                        .ifPresent(type -> companions.add(component.id()));
             }
             if (!companions.isEmpty()) {
                 result.put(vertical.id(), Set.copyOf(companions));
             }
         }
         return Map.copyOf(result);
+    }
+
+    private static boolean hasPinOn(ComponentType type, Component component, Wire vertical) {
+        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+            if (contains(vertical, type.pinLocation(component, pinIndex))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether the axis-aligned wires {@code first} and {@code second} share a point. */
