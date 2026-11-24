@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Teardown;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
@@ -46,7 +47,7 @@ public final class SnapFeatures {
     private final Action parts;
     private final Action guides;
     private final Action gridLines;
-    private final List<Runnable> removals = new ArrayList<>();
+    private final Teardown removals = new Teardown();
     private SnapState lastState;
     private boolean disposed;
 
@@ -200,10 +201,7 @@ public final class SnapFeatures {
             return;
         }
         disposed = true;
-        for (int index = removals.size() - 1; index >= 0; index--) {
-            removals.get(index).run();
-        }
-        removals.clear();
+        removals.run();
     }
 
     /** The preferences the magnet reads; a change of any of them redoes the snapped preview. */

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -116,7 +117,7 @@ public final class InlineTextEditor {
     private final DefaultListModel<String> suggestionModel = new DefaultListModel<>();
     private final JList<String> suggestionList = new JList<>(suggestionModel);
     private final AWTEventListener pressListener = this::anywhereInTheApplication;
-    private final List<Runnable> whileOpen = new ArrayList<>();
+    private final Teardown whileOpen = new Teardown();
     private InlineEditRequest request;
     private BooleanSupplier stillValid = () -> true;
     /** False until the user changes the text: the suggestions are not filtered by the initial text. */
@@ -409,11 +410,7 @@ public final class InlineTextEditor {
         stillValid = () -> true;
         hint = Optional.empty();
         hintText.setVisible(false);
-        List<Runnable> removals = new ArrayList<>(whileOpen);
-        whileOpen.clear();
-        for (int index = removals.size() - 1; index >= 0; index--) {
-            removals.get(index).run();
-        }
+        whileOpen.run();
         if (hadFocus) {
             canvas.component().requestFocusInWindow();
         }

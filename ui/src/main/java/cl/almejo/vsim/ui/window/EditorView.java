@@ -862,9 +862,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public void dispose() {
         List<Runnable> steps = new ArrayList<>();
-        for (int index = extensionDisposers.size() - 1; index >= 0; index--) {
-            steps.add(extensionDisposers.get(index));
-        }
+        steps.addAll(extensionDisposers.reversed());
         extensionDisposers.clear();
         steps.add(leftColumnWidth::dispose);
         steps.add(() -> services.appearance().removeListener(appearanceListener));
