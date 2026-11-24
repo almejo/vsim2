@@ -527,7 +527,8 @@ public final class CircuitRenderer {
         ScreenPart part = screenPart(state, component, type, animation);
         AffineTransform documentToDevice = graphics.getTransform();
         ComponentDrawing.paintPlaced(graphics, component,
-                local -> paintTerminalPlaced(local, component, type, painter, animation, part, scheme, documentToDevice));
+                local -> paintTerminalPlaced(local, component, type, painter, animation, part, scheme,
+                        documentToDevice));
     }
 
     private void paintTerminalPlaced(Graphics2D local, Component component, ComponentType type,

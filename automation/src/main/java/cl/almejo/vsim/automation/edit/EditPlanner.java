@@ -996,8 +996,9 @@ final class EditPlanner {
     private void addGuide(AddGuide operation) {
         Guide guide = new Guide(operation.orientation(), operation.position());
         SetGuidesCommand.adding(candidate, guide).ifPresentOrElse(
-                command -> applyAddedGuide(command, guide, operation.layoutOnly()), () -> warnings.add(at() + "that guide was there already" + (operation.layoutOnly()
-                ? " (it is not yours, so it stays when the task ends)" : "")));
+                command -> applyAddedGuide(command, guide, operation.layoutOnly()),
+                () -> warnings.add(at() + "that guide was there already"
+                        + (operation.layoutOnly() ? " (it is not yours, so it stays when the task ends)" : "")));
     }
 
     private void applyAddedGuide(SetGuidesCommand command, Guide guide, boolean layoutOnly) {

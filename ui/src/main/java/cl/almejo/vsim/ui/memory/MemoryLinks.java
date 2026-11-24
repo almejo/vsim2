@@ -33,7 +33,8 @@ import java.util.Optional;
  * While a circuit is open its memories keep their links <b>absolute</b>; the file keeps them relative to the
  * circuit's folder ({@link MemoryLinkPaths#storedLinkPath}), written by {@link MemoryLinkPaths#relativeLinks} when
  * saving and read back by {@link MemoryLinkPaths#absoluteLinks} when opening. So «Guardar como» to another folder, an
- * unsaved circuit and a part pasted into another circuit all keep pointing at the same file. VSim never writes a linked file.
+ * unsaved circuit and a part pasted into another circuit all keep pointing at the same file. VSim never writes a
+ * linked file.
  */
 public final class MemoryLinks implements MemoryLinkActions {
 

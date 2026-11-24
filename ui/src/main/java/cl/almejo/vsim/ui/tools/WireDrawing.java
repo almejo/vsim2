@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * One wire being drawn with the mouse: an "L" from its {@code start} point to the mouse. Movement is measured from where
- * the mouse went down, which may be up to a pin radius away from where the mouse went down.
+ * One wire being drawn with the mouse: an "L" from its {@code start} point to the mouse. Movement is measured from
+ * where the mouse went down, which may be up to a pin radius away from where the mouse went down.
  *
  * <p>Ajustar (alignment-guides spec §4.4): the end is the grid point under the mouse as the canvas's snapper resolves
  * it (a guide or a grid line, never away from a connection). The resolution is worked out once per grid point and the

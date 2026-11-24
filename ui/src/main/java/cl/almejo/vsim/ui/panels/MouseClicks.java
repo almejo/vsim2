@@ -5,7 +5,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
-/** Listeners for «the mouse clicked or pressed here» that only forward to a {@link Runnable}, or only consume the click. */
+/** Listeners for «the mouse clicked or pressed here» that only forward to a {@link Runnable}, or only consume it. */
 public final class MouseClicks {
 
     private MouseClicks() {

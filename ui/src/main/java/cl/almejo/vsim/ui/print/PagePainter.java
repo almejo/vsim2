@@ -164,7 +164,8 @@ public final class PagePainter {
         boolean showsValues = options.withValues() && input.hasValues();
         PaintPolicy policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes())
                 .withBusValues(input.showBusValues());
-        return TextFonts.withFont(input.textFont(), () -> measureSmallestText(input, area, showsValues, options, policy));
+        return TextFonts.withFont(input.textFont(),
+                () -> measureSmallestText(input, area, showsValues, options, policy));
     }
 
     private static OptionalDouble measureSmallestText(PrintInput input, PrintArea area, boolean showsValues,

@@ -1445,7 +1445,8 @@ public final class OpenDocument implements AutoCloseable {
             return Optional.empty();
         }
         String prefix = contextPath.get() + InstancePath.SEPARATOR;
-        return latest.filter(frame -> frame.request().componentId().startsWith(prefix)).map(frame -> insideBody(frame, prefix));
+        return latest.filter(frame -> frame.request().componentId().startsWith(prefix))
+                .map(frame -> insideBody(frame, prefix));
     }
 
     /** {@code frame} as the body's own: its component id without the {@code prefix} of the instance's path. */

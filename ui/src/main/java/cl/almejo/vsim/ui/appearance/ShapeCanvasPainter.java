@@ -312,7 +312,8 @@ final class ShapeCanvasPainter {
         int x = Math.min(at.x + 12, Math.max(0, canvas.getWidth() - width - 2));
         int y = Math.max(metrics.getHeight() + 2, at.y - 10);
         overlay.setColor(PainterSupport.withAlpha(scheme.background(), 220));
-        overlay.fill(new RoundRectangle2D.Double(x - 4, y - metrics.getAscent() - 1, width, metrics.getHeight() + 2, 6, 6));
+        overlay.fill(new RoundRectangle2D.Double(x - 4, y - metrics.getAscent() - 1, width, metrics.getHeight() + 2,
+                6, 6));
         overlay.setColor(scheme.text());
         overlay.drawString(label, x, y);
     }

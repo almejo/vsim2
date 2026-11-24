@@ -53,7 +53,8 @@ public final class TunnelFeatures {
     private final OpenDocument openDocument;
     private final StatusBar statusBar;
     private final DocumentListener documentListener = (changedDocument, change) -> documentChanged();
-    private final ContextMenuContributor contributor = (menu, target, selection, gridPosition) -> contribute(menu, target);
+    private final ContextMenuContributor contributor =
+            (menu, target, selection, gridPosition) -> contribute(menu, target);
     private final Runnable contributorRemover;
     private final Runnable paneInstallation;
     private Optional<ElementId> hovered = Optional.empty();

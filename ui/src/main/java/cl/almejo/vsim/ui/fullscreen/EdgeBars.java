@@ -228,7 +228,8 @@ public final class EdgeBars {
         ChangeListener menuListener = event -> menusChanged();
         MenuSelectionManager.defaultManager().addChangeListener(menuListener);
         area.getLayeredPane().add(armingLine, JLayeredPane.DRAG_LAYER);
-        stopFollowing = () -> stopFollowingTheWindow(toolkit, pointerListener, focusManager, focusListener, menuListener);
+        stopFollowing = () -> stopFollowingTheWindow(toolkit, pointerListener, focusManager, focusListener,
+                menuListener);
     }
 
     private void stopFollowingTheWindow(Toolkit toolkit, AWTEventListener pointerListener,

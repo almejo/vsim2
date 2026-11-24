@@ -89,7 +89,8 @@ final class PresentationPanel extends JPanel {
     private final JToggleButton stepByStepButton = new SegmentedSwitch.Segment(Messages.text("ai.present.stepByStep"));
     private final SegmentedSwitch paceSwitch = new SegmentedSwitch(continuousButton, stepByStepButton);
     private final StageCard.Line paceHint = new StageCard.Line(" ", StageCard.Tone.MUTED, StageCard.Style.PLAIN);
-    private final JPanel cardsPanel = new VerticalScrollPanel(new MigLayout("insets 0, wrap 1, gap 0 4", "[grow, fill]"), false);
+    private final JPanel cardsPanel = new VerticalScrollPanel(
+            new MigLayout("insets 0, wrap 1, gap 0 4", "[grow, fill]"), false);
     private final JScrollPane cardsScroll = new JScrollPane(cardsPanel, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     private final JButton nextButton = new JButton(Messages.text("ai.present.next"));
