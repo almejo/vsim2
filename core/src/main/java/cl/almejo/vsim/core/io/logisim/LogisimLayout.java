@@ -5,8 +5,6 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.tunnel.TunnelKind;
-import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -15,6 +13,8 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.tunnel.TunnelKind;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -460,7 +460,7 @@ public final class LogisimLayout {
             return new PartPlacement.Choice(ends, estimate, rotation == request.rotation() ? 0 : ROTATION_PENALTY);
         }
 
-        /** Where the part goes at {@code rotation} when it has no end to meet: its anchor (or first pin) on its location. */
+        /** Where the part goes at {@code rotation} with no end to meet: its anchor (or first pin) on its location. */
         private GridPoint anchoredAtLocation(LogisimComponent component, PartRequest request, Rotation rotation) {
             GridPoint location = scaled(component.location());
             GridPoint offset = request.anchor().map(rotation::apply).orElseGet(() -> request.pins().isEmpty()

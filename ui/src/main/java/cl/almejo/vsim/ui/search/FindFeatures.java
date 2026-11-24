@@ -43,13 +43,14 @@ import java.util.function.Supplier;
  * anterior» (Mayús+F3), the {@link FindBar} under the toolbar and the {@link FindHighlightOverlay} on the canvas.
  *
  * <p>Typing searches at once (the shared {@link CompiledQuery} of the core, with the «Aa» and «.*» preferences): every
- * match is highlighted and the current one is selected and travelled to ({@link cl.almejo.vsim.ui.canvas.CircuitCanvas#travelTo}). Enter / ↓ /
- * F3 go to the next match and Shift+Enter / ↑ / Mayús+F3 to the previous one, wrapping around; Esc or ✕ close the bar,
- * clear the highlights and give the focus back to the canvas, keeping the text. Reopening goes on from the match the
- * user was on: Ctrl+F shows it again, F3 / Mayús+F3 go to the one after / before it. While the bar is open every document change searches
- * again: the current match stays current while it still matches, else the one now in its place (the next one in
- * order) becomes current, without moving the view under the user's edits. Ctrl+F while the focus is inside a
- * component that has a filter of its own ({@link #FILTER_FOCUS_PROPERTY}, the component tree) focuses that filter.
+ * match is highlighted and the current one is selected and travelled to
+ * ({@link cl.almejo.vsim.ui.canvas.CircuitCanvas#travelTo}). Enter / ↓ / F3 go to the next match and Shift+Enter / ↑ /
+ * Mayús+F3 to the previous one, wrapping around; Esc or ✕ close the bar, clear the highlights and give the focus back
+ * to the canvas, keeping the text. Reopening goes on from the match the user was on: Ctrl+F shows it again, F3 /
+ * Mayús+F3 go to the one after / before it. While the bar is open every document change searches again: the current
+ * match stays current while it still matches, else the one now in its place (the next one in order) becomes current,
+ * without moving the view under the user's edits. Ctrl+F while the focus is inside a component that has a filter of
+ * its own ({@link #FILTER_FOCUS_PROPERTY}, the component tree) focuses that filter.
  *
  * <p>Searching runs on the EDT: the core caps texts and gives each search of a regular expression one step budget for
  * all its texts, so even a pathological one costs a bounded few tens of milliseconds per keystroke (then the bar says

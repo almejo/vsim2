@@ -1,11 +1,12 @@
 package cl.almejo.vsim.ui.panels;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
+import javax.swing.JPanel;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import javax.swing.JPanel;
-import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class MouseClicksTest {
 
@@ -58,5 +59,18 @@ class MouseClicksTest {
         listener.mousePressed(click(MouseEvent.BUTTON3));
         listener.mouseReleased(click(MouseEvent.BUTTON3));
         assertThat(asked[0]).isEqualTo(2);
+    }
+
+    @Test
+    void onPressRunsOnAnyButtonPressAndNothingElse() {
+        int[] runs = {0};
+        MouseListener listener = MouseClicks.onPress(() -> runs[0]++);
+
+        listener.mouseClicked(click(MouseEvent.BUTTON1));
+        listener.mouseReleased(click(MouseEvent.BUTTON1));
+        assertThat(runs[0]).isZero();
+        listener.mousePressed(click(MouseEvent.BUTTON1));
+        listener.mousePressed(click(MouseEvent.BUTTON3));
+        assertThat(runs[0]).isEqualTo(2);
     }
 }

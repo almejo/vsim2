@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
 import cl.almejo.vsim.core.component.VisibleState;
-
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.JLabel;

@@ -3,16 +3,15 @@ package cl.almejo.vsim.ui.logisim;
 import cl.almejo.vsim.ui.app.FileProblemDialog;
 import cl.almejo.vsim.ui.app.SwingFileProblemDialog;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
 import cl.almejo.vsim.ui.panels.WindowEvents;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
-import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -20,7 +19,6 @@ import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Window;
-import java.awt.event.KeyEvent;
 
 /** The real dialogs: the file problem as everywhere else, a scrollable resizable report, a small progress window. */
 final class SwingLogisimImportDialogs implements LogisimImportDialogs {
@@ -49,7 +47,7 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
         dialog.add(new ImportReportPanel(summary, report, host), BorderLayout.CENTER);
         dialog.add(buttons, BorderLayout.SOUTH);
         dialog.getRootPane().setDefaultButton(close);
-        bindEscape(dialog, dialog::dispose);
+        ModalDialogs.closeOnEscape(dialog.getRootPane(), dialog::dispose);
         dialog.setMinimumSize(MINIMUM_REPORT_SIZE);
         dialog.setSize(host.size().orElse(REPORT_SIZE));
         dialog.addWindowListener(WindowEvents.onClosed(() -> host.rememberSize(dialog.getSize())));
@@ -79,7 +77,7 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
                 content.add(bar, BorderLayout.CENTER);
                 content.add(buttons, BorderLayout.SOUTH);
                 dialog.setContentPane(content);
-                bindEscape(dialog, cancel);
+                ModalDialogs.closeOnEscape(dialog.getRootPane(), cancel);
                 dialog.pack();
                 dialog.setLocationRelativeTo(parent);
                 dialog.setVisible(true); // not modal: the editor stays responsive and the import goes on
@@ -93,11 +91,5 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
                 }
             }
         };
-    }
-
-    /** Escape anywhere in {@code dialog} runs {@code action}. */
-    private static void bindEscape(JDialog dialog, Runnable action) {
-        dialog.getRootPane().registerKeyboardAction(event -> action.run(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 }

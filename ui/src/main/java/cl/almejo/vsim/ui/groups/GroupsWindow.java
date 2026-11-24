@@ -9,9 +9,9 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.ModalDialogs;
-import cl.almejo.vsim.ui.theme.WrappedErrorText;
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.layout.LC;
 import net.miginfocom.layout.PlatformDefaults;
 import net.miginfocom.layout.UnitValue;
@@ -30,7 +30,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -43,7 +42,6 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -244,8 +242,6 @@ final class GroupsWindow {
     void installOn(JRootPane rootPane) {
         rootPane.setContentPane(body);
         rootPane.setDefaultButton(accept);
-        rootPane.registerKeyboardAction(event -> cancel(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 
     /**

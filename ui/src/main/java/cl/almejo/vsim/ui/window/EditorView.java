@@ -1,13 +1,11 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.Steps;
-
 import cl.almejo.vsim.core.command.CreateMachineCommand;
 import cl.almejo.vsim.core.command.InsideEditRefusedException;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -15,14 +13,12 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
-import cl.almejo.vsim.ui.actions.ContextMenuContributor;
-import cl.almejo.vsim.ui.actions.ContextMenuFactory;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.about.AboutPresenter;
-import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.machine.MachineCreation;
-import cl.almejo.vsim.ui.machine.PlaceMachineTool;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContentZoom;
+import cl.almejo.vsim.ui.actions.ContextMenuContributor;
+import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
 import cl.almejo.vsim.ui.actions.SelectionActions;
@@ -40,12 +36,16 @@ import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.ZoomTargets;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.fullscreen.EdgeBars;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
+import cl.almejo.vsim.ui.machine.MachineCreation;
+import cl.almejo.vsim.ui.machine.PlaceMachineTool;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
@@ -66,13 +66,10 @@ import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.whatsnew.NewsTargets;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
-import cl.almejo.vsim.ui.panels.FocusEvents;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
@@ -80,6 +77,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
@@ -97,10 +95,10 @@ import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -862,9 +860,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public void dispose() {
         List<Runnable> steps = new ArrayList<>();
-        for (int index = extensionDisposers.size() - 1; index >= 0; index--) {
-            steps.add(extensionDisposers.get(index));
-        }
+        steps.addAll(extensionDisposers.reversed());
         extensionDisposers.clear();
         steps.add(leftColumnWidth::dispose);
         steps.add(() -> services.appearance().removeListener(appearanceListener));
@@ -1156,22 +1152,15 @@ public final class EditorView extends JPanel implements CanvasHost {
     private void bindEscapeToTheTool() {
         String actionKey = "escapeToTheTool";
         getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), actionKey);
-        getActionMap().put(actionKey, new AbstractAction() {
-            @Override
-            public boolean isEnabled() {
-                // the canvas's own key handler already gave the key to the tool
-                CircuitCanvas canvas = canvas();
-                return (canvas.tool() != canvas.defaultTool() || canvas.drawsBetweenClicks()) && !canvas.isFocusOwner()
-                        && MenuSelectionManager.defaultManager().getSelectedPath().length == 0;
-            }
+        // the canvas's own key handler already gave the key to the tool; a disabled action is not fired by Swing
+        getActionMap().put(actionKey, Actions.unnamed(this::escapeGoesToTheTool,
+                () -> canvas().pressKeyOnTool(KeyEvent.VK_ESCAPE, false)));
+    }
 
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                if (isEnabled()) {
-                    canvas().pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
-                }
-            }
-        });
+    private boolean escapeGoesToTheTool() {
+        CircuitCanvas canvas = canvas();
+        return (canvas.tool() != canvas.defaultTool() || canvas.drawsBetweenClicks()) && !canvas.isFocusOwner()
+                && MenuSelectionManager.defaultManager().getSelectedPath().length == 0;
     }
 
     /**

@@ -6,16 +6,16 @@ import cl.almejo.vsim.ui.app.Animations;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.labels.TextTool;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
-import cl.almejo.vsim.ui.labels.TextTool;
 import cl.almejo.vsim.ui.sticky.StickyNoteTool;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.panels.FocusEvents;
 
 import javax.swing.Action;
 import javax.swing.InputMap;

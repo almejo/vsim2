@@ -166,7 +166,8 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
 
     private static void checkVisibilityConditions(String id, List<ParameterSpec> parameters) {
         for (ParameterSpec parameter : parameters) {
-            parameter.visibility().ifPresent(condition -> checkVisibilityCondition(id, parameters, parameter, condition));
+            parameter.visibility()
+                    .ifPresent(condition -> checkVisibilityCondition(id, parameters, parameter, condition));
         }
     }
 

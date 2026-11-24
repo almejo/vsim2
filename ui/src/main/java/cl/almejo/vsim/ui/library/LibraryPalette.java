@@ -16,9 +16,9 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
+import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.PlaceBar;
 import cl.almejo.vsim.ui.window.SeePiece;
-import cl.almejo.vsim.ui.window.EditorView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

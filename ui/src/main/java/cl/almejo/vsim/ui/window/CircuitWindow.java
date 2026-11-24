@@ -16,6 +16,7 @@ import cl.almejo.vsim.ui.fullscreen.ScreenMode;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.WindowSession;
 import cl.almejo.vsim.ui.session.WindowState;
@@ -24,7 +25,6 @@ import cl.almejo.vsim.ui.window.closed.ClosedEntry;
 import cl.almejo.vsim.ui.window.closed.ClosedGroup;
 import cl.almejo.vsim.ui.window.closed.ClosedWindow;
 import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
-import cl.almejo.vsim.ui.panels.ComponentEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

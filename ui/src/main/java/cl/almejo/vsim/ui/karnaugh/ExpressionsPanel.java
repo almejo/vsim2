@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.panels.TextChanges;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -144,7 +145,8 @@ public final class ExpressionsPanel extends JPanel {
         this.legend = new ExpressionLegend(this::insert);
 
         // The left side scrolls only up and down: it takes the dialog's width, so the lines fill it and shrink with it.
-        content = new WidthTrackingPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""));
+        content = new VerticalScrollPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""),
+                false);
         content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
         content.add(title, "growx 0, wmin 200");
         content.add(linesPanel, "span 2, growx, wmin 0, gaptop 8");

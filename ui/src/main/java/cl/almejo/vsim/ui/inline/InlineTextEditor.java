@@ -1,13 +1,14 @@
 package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
-import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.panels.MouseClicks;
+import cl.almejo.vsim.ui.panels.TextChanges;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -16,10 +17,10 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.ListSelectionModel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -29,8 +30,8 @@ import javax.swing.text.JTextComponent;
 import javax.swing.text.View;
 import java.awt.AWTEvent;
 import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -116,7 +117,7 @@ public final class InlineTextEditor {
     private final DefaultListModel<String> suggestionModel = new DefaultListModel<>();
     private final JList<String> suggestionList = new JList<>(suggestionModel);
     private final AWTEventListener pressListener = this::anywhereInTheApplication;
-    private final List<Runnable> whileOpen = new ArrayList<>();
+    private final Teardown whileOpen = new Teardown();
     private InlineEditRequest request;
     private BooleanSupplier stillValid = () -> true;
     /** False until the user changes the text: the suggestions are not filtered by the initial text. */
@@ -409,11 +410,7 @@ public final class InlineTextEditor {
         stillValid = () -> true;
         hint = Optional.empty();
         hintText.setVisible(false);
-        List<Runnable> removals = new ArrayList<>(whileOpen);
-        whileOpen.clear();
-        for (int index = removals.size() - 1; index >= 0; index--) {
-            removals.get(index).run();
-        }
+        whileOpen.run();
         if (hadFocus) {
             canvas.component().requestFocusInWindow();
         }

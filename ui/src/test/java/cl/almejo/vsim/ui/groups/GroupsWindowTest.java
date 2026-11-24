@@ -503,8 +503,6 @@ class GroupsWindowTest {
 
         assertThat(rootPane.getDefaultButton()).isSameAs(accept(window));
         assertThat(rootPane.getContentPane()).isSameAs(window.content());
-        assertThat(rootPane.getActionForKeyStroke(javax.swing.KeyStroke.getKeyStroke(
-                java.awt.event.KeyEvent.VK_ESCAPE, 0))).isNotNull();
     }
 
     /** Fix round 4: with 5 pins the window took ~970 px of a 1080 screen, mostly preview and unwrapped hints. */

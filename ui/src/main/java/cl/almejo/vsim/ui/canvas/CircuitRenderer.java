@@ -10,11 +10,11 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -33,23 +33,23 @@ import cl.almejo.vsim.ui.paint.LedMatrixGlow;
 import cl.almejo.vsim.ui.paint.LedMatrixPainter;
 import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
+import cl.almejo.vsim.ui.paint.MonochromeGraphics;
+import cl.almejo.vsim.ui.paint.MonochromeScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TerminalAnimation;
 import cl.almejo.vsim.ui.paint.TerminalLook;
 import cl.almejo.vsim.ui.paint.TerminalMoment;
 import cl.almejo.vsim.ui.paint.TerminalPainter;
 import cl.almejo.vsim.ui.paint.TerminalScreenRaster;
-import cl.almejo.vsim.ui.paint.UartPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
-import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
+import cl.almejo.vsim.ui.paint.UartPainter;
+import cl.almejo.vsim.ui.paint.WireState;
 import cl.almejo.vsim.ui.sticky.StickyNoteLayout;
 import cl.almejo.vsim.ui.sticky.StickyNotePainter;
 import cl.almejo.vsim.ui.terminal.TerminalActivity;
-import cl.almejo.vsim.ui.paint.WireState;
-import cl.almejo.vsim.ui.paint.MonochromeGraphics;
-import cl.almejo.vsim.ui.paint.MonochromeScheme;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -527,7 +527,8 @@ public final class CircuitRenderer {
         ScreenPart part = screenPart(state, component, type, animation);
         AffineTransform documentToDevice = graphics.getTransform();
         ComponentDrawing.paintPlaced(graphics, component,
-                local -> paintTerminalPlaced(local, component, type, painter, animation, part, scheme, documentToDevice));
+                local -> paintTerminalPlaced(local, component, type, painter, animation, part, scheme,
+                        documentToDevice));
     }
 
     private void paintTerminalPlaced(Graphics2D local, Component component, ComponentType type,

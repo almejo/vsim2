@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.fullscreen;
 
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.panels.ComponentEvents;
-import java.awt.event.ComponentListener;
 
 import javax.swing.JFrame;
 import java.awt.Frame;
@@ -10,6 +9,7 @@ import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.event.ComponentListener;
 import java.awt.event.WindowStateListener;
 import java.util.Objects;
 import java.util.Optional;

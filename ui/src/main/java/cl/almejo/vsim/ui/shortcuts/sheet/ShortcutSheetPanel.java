@@ -1,13 +1,14 @@
 package cl.almejo.vsim.ui.shortcuts.sheet;
 
-import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.panels.CardLook;
+import cl.almejo.vsim.ui.panels.FontFloor;
 import cl.almejo.vsim.ui.panels.Keycaps;
-import cl.almejo.vsim.ui.shortcuts.KeyNames;
-import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.panels.MouseClicks;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
+import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.SwitchBox;
 import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
@@ -19,7 +20,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.Scrollable;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
@@ -77,7 +77,8 @@ final class ShortcutSheetPanel extends JPanel {
     private static final String ROW_SEPARATOR = " · ";
 
     private final JPanel card = new Card();
-    private final JPanel columnsPanel = new ColumnsPanel();
+    private final JPanel columnsPanel = new VerticalScrollPanel(new MigLayout("insets 0, fillx",
+            "[grow, fill, shrink 100]16[grow, fill, shrink 0]", "[top]"), false);
     private final JScrollPane groupsScroll = new JScrollPane(columnsPanel,
             ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
     private final JPanel foot;
@@ -341,38 +342,6 @@ final class ShortcutSheetPanel extends JPanel {
         return color == null ? fallback : color;
     }
 
-    /** The two stacks of groups, as wide as the scroll's viewport so only the height scrolls. */
-    private static final class ColumnsPanel extends JPanel implements Scrollable {
-
-        ColumnsPanel() {
-            super(new MigLayout("insets 0, fillx", "[grow, fill, shrink 100]16[grow, fill, shrink 0]", "[top]"));
-        }
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-            return SCROLL_UNIT;
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-            return Math.max(SCROLL_UNIT, visible.height - SCROLL_UNIT);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
-    }
 
     /** The card: rounded, in the theme's panel colour with its border, with generous padding. */
     private static final class Card extends JPanel {

@@ -11,8 +11,8 @@ import cl.almejo.vsim.core.layout.CircuitTidyProgress;
 import javax.swing.SwingUtilities;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BooleanSupplier;
 

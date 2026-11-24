@@ -3,8 +3,9 @@ package cl.almejo.vsim.ui.truthtable;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableText;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
 import cl.almejo.vsim.ui.panels.WindowEvents;
+import cl.almejo.vsim.ui.window.EditorView;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.BorderFactory;
@@ -16,7 +17,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -28,7 +28,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
@@ -106,8 +105,7 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         recalculate.addActionListener(event -> controls.recalculate());
         close.addActionListener(event -> dispose());
         getRootPane().setDefaultButton(close);
-        getRootPane().registerKeyboardAction(event -> dispose(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ModalDialogs.closeOnEscape(getRootPane(), this::dispose);
         grid.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {

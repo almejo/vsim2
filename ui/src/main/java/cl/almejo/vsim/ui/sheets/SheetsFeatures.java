@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -21,7 +22,6 @@ import cl.almejo.vsim.ui.print.SheetPlan;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
-import cl.almejo.vsim.ui.actions.Actions;
 
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;

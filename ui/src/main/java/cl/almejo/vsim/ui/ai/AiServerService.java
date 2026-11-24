@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.ai;
 
-import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
@@ -13,6 +12,7 @@ import cl.almejo.vsim.mcp.PortInUseException;
 import cl.almejo.vsim.mcp.RunningServer;
 import cl.almejo.vsim.mcp.VsimMcpServer;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.DaemonThreads;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +85,17 @@ public final class AiServerService {
 
     /** Hears the server's state and the AI's tasks, on the EDT. */
     public interface Listener {
+
+        /** A listener that runs {@code action} when the state changes and hears nothing else. */
+        static Listener onStateChanged(Runnable action) {
+            return new Listener() {
+                @Override
+                public void stateChanged() {
+                    action.run();
+                }
+            };
+        }
+
         default void stateChanged() {
         }
 

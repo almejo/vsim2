@@ -2,14 +2,14 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
-import cl.almejo.vsim.core.component.ComponentType;
-import cl.almejo.vsim.core.component.VisibleState;
-import cl.almejo.vsim.core.component.standard.ConstantValue;
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.RemoveWireSegmentCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.command.SetNoteStyleCommand;
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;

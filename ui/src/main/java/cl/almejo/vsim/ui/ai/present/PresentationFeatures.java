@@ -6,9 +6,9 @@ import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.Narration;
-import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.actions.Actions;
@@ -16,19 +16,18 @@ import cl.almejo.vsim.ui.ai.ThinkingWatch;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuSlot;
 import cl.almejo.vsim.ui.window.MenuSlots;
 import cl.almejo.vsim.ui.window.ToolbarSlot;
 
 import javax.swing.Action;
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.ButtonGroup;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
@@ -80,17 +79,7 @@ final class PresentationFeatures {
         }
     };
     /** The tabs are cards: the panel shows only while this view's tab is in front. */
-    private final ComponentListener tabListener = new ComponentAdapter() {
-        @Override
-        public void componentShown(ComponentEvent event) {
-            refreshPanel();
-        }
-
-        @Override
-        public void componentHidden(ComponentEvent event) {
-            refreshPanel();
-        }
-    };
+    private final ComponentListener tabListener = ComponentEvents.onShownOrHidden(this::refreshPanel);
     /** The task of each circuit, shared by its views, and where its panel shows. */
     private final PresentedTasks tasks;
     /** «La IA pasó a Presentar» until the next step is in. */

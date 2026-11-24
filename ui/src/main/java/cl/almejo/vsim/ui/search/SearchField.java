@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.search;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.ProblemBadge;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
-import cl.almejo.vsim.ui.actions.Actions;
 
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;

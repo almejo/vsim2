@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.toolbar;
 
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import com.formdev.flatlaf.util.UIScale;
 
-import javax.swing.Action;
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.Icon;
 import javax.swing.JButton;

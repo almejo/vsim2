@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.actions;
 
-import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.HistoryListener;
@@ -11,6 +10,7 @@ import cl.almejo.vsim.core.component.standard.ConstantFormatChange;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.simulation.SimulationSpeeds;
 import cl.almejo.vsim.ui.about.AboutInformation;
 import cl.almejo.vsim.ui.about.AboutPresenter;
 import cl.almejo.vsim.ui.about.LinkOpener;
@@ -24,10 +24,11 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
 import cl.almejo.vsim.ui.panels.PinJoinRefusal;
+import cl.almejo.vsim.ui.panels.TextRenderers;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
-import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.waveform.ProbeNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
@@ -36,9 +37,7 @@ import cl.almejo.vsim.ui.window.Menus;
 import cl.almejo.vsim.ui.window.WindowCommands;
 
 import javax.swing.Action;
-import javax.swing.DefaultListCellRenderer;
 import javax.swing.JComboBox;
-import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -551,15 +550,8 @@ public final class EditorActions {
         };
         selector.setSelectedItem(openDocument.simulationSpeed());
         selector.setToolTipText(Messages.text("toolbar.speedTip"));
-        selector.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                                   boolean selected, boolean focused) {
-                super.getListCellRendererComponent(list, value, index, selected, focused);
-                setText(value instanceof Double speed ? speedLabel(speed, index < 0) : "");
-                return this;
-            }
-        });
+        selector.setRenderer(TextRenderers.of(
+                (value, index) -> value instanceof Double speed ? speedLabel(speed, index < 0) : ""));
         selector.addActionListener(event -> openDocument.setSpeed((Double) selector.getSelectedItem()));
         // An undo or a redo changes the speed: the selector shows it (the action listener finds it already set).
         follow[0] = () -> selector.setSelectedItem(openDocument.simulationSpeed());

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.appearance;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.ModalDialogs;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -8,14 +9,12 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.Font;
 import java.awt.Window;
-import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -77,8 +76,7 @@ final class ConnectionsSheet {
         sheet.back.addActionListener(ignored -> dialog.dispose());
         sheet.apply.addActionListener(ignored -> dialog.dispose());
         dialog.getRootPane().setDefaultButton(sheet.defaultButton());
-        dialog.getRootPane().registerKeyboardAction(ignored -> dialog.dispose(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ModalDialogs.closeOnEscape(dialog.getRootPane(), dialog::dispose);
         dialog.pack();
         dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);

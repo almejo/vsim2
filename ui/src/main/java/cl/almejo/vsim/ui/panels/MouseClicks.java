@@ -5,7 +5,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
-/** Listeners for «the mouse clicked here» that only forward to a {@link Runnable}, or only consume the click. */
+/** Listeners for «the mouse clicked or pressed here» that only forward to a {@link Runnable}, or only consume it. */
 public final class MouseClicks {
 
     private MouseClicks() {
@@ -16,6 +16,16 @@ public final class MouseClicks {
         return new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {
+                listener.run();
+            }
+        };
+    }
+
+    /** Runs {@code listener} each time a mouse button is pressed on the component, whichever it is. */
+    public static MouseListener onPress(Runnable listener) {
+        return new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
                 listener.run();
             }
         };

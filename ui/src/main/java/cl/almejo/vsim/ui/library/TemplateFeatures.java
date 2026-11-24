@@ -63,7 +63,8 @@ public final class TemplateFeatures {
         JMenuItem importItem = new JMenuItem(importComponent);
         importItem.setText(Messages.text("menu.file.import.component"));
         Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), importItem);
-        Runnable menuItemsRemover = () -> removeEditItems(importItemRemover, edit, updateItem, createItem, editSeparator);
+        Runnable menuItemsRemover = () -> removeEditItems(importItemRemover, edit, updateItem, createItem,
+                editSeparator);
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();

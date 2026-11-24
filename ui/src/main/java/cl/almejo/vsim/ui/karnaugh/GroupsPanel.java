@@ -7,10 +7,11 @@ import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.Action;
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -93,8 +94,8 @@ final class GroupsPanel extends JPanel implements WizardStep {
         why.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
         rules.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
 
-        JPanel right = new WidthTrackingPanel(new MigLayout("insets 0 0 0 8, fillx, wrap 1, hidemode 3",
-                "[grow, fill]"));
+        JPanel right = new VerticalScrollPanel(new MigLayout("insets 0 0 0 8, fillx, wrap 1, hidemode 3",
+                "[grow, fill]"), false);
         solutionSide.add(header, "wmin 100");
         solutionSide.add(specialCase, "wmin 100");
         solutionSide.add(legend, "gaptop 6");

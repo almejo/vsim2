@@ -5,16 +5,16 @@ import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.DialogButtons;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
-import cl.almejo.vsim.ui.panels.WindowEvents;
-import java.awt.event.WindowListener;
 
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import java.awt.Component;
+import java.awt.event.WindowListener;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;

@@ -179,8 +179,6 @@ class MemoryEditorDialogTest {
         dialog.bindTo(rootPane);
 
         assertThat(rootPane.getDefaultButton()).isSameAs(button(rootPane, "memory.accept"));
-        assertThat(rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0))).isNotNull();
     }
 
     @Test

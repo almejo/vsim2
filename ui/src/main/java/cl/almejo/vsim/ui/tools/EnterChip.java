@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import javax.swing.UIManager;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -9,6 +8,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
+import javax.swing.UIManager;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;

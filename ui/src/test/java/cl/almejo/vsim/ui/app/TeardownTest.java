@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TeardownTest {
 
@@ -24,5 +25,22 @@ class TeardownTest {
 
         teardown.run();
         assertThat(undone).containsExactly("second", "first", "late");
+    }
+
+    @Test
+    void everyStepRunsEvenWhenOneFailsAndTheFirstFailureIsThrown() {
+        List<String> undone = new ArrayList<>();
+        Teardown teardown = new Teardown();
+        teardown.add(() -> undone.add("first"));
+        teardown.add(() -> {
+            throw new IllegalStateException("second failed");
+        });
+        teardown.add(() -> undone.add("third"));
+
+        assertThatThrownBy(teardown::run).isInstanceOf(IllegalStateException.class).hasMessage("second failed");
+        assertThat(undone).containsExactly("third", "first");
+
+        teardown.run();
+        assertThat(undone).containsExactly("third", "first");
     }
 }

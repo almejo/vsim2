@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.groups;
 
 import cl.almejo.vsim.ui.panels.ComponentEvents;
+
 import javax.swing.BorderFactory;
 import javax.swing.JScrollPane;
 import javax.swing.Scrollable;

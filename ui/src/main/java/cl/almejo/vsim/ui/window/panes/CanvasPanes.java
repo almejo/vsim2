@@ -4,7 +4,6 @@ import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.panels.FocusEvents;
-import java.awt.event.FocusListener;
 
 import javax.swing.JComponent;
 import javax.swing.border.Border;
@@ -12,6 +11,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;

@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.memory;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MutableMemoryContents;
-
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.MemoryLights;
 

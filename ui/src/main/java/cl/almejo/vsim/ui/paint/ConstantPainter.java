@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
-
 import cl.almejo.vsim.core.document.Component;
 
 import java.awt.BasicStroke;

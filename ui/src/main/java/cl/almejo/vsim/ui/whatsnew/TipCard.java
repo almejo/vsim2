@@ -2,9 +2,10 @@ package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.CardLook;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
@@ -24,8 +25,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -139,12 +138,8 @@ final class TipCard extends JComponent {
         add(tryButton);
         add(previousButton);
         add(nextButton);
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                requestFocusInWindow(); // a click on the card gives it the focus; it never takes it by itself
-            }
-        });
+        // a click on the card gives it the focus; it never takes it by itself
+        addMouseListener(MouseClicks.onPress(this::requestFocusInWindow));
     }
 
     /** A text's cell: the card's inner width and the height its text takes now (the title a little apart). */

@@ -4,19 +4,20 @@ import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.ai.AiIcons;
 import cl.almejo.vsim.ui.ai.AiPanel;
 import cl.almejo.vsim.ui.ai.AiUndoNotices;
-import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.ai.ChangedSettingsSection;
+import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.ai.RoundedOutline;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
 import cl.almejo.vsim.ui.theme.SegmentedSwitch;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -28,7 +29,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
-import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
@@ -37,8 +37,6 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Insets;
-import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -91,7 +89,8 @@ final class PresentationPanel extends JPanel {
     private final JToggleButton stepByStepButton = new SegmentedSwitch.Segment(Messages.text("ai.present.stepByStep"));
     private final SegmentedSwitch paceSwitch = new SegmentedSwitch(continuousButton, stepByStepButton);
     private final StageCard.Line paceHint = new StageCard.Line(" ", StageCard.Tone.MUTED, StageCard.Style.PLAIN);
-    private final CardsPanel cardsPanel = new CardsPanel();
+    private final JPanel cardsPanel = new VerticalScrollPanel(
+            new MigLayout("insets 0, wrap 1, gap 0 4", "[grow, fill]"), false);
     private final JScrollPane cardsScroll = new JScrollPane(cardsPanel, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     private final JButton nextButton = new JButton(Messages.text("ai.present.next"));
@@ -225,14 +224,12 @@ final class PresentationPanel extends JPanel {
     private void bindEnterToNext() {
         getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), NEXT_KEY);
-        getActionMap().put(NEXT_KEY, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                if (nextButton.isEnabled()) {
-                    nextButton.doClick();
-                }
+        // Enter is consumed even while «Siguiente» is off, so it never reaches what is behind the panel
+        getActionMap().put(NEXT_KEY, Actions.unnamed(() -> {
+            if (nextButton.isEnabled()) {
+                nextButton.doClick();
             }
-        });
+        }));
     }
 
     /**
@@ -580,38 +577,5 @@ final class PresentationPanel extends JPanel {
 
     List<String> settingTexts() {
         return settingsSection.texts();
-    }
-
-    /** The stage cards, as wide as the scroll pane that holds them (never wider: their texts end in «…»). */
-    private static final class CardsPanel extends JPanel implements Scrollable {
-
-        CardsPanel() {
-            super(new MigLayout("insets 0, wrap 1, gap 0 4", "[grow, fill]"));
-        }
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-            return 16;
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-            return Math.max(16, visible.height - 16);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
     }
 }

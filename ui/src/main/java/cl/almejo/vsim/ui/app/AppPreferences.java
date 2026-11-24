@@ -13,10 +13,10 @@ import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.ScaleMode;
 import cl.almejo.vsim.ui.tools.WireMode;
-import java.awt.Rectangle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Rectangle;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.time.LocalDate;

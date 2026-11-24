@@ -37,6 +37,7 @@ import cl.almejo.vsim.core.machine.MachineChannels;
 import cl.almejo.vsim.core.machine.StateMachineTypes;
 import cl.almejo.vsim.core.memory.LinkedFileChecks;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -46,25 +47,24 @@ import cl.almejo.vsim.core.simulation.ClockEdgeMode;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.ListedProblems;
 import cl.almejo.vsim.core.simulation.MemoryMapFrame;
-import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.PauseNotice;
-import cl.almejo.vsim.core.simulation.TerminalReading;
-import cl.almejo.vsim.core.simulation.TerminalRequest;
-import cl.almejo.vsim.core.simulation.TerminalWindowFrame;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
 import cl.almejo.vsim.core.simulation.StepReport;
+import cl.almejo.vsim.core.simulation.TerminalReading;
+import cl.almejo.vsim.core.simulation.TerminalRequest;
+import cl.almejo.vsim.core.simulation.TerminalWindowFrame;
 import cl.almejo.vsim.core.terminal.TypingEdit;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1445,7 +1445,8 @@ public final class OpenDocument implements AutoCloseable {
             return Optional.empty();
         }
         String prefix = contextPath.get() + InstancePath.SEPARATOR;
-        return latest.filter(frame -> frame.request().componentId().startsWith(prefix)).map(frame -> insideBody(frame, prefix));
+        return latest.filter(frame -> frame.request().componentId().startsWith(prefix))
+                .map(frame -> insideBody(frame, prefix));
     }
 
     /** {@code frame} as the body's own: its component id without the {@code prefix} of the instance's path. */

@@ -13,9 +13,9 @@ import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.text.JTextComponent;
 import javax.swing.border.Border;
 import javax.swing.event.ChangeListener;
+import javax.swing.text.JTextComponent;
 import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Component;
@@ -228,7 +228,8 @@ public final class EdgeBars {
         ChangeListener menuListener = event -> menusChanged();
         MenuSelectionManager.defaultManager().addChangeListener(menuListener);
         area.getLayeredPane().add(armingLine, JLayeredPane.DRAG_LAYER);
-        stopFollowing = () -> stopFollowingTheWindow(toolkit, pointerListener, focusManager, focusListener, menuListener);
+        stopFollowing = () -> stopFollowingTheWindow(toolkit, pointerListener, focusManager, focusListener,
+                menuListener);
     }
 
     private void stopFollowingTheWindow(Toolkit toolkit, AWTEventListener pointerListener,

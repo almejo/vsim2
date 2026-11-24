@@ -1,13 +1,13 @@
 package cl.almejo.vsim.ui.whatsnew;
 
-import cl.almejo.vsim.ui.panels.FontFloor;
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.panels.Keycaps;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.FontFloor;
+import cl.almejo.vsim.ui.panels.Keycaps;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
 

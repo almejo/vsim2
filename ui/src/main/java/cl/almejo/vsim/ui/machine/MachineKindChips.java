@@ -8,7 +8,6 @@ import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
 
 import javax.swing.UIManager;
-
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;

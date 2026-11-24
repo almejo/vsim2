@@ -40,7 +40,8 @@ public final class DefinitionUpdateSafety {
 
     /** Throws before any mutation; name, drawing and internal-logic changes with the same interface remain valid. */
     public static void requireSafe(CircuitDocument document, ComponentDefinition replacement) {
-        document.definition(replacement.id()).ifPresent(before -> requireNoParentsAffected(document, before, replacement));
+        document.definition(replacement.id())
+                .ifPresent(before -> requireNoParentsAffected(document, before, replacement));
     }
 
     private static void requireNoParentsAffected(CircuitDocument document, ComponentDefinition before,

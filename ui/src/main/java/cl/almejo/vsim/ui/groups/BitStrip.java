@@ -1,9 +1,9 @@
 package cl.almejo.vsim.ui.groups;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ReadableColors;
-import cl.almejo.vsim.ui.actions.Actions;
 
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;

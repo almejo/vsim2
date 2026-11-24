@@ -2,14 +2,14 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.KeyStroke;
 import java.awt.event.ActionEvent;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.KeyStroke;
 
 /** Swing {@link Action}s that just run a {@link Runnable}, so a feature never writes an anonymous class for one. */
 public final class Actions {

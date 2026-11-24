@@ -1,10 +1,10 @@
 package cl.almejo.vsim.ui.window.tabs;
 
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.ai.AiRobotIcon;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.ThemeColors;
 import com.formdev.flatlaf.util.UIScale;
 

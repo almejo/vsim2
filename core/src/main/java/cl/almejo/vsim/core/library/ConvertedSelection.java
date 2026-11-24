@@ -1,8 +1,8 @@
 package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.ComponentType;
-import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;

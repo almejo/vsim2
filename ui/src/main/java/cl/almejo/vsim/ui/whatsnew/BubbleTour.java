@@ -5,6 +5,8 @@ import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.KeyNames;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
@@ -24,15 +26,11 @@ import java.awt.Dimension;
 import java.awt.KeyEventDispatcher;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -375,12 +373,8 @@ final class BubbleTour {
     // --- listening while open ---
 
     private Runnable endTourOnPress(CircuitCanvas pane) {
-        MouseListener startsEditing = new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                done(); // a gesture on the circuit: the user is editing now
-            }
-        };
+        // a gesture on the circuit: the user is editing now
+        MouseListener startsEditing = MouseClicks.onPress(this::done);
         pane.addMouseListener(startsEditing);
         return () -> pane.removeMouseListener(startsEditing);
     }
@@ -396,17 +390,8 @@ final class BubbleTour {
         whileOpen.add(view.addFullScreenLayoutListener(targetsChanged));
         preferences.addListener(targetsChanged); // a rebound key shows at once
         whileOpen.add(() -> preferences.removeListener(targetsChanged));
-        ComponentListener windowListener = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                targetsChanged();
-            }
-
-            @Override
-            public void componentHidden(ComponentEvent event) {
-                targetsChanged();
-            }
-        };
+        ComponentListener windowListener = ComponentEvents.on(this::targetsChanged, ComponentEvents.Change.RESIZED,
+                ComponentEvents.Change.HIDDEN);
         layers.addComponentListener(windowListener);
         whileOpen.add(() -> layers.removeComponentListener(windowListener));
         view.addComponentListener(windowListener);
@@ -420,22 +405,8 @@ final class BubbleTour {
             return;
         }
         stopFollowingTheTarget.run();
-        ComponentListener moves = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                targetsChanged();
-            }
-
-            @Override
-            public void componentMoved(ComponentEvent event) {
-                targetsChanged();
-            }
-
-            @Override
-            public void componentHidden(ComponentEvent event) {
-                targetsChanged();
-            }
-        };
+        ComponentListener moves = ComponentEvents.on(this::targetsChanged, ComponentEvents.Change.RESIZED,
+                ComponentEvents.Change.MOVED, ComponentEvents.Change.HIDDEN);
         HierarchyListener hierarchy = event -> {
             if ((event.getChangeFlags() & (HierarchyEvent.SHOWING_CHANGED | HierarchyEvent.PARENT_CHANGED)) != 0) {
                 SwingUtilities.invokeLater(this::targetsChanged); // after the swap that caused it is complete

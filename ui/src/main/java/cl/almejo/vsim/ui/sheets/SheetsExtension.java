@@ -4,10 +4,10 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 
+import javax.swing.JPopupMenu;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import javax.swing.JPopupMenu;
 
 /**
  * Adds «Mostrar hojas de impresión» (Ver and the toolbar) and the sheets drawn over the circuit to every editor view

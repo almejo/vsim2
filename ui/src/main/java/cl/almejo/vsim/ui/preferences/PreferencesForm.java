@@ -7,10 +7,10 @@ import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.wiring.InvertModifierNames;
-import cl.almejo.vsim.ui.panels.FocusEvents;
 import com.formdev.flatlaf.FlatLaf;
 
 import javax.swing.JButton;

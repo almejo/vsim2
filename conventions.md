@@ -96,10 +96,15 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   passed as a method reference (`this::applyZoom`). When the logic is worth testing, the method goes where a test
   reaches it (package-private, or a model/core class), not only a private method of a panel. A lambda that only calls
   a method is that method's reference. A listener repeated in more than one place is a named class; the ones that
-  only forward an event to a `Runnable` already exist in `ui.panels` (`WindowEvents`, `FocusEvents`, `ComponentEvents`,
-  `MouseClicks`, `PopupMouseListener`, `TextChanges`) and in `ui.actions` (`Actions.of`, `unnamed`, `doNothing`): use
-  them before writing an anonymous `WindowAdapter`, `FocusAdapter`, `ComponentAdapter`, `MouseAdapter`,
-  `DocumentListener` or `AbstractAction`. Automatic checks
+  only forward an event to a `Runnable` already exist in `ui.panels` (`WindowEvents`, `FocusEvents`, `ComponentEvents`
+  with `on`/`onHidden`/`onShownOrHidden`, `MouseClicks` with `onClick`/`onPress`, `PopupMouseListener`, `TextChanges`,
+  `TextRenderers` for a combo box or list that only changes a row's text) and in `ui.actions` (`Actions.of`, `unnamed`,
+  `doNothing`): use them before writing an anonymous `WindowAdapter`, `FocusAdapter`, `ComponentAdapter`,
+  `MouseAdapter`, `DocumentListener`, `DefaultListCellRenderer` or `AbstractAction`. The same goes for the shared
+  pieces: a modal dialog whose close box and Esc cancel is `ModalDialogs.over` (`closeOnEscape` for one that Esc only
+  closes), a panel that follows its scroll pane's width is `VerticalScrollPanel`, and what to undo when something
+  closes is a `Teardown` (steps undone last first, each one run even if another fails; `Steps.runEach` for a list
+  that is not undone in reverse), not a hand-written reverse loop. Automatic checks
   (PMD, `config/pmd/vsim-rules.xml`): `LambdaBodyAtMostThreeLines` (measures the lines between the block's braces,
   comments and blank lines included, so a body of 3 statements plus a comment fails; a lambda written as an
   expression is not measured) and `LambdaCanBeMethodReference`; the code review judges the repeated listeners.

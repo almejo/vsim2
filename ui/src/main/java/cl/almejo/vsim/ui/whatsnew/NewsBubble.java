@@ -1,7 +1,7 @@
 package cl.almejo.vsim.ui.whatsnew;
 
-import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.panels.MouseClicks;
 import com.formdev.flatlaf.util.UIScale;
 

@@ -6,10 +6,10 @@ import cl.almejo.vsim.core.machine.MachineTests;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.theme.ReadableColors;
-import cl.almejo.vsim.ui.waveform.PinToggle;
 import cl.almejo.vsim.ui.panels.FocusEvents;
 import cl.almejo.vsim.ui.panels.PopupMouseListener;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.waveform.PinToggle;
 import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 

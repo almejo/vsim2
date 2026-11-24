@@ -28,12 +28,12 @@ import java.awt.event.KeyEvent;
 import java.beans.PropertyChangeListener;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Collections;
 
 /**
  * «Mostrar los atajos al usarlos» of one editor view: while the option is on, each action run by its shortcut, a

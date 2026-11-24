@@ -1,10 +1,11 @@
 package cl.almejo.vsim.ui.actions;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.awt.event.ActionEvent;
-import javax.swing.Action;
 import org.junit.jupiter.api.Test;
+
+import javax.swing.Action;
+import java.awt.event.ActionEvent;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The actions that only forward to a {@link Runnable} (the ones the code builds instead of anonymous classes). */
 class ActionsForwardingTest {
@@ -44,5 +45,24 @@ class ActionsForwardingTest {
         assertThat(action.getValue(Action.NAME)).isNull();
         assertThat(action.isEnabled()).isTrue();
         action.actionPerformed(event());
+    }
+
+    @Test
+    void aConditionalUnnamedActionIsNotFiredThroughTheInputMapWhileTheConditionIsFalse() {
+        boolean[] enabled = {false};
+        int[] runs = {0};
+        javax.swing.JPanel panel = new javax.swing.JPanel();
+        panel.getInputMap(javax.swing.JComponent.WHEN_FOCUSED).put(javax.swing.KeyStroke.getKeyStroke("ESCAPE"), "key");
+        panel.getActionMap().put("key", Actions.unnamed(() -> enabled[0], () -> runs[0]++));
+        java.awt.event.KeyEvent escape = new java.awt.event.KeyEvent(panel, java.awt.event.KeyEvent.KEY_PRESSED, 0, 0,
+                java.awt.event.KeyEvent.VK_ESCAPE, java.awt.event.KeyEvent.CHAR_UNDEFINED);
+
+        boolean consumedWhileOff = javax.swing.SwingUtilities.processKeyBindings(escape);
+        enabled[0] = true;
+        boolean consumedWhileOn = javax.swing.SwingUtilities.processKeyBindings(escape);
+
+        assertThat(consumedWhileOff).isFalse();
+        assertThat(consumedWhileOn).isTrue();
+        assertThat(runs[0]).isEqualTo(1);
     }
 }

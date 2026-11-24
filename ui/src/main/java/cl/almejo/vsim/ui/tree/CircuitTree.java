@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tree;
 
-import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -11,19 +10,21 @@ import cl.almejo.vsim.core.search.SearchProblem;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.ui.actions.Actions;
-import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.actions.KeyboardFocus;
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.machine.MachineMode;
+import cl.almejo.vsim.ui.machine.MachinePaletteIcons;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.machine.MachineMode;
-import cl.almejo.vsim.ui.machine.MachinePaletteIcons;
+import cl.almejo.vsim.ui.panels.PopupMouseListener;
 import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.search.SearchField;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.InspectorPanel;
 import cl.almejo.vsim.ui.window.SeePiece;
@@ -56,7 +57,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -692,7 +692,12 @@ public final class CircuitTree extends JPanel {
         }
     }
 
-    private final class Mouse extends MouseAdapter {
+    private final class Mouse extends PopupMouseListener {
+
+        Mouse() {
+            super(CircuitTree.this::showMenu);
+        }
+
         @Override
         public void mouseClicked(MouseEvent event) {
             if (event.getButton() != MouseEvent.BUTTON1) {
@@ -700,32 +705,22 @@ public final class CircuitTree extends JPanel {
             }
             rowAt(event).ifPresent(path -> rowClicked(path, event.getClickCount()));
         }
+    }
 
-        @Override
-        public void mousePressed(MouseEvent event) {
-            showMenu(event);
-        }
+    private Optional<String> rowAt(MouseEvent event) {
+        TreePath path = tree.getPathForLocation(event.getX(), event.getY());
+        return path != null && path.getLastPathComponent() instanceof DefaultMutableTreeNode node
+                && node.getUserObject() instanceof Row row ? Optional.of(row.node().path()) : Optional.empty();
+    }
 
-        @Override
-        public void mouseReleased(MouseEvent event) {
-            showMenu(event);
+    private void showMenu(MouseEvent event) {
+        if (!event.isPopupTrigger()) {
+            return;
         }
-
-        private Optional<String> rowAt(MouseEvent event) {
-            TreePath path = tree.getPathForLocation(event.getX(), event.getY());
-            return path != null && path.getLastPathComponent() instanceof DefaultMutableTreeNode node
-                    && node.getUserObject() instanceof Row row ? Optional.of(row.node().path()) : Optional.empty();
-        }
-
-        private void showMenu(MouseEvent event) {
-            if (!event.isPopupTrigger()) {
-                return;
-            }
-            rowAt(event).ifPresent(path -> contextMenu(path).ifPresent(menu -> {
-                choose(path);
-                menu.show(tree, event.getX(), event.getY());
-            }));
-        }
+        rowAt(event).ifPresent(path -> contextMenu(path).ifPresent(menu -> {
+            choose(path);
+            menu.show(tree, event.getX(), event.getY());
+        }));
     }
 
     /**

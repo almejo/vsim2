@@ -26,8 +26,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.OptionalInt;
+import java.util.TreeMap;
 
 /** {@code vsim_edit}: one call, a list of typed operations, all or nothing, one undo step (spec §10, A§6). */
 final class EditTools {

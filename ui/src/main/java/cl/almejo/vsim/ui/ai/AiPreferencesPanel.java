@@ -92,12 +92,8 @@ public final class AiPreferencesPanel extends JPanel {
             feedback.setText(Messages.text("ai.copyConfiguration.done"));
         });
         preferences.addListener(preferenceListener);
-        this.removeServiceListener = service.map(server -> server.addListener(new AiServerService.Listener() {
-            @Override
-            public void stateChanged() {
-                refreshSessionPort();
-            }
-        })).orElse(() -> { });
+        this.removeServiceListener = service.map(server -> server.addListener(
+                AiServerService.Listener.onStateChanged(this::refreshSessionPort))).orElse(() -> { });
         refreshSessionPort();
         this.header = service.map(server -> new AiStateHeader(server, feedback::setText));
 

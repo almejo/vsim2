@@ -5,29 +5,26 @@ import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.ParameterProfiles;
 import cl.almejo.vsim.core.component.ParameterSpec;
-import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.KeyboardTypes;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.standard.SwitchValues;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.KeyboardPainter;
 import cl.almejo.vsim.ui.paint.LedPainter;
 import cl.almejo.vsim.ui.theme.SwitchBox;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
-import cl.almejo.vsim.ui.paint.KeyboardPainter;
-import java.awt.event.FocusListener;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
@@ -36,9 +33,9 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
 import javax.swing.text.JTextComponent;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.text.ParseException;
@@ -257,17 +254,11 @@ public final class ParameterForm extends JPanel {
         if (!(editors.get(chooserName) instanceof JComboBox<?> chooser)) {
             return;
         }
-        chooser.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object item, int index,
-                                                          boolean selected, boolean focused) {
-                super.getListCellRendererComponent(list, item, index, selected, focused);
-                String name = Messages.choiceName(chooserName, String.valueOf(item));
-                // the box itself (index -1) says whether the part still looks like its profile; the list does not
-                setText(index < 0 && !differences.isEmpty() ? Messages.format("profile.modified", name) : name);
-                return this;
-            }
-        });
+        chooser.setRenderer(TextRenderers.of((item, index) -> {
+            String name = Messages.choiceName(chooserName, String.valueOf(item));
+            // the box itself (index -1) says whether the part still looks like its profile; the list does not
+            return index < 0 && !differences.isEmpty() ? Messages.format("profile.modified", name) : name;
+        }));
         chooser.addActionListener(event -> {
             if (!updatingEditors && chooser.getSelectedItem() != null) {
                 applyProfile(String.valueOf(chooser.getSelectedItem()));
@@ -820,15 +811,8 @@ public final class ParameterForm extends JPanel {
             case CHOICE -> {
                 JComboBox<String> box = new JComboBox<>(parameter.choices().toArray(String[]::new));
                 box.setSelectedItem(value);
-                box.setRenderer(new DefaultListCellRenderer() {
-                    @Override
-                    public Component getListCellRendererComponent(JList<?> list, Object item, int index,
-                                                                  boolean selected, boolean focused) {
-                        super.getListCellRendererComponent(list, item, index, selected, focused);
-                        setText(Messages.choiceName(parameter.name(), String.valueOf(item)));
-                        return this;
-                    }
-                });
+                box.setRenderer(TextRenderers.of(
+                        (item, index) -> Messages.choiceName(parameter.name(), String.valueOf(item))));
                 yield box;
             }
             // the LED's colour names are the colour vocabulary of COLOR parameters (it is the only one today)
@@ -878,15 +862,7 @@ public final class ParameterForm extends JPanel {
         JComboBox<String> box = new JComboBox<>(SWITCH_VALUE_CHOICES.toArray(String[]::new));
         box.setEditable(true);
         box.setSelectedItem(value);
-        box.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object item, int index,
-                                                          boolean selected, boolean focused) {
-                super.getListCellRendererComponent(list, item, index, selected, focused);
-                setText(Messages.choiceName(SWITCH_VALUE, String.valueOf(item)));
-                return this;
-            }
-        });
+        box.setRenderer(TextRenderers.of((item, index) -> Messages.choiceName(SWITCH_VALUE, String.valueOf(item))));
         FragmentRefusingTransferHandler.install((JTextField) box.getEditor().getEditorComponent());
         return box;
     }

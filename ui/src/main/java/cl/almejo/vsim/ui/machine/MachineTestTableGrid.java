@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.machine.StateMachine;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.panels.FocusEvents;
 
 import javax.accessibility.AccessibleContext;
 import javax.accessibility.AccessibleRole;
@@ -18,8 +19,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
@@ -73,17 +72,8 @@ final class MachineTestTableGrid extends JComponent {
                 popupIfTrigger(event, MachineTestTableGrid.this, model.columnAt(event.getX()));
             }
         });
-        addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent event) {
-                repaint();
-            }
-
-            @Override
-            public void focusLost(FocusEvent event) {
-                repaint();
-            }
-        });
+        addFocusListener(FocusEvents.onGained(this::repaint));
+        addFocusListener(FocusEvents.onLost(this::repaint));
         new MachineTestKeyboard(this, table).bindKeys();
     }
 
