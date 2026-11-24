@@ -28,9 +28,8 @@ public final class ElementDrag {
 
     private GridPoint pressPoint;
     private boolean resizes;
-    private boolean narrowOnRelease;
-    /** A Shift press on a selected element: a release without moving takes it out of the selection. */
-    private boolean removeOnRelease;
+    /** What the press left for a release without moving: narrow the selection to the element or take it out. */
+    private final SelectionOnRelease selectionOnRelease = new SelectionOnRelease();
     /** Whether the pointer left the press point: a drag a wall stopped is still not a click. */
     private boolean pointerMoved;
     private int deltaX;
@@ -62,11 +61,7 @@ public final class ElementDrag {
      * (Shift+drag moves the selection with it instead), an unselected one joins it now.
      */
     public void toggleOnPress(Selection selection, ElementId id) {
-        if (selection.contains(id)) {
-            removeOnRelease = true;
-        } else {
-            selection.add(id);
-        }
+        selectionOnRelease.toggleOnPress(selection, id);
     }
 
     /**
@@ -74,10 +69,8 @@ public final class ElementDrag {
      * with the others, and a move's release without moving narrows the selection to it.
      */
     public void selectOnPress(Selection selection, ElementId id) {
-        if (!selection.contains(id)) {
-            selection.select(id);
-        } else if (!resizes) {
-            narrowOnRelease = selection.size() > 1;
+        if (!resizes || !selection.contains(id)) {
+            selectionOnRelease.selectOnPress(selection, id);
         }
     }
 
@@ -92,13 +85,10 @@ public final class ElementDrag {
         pointerMoved |= deltaX != 0 || deltaY != 0;
         if (!resizes) {
             Set<ElementId> moved = context.selection().effectiveIds();
-            snappedMove = SnappedMove.of(context, moved, false, deltaX, deltaY);
             // an element inside a locked frame stops at its border, like any content
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, snappedMove.deltaX(),
-                    snappedMove.deltaY());
-            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
-            deltaX = limited.x();
-            deltaY = limited.y();
+            snappedMove = SelectionMoves.limited(context, moved, SnappedMove.of(context, moved, false, deltaX, deltaY));
+            deltaX = snappedMove.deltaX();
+            deltaY = snappedMove.deltaY();
         }
         followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
@@ -136,11 +126,7 @@ public final class ElementDrag {
             context.selectionMoves().move(context.openDocument(), context.selection(),
                     context.selection().effectiveIds(), deltaX, deltaY, followWires);
         } else if (isClick()) {
-            if (removeOnRelease) {
-                context.selection().remove(id);
-            } else if (narrowOnRelease) {
-                context.selection().select(id);
-            }
+            selectionOnRelease.released(context.selection(), id);
         }
     }
 
@@ -197,8 +183,7 @@ public final class ElementDrag {
     public void reset() {
         pressPoint = null;
         resizes = false;
-        narrowOnRelease = false;
-        removeOnRelease = false;
+        selectionOnRelease.reset();
         pointerMoved = false;
         deltaX = 0;
         deltaY = 0;

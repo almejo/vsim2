@@ -19,6 +19,8 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.snap.SnappedMove;
+import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -95,6 +97,16 @@ public final class SelectionMoves {
     /** The delta a move of {@code ids} may take: contents of a locked frame that stays put stop at its border. */
     public static GridPoint limited(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY) {
         return LockedFrameWalls.limit(openDocument.document(), openDocument.registry(), ids, deltaX, deltaY);
+    }
+
+    /**
+     * The magnet's {@code move} of {@code ids} after the walls of the locked frames (see
+     * {@link #limited(OpenDocument, Collection, int, int)}), which win over it: only the lines that hold at the
+     * limited delta stay. A move (not a Ctrl copy: copies leave the originals) of the select tool, a frame or a note.
+     */
+    public static SnappedMove limited(ToolContext context, Collection<ElementId> ids, SnappedMove move) {
+        GridPoint limited = limited(context.openDocument(), ids, move.deltaX(), move.deltaY());
+        return move.clampedTo(context, ids, false, limited.x(), limited.y());
     }
 
     /**
