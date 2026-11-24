@@ -265,14 +265,17 @@ public final class MemoryGridModel extends AbstractTableModel {
             }
         });
         if (live != null) {
-            live.forEachNonZero((address, stored) -> {
-                if (address < words && contents.word(address) == 0 && (zero ? valueAt(address) != 0
-                        : valueAt(address) == value)) {
-                    found.add(address);
-                }
-            });
+            live.forEachNonZero((address, stored) -> addLiveMatch(found, address, zero, value));
         }
         return new MemorySearch(words, zero, found.build().sorted().toArray());
+    }
+
+    /** A live word the stored ones do not hold (those were looked at already) that shows {@code value}. */
+    private void addLiveMatch(java.util.stream.LongStream.Builder found, long address, boolean zero, long value) {
+        if (address < words && contents.word(address) == 0 && (zero ? valueAt(address) != 0
+                : valueAt(address) == value)) {
+            found.add(address);
+        }
     }
 
     public String hexAddress(long address) {

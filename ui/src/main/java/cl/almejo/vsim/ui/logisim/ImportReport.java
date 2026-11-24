@@ -86,24 +86,29 @@ record ImportReport(List<CircuitGroup> circuits) {
             byCircuit.computeIfAbsent(note.circuit(), circuit -> new ArrayList<>()).add(note);
         }
         List<CircuitGroup> circuits = new ArrayList<>();
-        byCircuit.forEach((circuit, allCircuitNotes) -> {
-            Optional<Place> heading = host == null || circuit.isEmpty() || circuit.equals(mainCircuit)
-                    ? Optional.empty() : headingPlace(circuit, allCircuitNotes, host);
-            List<ImportNote> circuitNotes = heading.isEmpty() ? allCircuitNotes : allCircuitNotes.stream()
-                    .map(note -> note.withElement(Optional.empty())).toList();
-            List<KindGroup> kinds = new ArrayList<>();
-            for (ImportNote.Kind kind : ORDER) {
-                List<ImportNote> ofKind = circuitNotes.stream().filter(note -> note.kind() == kind).toList();
-                if (!ofKind.isEmpty()) {
-                    kinds.add(new KindGroup(Messages.format(titleKey(kind), ofKind.size()), entries(ofKind, describer)));
-                }
-            }
-            if (!kinds.isEmpty()) {
-                circuits.add(new CircuitGroup(circuit.isEmpty() ? Messages.text(LogisimImportTexts.CIRCUIT_PROJECT)
-                        : Messages.format(LogisimImportTexts.CIRCUIT_NAMED, circuit), heading, kinds));
-            }
-        });
+        byCircuit.forEach((circuit, allCircuitNotes) ->
+                addCircuitGroup(circuits, circuit, allCircuitNotes, describer, host, mainCircuit));
         return new ImportReport(circuits);
+    }
+
+    private static void addCircuitGroup(List<CircuitGroup> circuits, String circuit,
+                                        List<ImportNote> allCircuitNotes, Function<ElementId, String> describer,
+                                        ReportHost host, String mainCircuit) {
+        Optional<Place> heading = host == null || circuit.isEmpty() || circuit.equals(mainCircuit)
+                ? Optional.empty() : headingPlace(circuit, allCircuitNotes, host);
+        List<ImportNote> circuitNotes = heading.isEmpty() ? allCircuitNotes : allCircuitNotes.stream()
+                .map(note -> note.withElement(Optional.empty())).toList();
+        List<KindGroup> kinds = new ArrayList<>();
+        for (ImportNote.Kind kind : ORDER) {
+            List<ImportNote> ofKind = circuitNotes.stream().filter(note -> note.kind() == kind).toList();
+            if (!ofKind.isEmpty()) {
+                kinds.add(new KindGroup(Messages.format(titleKey(kind), ofKind.size()), entries(ofKind, describer)));
+            }
+        }
+        if (!kinds.isEmpty()) {
+            circuits.add(new CircuitGroup(circuit.isEmpty() ? Messages.text(LogisimImportTexts.CIRCUIT_PROJECT)
+                    : Messages.format(LogisimImportTexts.CIRCUIT_NAMED, circuit), heading, kinds));
+        }
     }
 
     /** The instance every note of a custom circuit points to, when they all point to the same one. */

@@ -36,11 +36,14 @@ public final class MemoryMapExtension implements EditorExtension {
         Runnable documentListener = panel::documentChanged;
         view.openDocument().addChangeListener(documentListener);
         Runnable stopSnapshots = EveryPane.addActivePaneSnapshotListener(view, snapshot -> panel.refresh());
-        return () -> {
-            stopSnapshots.run();
-            view.openDocument().removeChangeListener(documentListener);
-            view.selection().removeListener(selectionListener);
-            panel.dispose();
-        };
+        return () -> uninstall(view, panel, stopSnapshots, documentListener, selectionListener);
+    }
+
+    private static void uninstall(EditorView view, MemoryMapPanel panel, Runnable stopSnapshots,
+                                  Runnable documentListener, Runnable selectionListener) {
+        stopSnapshots.run();
+        view.openDocument().removeChangeListener(documentListener);
+        view.selection().removeListener(selectionListener);
+        panel.dispose();
     }
 }

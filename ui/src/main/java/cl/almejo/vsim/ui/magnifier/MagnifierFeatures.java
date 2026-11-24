@@ -166,12 +166,15 @@ public final class MagnifierFeatures {
         pane.addKeyListener(keys);
         // presentation mode's Esc leaves the key to the shown magnifier
         Runnable escapeClaimRemover = pane.addEscapeClaim(() -> hover.shownInstance().isPresent());
-        return () -> {
-            escapeClaimRemover.run();
-            pane.removeMouseListener(mouse);
-            pane.removeMouseMotionListener(mouse);
-            pane.removeKeyListener(keys);
-        };
+        return () -> stopListeningTo(pane, mouse, keys, escapeClaimRemover);
+    }
+
+    private static void stopListeningTo(CircuitCanvas pane, MouseAdapter mouse, KeyAdapter keys,
+                                        Runnable escapeClaimRemover) {
+        escapeClaimRemover.run();
+        pane.removeMouseListener(mouse);
+        pane.removeMouseMotionListener(mouse);
+        pane.removeKeyListener(keys);
     }
 
     /** «Mirar adentro» on a user-component instance, with the eye of the toolbar button, next to «Entrar». */
