@@ -63,6 +63,7 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.KeyboardFocusManager;
+import java.awt.event.MouseWheelEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.awt.event.FocusAdapter;
@@ -444,17 +445,19 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
             descriptionBox = null;
         }
         if (shown.size() == 1) {
-            openDocument.document().component(shown.iterator().next()).ifPresent(component -> {
-                String text = Descriptions.of(openDocument.registry().typeOf(component), component.parameters());
-                if (!text.isBlank()) {
-                    descriptionBox = DescriptionBox.filling(text);
-                    add(descriptionBox, "span 2, grow, push, wmin 0, gaptop 8");
-                }
-            });
+            openDocument.document().component(shown.iterator().next()).ifPresent(this::showDescriptionOf);
         }
         // Always, also for nothing or several shown: removing the old rows alone leaves them painted on screen.
         revalidate();
         repaint();
+    }
+
+    private void showDescriptionOf(Component component) {
+        String text = Descriptions.of(openDocument.registry().typeOf(component), component.parameters());
+        if (!text.isBlank()) {
+            descriptionBox = DescriptionBox.filling(text);
+            add(descriptionBox, "span 2, grow, push, wmin 0, gaptop 8");
+        }
     }
 
     private void rebuild() {
@@ -497,6 +500,13 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         handWheelUp(this);
     }
 
+    private void passWheelToTheOuterPane(JScrollPane inner, MouseWheelEvent wheel) {
+        if (!inner.getVerticalScrollBar().isVisible()
+                && SwingUtilities.getAncestorOfClass(JScrollPane.class, this) instanceof JScrollPane outer) {
+            outer.dispatchEvent(SwingUtilities.convertMouseEvent(inner, wheel, outer));
+        }
+    }
+
     /**
      * A scroll pane inside the form (a multi-line text) whose own bar is hidden hands the mouse wheel to the pane around
      * this panel: Swing stops at the first scroll pane under the pointer even when it has nothing to scroll.
@@ -505,12 +515,7 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         for (java.awt.Component child : container.getComponents()) {
             if (child instanceof JScrollPane inner && inner.getClientProperty(WHEEL_HANDED_UP) == null) {
                 inner.putClientProperty(WHEEL_HANDED_UP, Boolean.TRUE);
-                inner.addMouseWheelListener(wheel -> {
-                    if (!inner.getVerticalScrollBar().isVisible()
-                            && SwingUtilities.getAncestorOfClass(JScrollPane.class, this) instanceof JScrollPane outer) {
-                        outer.dispatchEvent(SwingUtilities.convertMouseEvent(inner, wheel, outer));
-                    }
-                });
+                inner.addMouseWheelListener(wheel -> passWheelToTheOuterPane(inner, wheel));
             }
             if (child instanceof Container nested) {
                 handWheelUp(nested);
@@ -823,13 +828,16 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
      * it); «Sin color» is the crossed-out swatch.
      */
     private ColorSwatches<FrameTint> frameTintSwatches(FrameTint selected) {
-        return new ColorSwatches<>(List.of(FrameTint.values()), selected, FrameTintNames::of, tint -> {
-            if (tint == FrameTint.NONE) {
-                return Optional.empty();
-            }
-            Color veil = scheme.get().frameTint(tint);
-            return Optional.of(new Color(veil.getRed(), veil.getGreen(), veil.getBlue()));
-        });
+        return new ColorSwatches<>(List.of(FrameTint.values()), selected, FrameTintNames::of, this::opaqueTint);
+    }
+
+    /** The tint as the swatch shows it, read from the scheme now (never kept); none for «Sin color». */
+    private Optional<Color> opaqueTint(FrameTint tint) {
+        if (tint == FrameTint.NONE) {
+            return Optional.empty();
+        }
+        Color veil = scheme.get().frameTint(tint);
+        return Optional.of(new Color(veil.getRed(), veil.getGreen(), veil.getBlue()));
     }
 
     private static JSpinner spinner(int value, int minimum) {
@@ -860,29 +868,33 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
 
     /** One undo step for {@code change} applied to the frame as it is now; nothing when it changes nothing. */
     private void editFrame(ElementId id, UnaryOperator<Frame> change) {
-        openDocument.document().frame(id).ifPresent(current -> {
-            Frame next = change.apply(current);
-            if (!next.equals(current)) {
-                openDocument.execute(new ChangeFrameCommand(current, next));
-            }
-        });
+        openDocument.document().frame(id).ifPresent(current -> applyFrameChange(current, change));
         refreshFrameFields(id);
+    }
+
+    private void applyFrameChange(Frame current, UnaryOperator<Frame> change) {
+        Frame next = change.apply(current);
+        if (!next.equals(current)) {
+            openDocument.execute(new ChangeFrameCommand(current, next));
+        }
     }
 
     /** New X and/or Y: the frame moves alone, or with its contents when it is locked (one undo step). */
     private void moveFrame(ElementId id, Integer newX, Integer newY) {
-        openDocument.document().frame(id).ifPresent(current -> {
-            int deltaX = newX == null ? 0 : newX - current.topLeft().x();
-            int deltaY = newY == null ? 0 : newY - current.topLeft().y();
-            if (deltaX == 0 && deltaY == 0) {
-                return;
-            }
-            Set<ElementId> moved = FrameContents.withLockedBlocks(openDocument.document(), openDocument.registry(),
-                    Set.of(id));
-            // the canvas drag's command; the wires follow by the mode, as no key is held here
-            selectionMoves.move(openDocument, selection, moved, deltaX, deltaY, selectionMoves.followMode());
-        });
+        openDocument.document().frame(id).ifPresent(current -> moveFrameBy(current, newX, newY));
         refreshFrameFields(id);
+    }
+
+    private void moveFrameBy(Frame current, Integer newX, Integer newY) {
+        int deltaX = newX == null ? 0 : newX - current.topLeft().x();
+        int deltaY = newY == null ? 0 : newY - current.topLeft().y();
+        if (deltaX == 0 && deltaY == 0) {
+            return;
+        }
+        Set<ElementId> moved = FrameContents.withLockedBlocks(openDocument.document(), openDocument.registry(),
+                Set.of(current.id()));
+        // the canvas drag's command; the wires follow by the mode, as no key is held here
+        selectionMoves.move(openDocument, selection, moved, deltaX, deltaY, selectionMoves.followMode());
     }
 
     /** Puts what the document holds into the editors (after our own edit nothing rebuilds the panel). */

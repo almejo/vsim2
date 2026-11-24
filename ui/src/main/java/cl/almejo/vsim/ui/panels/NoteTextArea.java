@@ -32,7 +32,7 @@ public final class NoteTextArea extends JTextArea {
         getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
                 DefaultEditorKit.insertBreakAction);
-        getActionMap().put(CONFIRM, Actions.unnamed(() -> confirm()));
+        getActionMap().put(CONFIRM, Actions.unnamed(this::confirm));
         // Tab and Shift+Tab move the focus as in the other fields instead of typing a tab
         setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, null);
         setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, null);

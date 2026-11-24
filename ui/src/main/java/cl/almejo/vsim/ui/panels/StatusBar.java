@@ -285,12 +285,14 @@ public final class StatusBar extends JPanel {
         add(activity, ACTIVITY_CONSTRAINTS, indexAfterFailure() + activities.size());
         activities.add(activity);
         revalidate();
-        return () -> {
-            activities.remove(activity);
-            remove(activity);
-            revalidate();
-            repaint();
-        };
+        return () -> removeStrip(activities, activity);
+    }
+
+    private void removeStrip(List<JComponent> strips, JComponent strip) {
+        strips.remove(strip);
+        remove(strip);
+        revalidate();
+        repaint();
     }
 
     /**
@@ -301,12 +303,7 @@ public final class StatusBar extends JPanel {
         add(indicator, INDICATOR_CONSTRAINTS, indexAfterFailure() + activities.size() + indicators.size());
         indicators.add(indicator);
         revalidate();
-        return () -> {
-            indicators.remove(indicator);
-            remove(indicator);
-            revalidate();
-            repaint();
-        };
+        return () -> removeStrip(indicators, indicator);
     }
 
     private int indexAfterFailure() {

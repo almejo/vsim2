@@ -41,12 +41,15 @@ public final class NetCardExtension implements EditorExtension {
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT, toggle);
         preferences.addListener(preferencesListener);
         Runnable featuresRemover = NetCardFeatures.install(view, preferences);
-        return () -> {
-            featuresRemover.run();
-            preferences.removeListener(preferencesListener);
-            shortcutRemover.run();
-            menuRemover.run();
-        };
+        return () -> uninstall(preferences, preferencesListener, featuresRemover, shortcutRemover, menuRemover);
+    }
+
+    private static void uninstall(AppPreferences preferences, Runnable preferencesListener, Runnable featuresRemover,
+                                  Runnable shortcutRemover, Runnable menuRemover) {
+        featuresRemover.run();
+        preferences.removeListener(preferencesListener);
+        shortcutRemover.run();
+        menuRemover.run();
     }
 
 }
