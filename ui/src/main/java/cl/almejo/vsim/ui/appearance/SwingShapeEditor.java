@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.appearance;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
@@ -14,8 +15,6 @@ import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Window;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -62,12 +61,7 @@ public final class SwingShapeEditor implements ShapeEditor {
         panel.onClose(close);
         panel.onAccept(() -> acceptResult(panel, dialog, result));
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent event) {
-                close.run();
-            }
-        });
+        dialog.addWindowListener(WindowEvents.onClosing(close));
         dialog.setContentPane(panel);
         dialog.setMinimumSize(MINIMUM_SIZE);
         Rectangle ownerBounds = ownerWindow != null ? ownerWindow.getBounds() : owner.getBounds();

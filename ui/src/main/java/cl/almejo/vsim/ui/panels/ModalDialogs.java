@@ -4,8 +4,6 @@ import javax.swing.JDialog;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Dialog;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 
 /**
  * The modal dialogs whose close box does what their «Cancelar» does (the groups window, the memory editor, the
@@ -24,12 +22,7 @@ public final class ModalDialogs {
         JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent), title,
                 modality);
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent event) {
-                closeBox.run();
-            }
-        });
+        dialog.addWindowListener(WindowEvents.onClosing(closeBox));
         return dialog;
     }
 }

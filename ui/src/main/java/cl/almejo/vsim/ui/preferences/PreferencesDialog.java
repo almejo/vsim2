@@ -7,14 +7,14 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.DialogButtons;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
+import cl.almejo.vsim.ui.panels.WindowEvents;
+import java.awt.event.WindowListener;
 
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import java.awt.Component;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -84,13 +84,8 @@ public final class PreferencesDialog {
      * The dialog opens with the cursor in the search field (the option pane's own listener, added first, runs before
      * this one and leaves the focus where it was put).
      */
-    static WindowAdapter focusSearchWhenOpened(PreferencesPanel panel) {
-        return new WindowAdapter() {
-            @Override
-            public void windowOpened(WindowEvent event) {
-                panel.focusSearch();
-            }
-        };
+    static WindowListener focusSearchWhenOpened(PreferencesPanel panel) {
+        return WindowEvents.onOpened(panel::focusSearch);
     }
 
     /** The whole content of the dialog; package-private so a headless test builds it without showing anything. */

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.logisim;
 import cl.almejo.vsim.ui.app.FileProblemDialog;
 import cl.almejo.vsim.ui.app.SwingFileProblemDialog;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -20,8 +21,6 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 
 /** The real dialogs: the file problem as everywhere else, a scrollable resizable report, a small progress window. */
 final class SwingLogisimImportDialogs implements LogisimImportDialogs {
@@ -53,12 +52,7 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
         bindEscape(dialog, dialog::dispose);
         dialog.setMinimumSize(MINIMUM_REPORT_SIZE);
         dialog.setSize(host.size().orElse(REPORT_SIZE));
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosed(WindowEvent event) {
-                host.rememberSize(dialog.getSize());
-            }
-        });
+        dialog.addWindowListener(WindowEvents.onClosed(() -> host.rememberSize(dialog.getSize())));
         dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);
     }

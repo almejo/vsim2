@@ -15,8 +15,6 @@ import javax.swing.WindowConstants;
 import java.awt.BorderLayout;
 import java.awt.Dialog;
 import java.awt.Window;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -48,12 +46,7 @@ public final class ConfigureDialog {
                 Messages.componentName(type, component.parameters())), Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setContentPane(pane);
         dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent event) {
-                pane.setValue(JOptionPane.CLOSED_OPTION);
-            }
-        });
+        dialog.addWindowListener(WindowEvents.onClosing(() -> pane.setValue(JOptionPane.CLOSED_OPTION)));
         pane.addPropertyChangeListener(JOptionPane.VALUE_PROPERTY,
                 event -> choiceMade(pane, dialog, form, error, refusal));
         dialog.pack();

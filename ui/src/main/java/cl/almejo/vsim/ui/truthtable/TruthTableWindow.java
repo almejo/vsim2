@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableText;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.BorderFactory;
@@ -30,8 +31,6 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -118,15 +117,14 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
                 }
             }
         });
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosed(WindowEvent event) {
-                if (!closing) {
-                    closing = true;
-                    controls.closed();
-                }
-            }
-        });
+        addWindowListener(WindowEvents.onClosed(() -> closedOnce(controls)));
+    }
+
+    private void closedOnce(Controls controls) {
+        if (!closing) {
+            closing = true;
+            controls.closed();
+        }
     }
 
     /** The {@link TruthTableDisplay.Factory} of the application. */

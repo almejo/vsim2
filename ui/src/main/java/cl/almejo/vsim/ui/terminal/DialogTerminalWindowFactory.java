@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.terminal;
 
+import cl.almejo.vsim.ui.panels.WindowEvents;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.WindowConstants;
@@ -7,8 +8,6 @@ import java.awt.Dialog;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
 import java.awt.Window;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.Optional;
 
 /**
@@ -27,12 +26,7 @@ final class DialogTerminalWindowFactory implements TerminalWindowFactory {
         JDialog dialog = new JDialog(owner.orElse(null), title, Dialog.ModalityType.MODELESS);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         dialog.setContentPane(content);
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent event) {
-                closedByUser.run();
-            }
-        });
+        dialog.addWindowListener(WindowEvents.onClosing(closedByUser));
         if (bounds.isPresent()) {
             dialog.setBounds(bounds.get());
         } else {

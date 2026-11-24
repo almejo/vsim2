@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 
 import javax.swing.Action;
 import javax.swing.JDialog;
@@ -18,8 +19,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import javax.swing.SwingUtilities;
 import java.awt.Window;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -135,12 +134,7 @@ public final class AiExtension implements EditorExtension {
                 shown.getRootPane().registerKeyboardAction(event -> shown.setVisible(false),
                         javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
                         javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
-                dialog.addWindowListener(new WindowAdapter() {
-                    @Override
-                    public void windowClosed(WindowEvent event) {
-                        dispose();
-                    }
-                });
+                dialog.addWindowListener(WindowEvents.onClosed(this::dispose));
                 dialog.pack();
                 dialog.setLocationRelativeTo(owner);
             } else {

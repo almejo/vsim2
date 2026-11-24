@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.panels.DialogButtons;
+import cl.almejo.vsim.ui.panels.WindowEvents;
 
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -10,8 +11,6 @@ import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 
 /**
@@ -39,12 +38,7 @@ final class WizardDialogs {
 
     /** The window's close box runs {@code requestClose} (the dialog does nothing on close by itself). */
     static WindowListener closeBox(Runnable requestClose) {
-        return new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent event) {
-                requestClose.run();
-            }
-        };
+        return WindowEvents.onClosing(requestClose);
     }
 
     /** Escape anywhere in the window runs {@code requestClose}. */
