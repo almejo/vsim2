@@ -96,7 +96,7 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   passed as a method reference (`this::applyZoom`). When the logic is worth testing, the method goes where a test
   reaches it (package-private, or a model/core class), not only a private method of a panel. A lambda that only calls
   a method is that method's reference. A listener repeated in more than one place is a named class. Automatic checks
-  (PMD, `config/pmd/vsim-lambda-rules.xml`, later `vsim-rules.xml`): `LambdaBodyAtMostThreeLines` and
+  (PMD, `config/pmd/vsim-rules.xml`): `LambdaBodyAtMostThreeLines` and
   `LambdaCanBeMethodReference`; the `vsim-rules-reviewer` judges the repeated listeners.
 - Compilation runs with `-Xlint:all`: new code introduces no warnings. The build also runs PMD
   (`config/pmd/vsim-rules.xml`) and CPD; every rule in this file with an automatic check names it, and an exception is

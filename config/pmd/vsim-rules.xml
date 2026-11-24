@@ -32,4 +32,24 @@
     <!-- <rule ref="category/java/bestpractices.xml/UnusedAssignment"/> -->
     <!-- «No dead code»: no unused import. -->
     <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+
+    <!-- conventions.md §5: a lambda is one expression or a body of at most 3 lines; longer logic is a named method
+         passed as a method reference. The block's braces are 4 lines apart when the body has 3. -->
+    <rule name="LambdaBodyAtMostThreeLines"
+          language="java"
+          message="A lambda body longer than 3 lines: make it a named method and pass a method reference (conventions.md §5)"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>A block lambda whose body spans more than 3 lines.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//LambdaExpression/Block[@EndLine - @BeginLine > 4]
+]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- conventions.md §5: a lambda that only calls a method is that method's reference (Foo::bar). -->
+    <rule ref="category/java/codestyle.xml/LambdaCanBeMethodReference"/>
 </ruleset>
