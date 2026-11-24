@@ -54,23 +54,27 @@ public final class ConfigureDialog {
                 pane.setValue(JOptionPane.CLOSED_OPTION);
             }
         });
-        pane.addPropertyChangeListener(JOptionPane.VALUE_PROPERTY, event -> {
-            Object choice = pane.getValue();
-            if (choice == JOptionPane.UNINITIALIZED_VALUE) {
-                return;
-            }
-            if (acceptChoice(choice, form, error, refusal)) {
-                dialog.setVisible(false);
-            } else {
-                pane.setValue(JOptionPane.UNINITIALIZED_VALUE);
-                dialog.pack();
-            }
-        });
+        pane.addPropertyChangeListener(JOptionPane.VALUE_PROPERTY,
+                event -> choiceMade(pane, dialog, form, error, refusal));
         dialog.pack();
         dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);
         dialog.dispose();
         return isOk(pane.getValue()) && form.hasChanges() ? Optional.of(form.rawValues()) : Optional.empty();
+    }
+
+    private static void choiceMade(JOptionPane pane, JDialog dialog, ParameterForm form, JLabel error,
+                                   Function<Map<String, Object>, Optional<String>> refusal) {
+        Object choice = pane.getValue();
+        if (choice == JOptionPane.UNINITIALIZED_VALUE) {
+            return;
+        }
+        if (acceptChoice(choice, form, error, refusal)) {
+            dialog.setVisible(false);
+        } else {
+            pane.setValue(JOptionPane.UNINITIALIZED_VALUE);
+            dialog.pack();
+        }
     }
 
     /**

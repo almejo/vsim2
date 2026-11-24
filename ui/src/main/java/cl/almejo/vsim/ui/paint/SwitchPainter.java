@@ -49,15 +49,19 @@ public final class SwitchPainter implements ComponentPainter {
         Value value = state instanceof VisibleState.SwitchState switchState && switchState.value().width() == width
                 ? switchState.value()
                 : fromParameter(parameters.get("value"), width);
-        MultiBitBody.paint(graphics, type, parameters, scheme, (cellGraphics, cell) -> {
-            boolean on = value.bit(cell.bit()) == BitState.ONE;
-            Color fill = SignalColors.valueColor(on ? Value.ONE : Value.ZERO, scheme);
-            cellGraphics.setColor(fill);
-            cellGraphics.fill(new RoundRectangle2D.Double(cell.x() + CELL_INSET, cell.y(),
-                    cell.width() - 2 * CELL_INSET, cell.height(), CELL_CORNER, CELL_CORNER));
-            PainterSupport.centeredText(cellGraphics, on ? "1" : "0", cell.x() + cell.width() / 2,
-                    cell.y() + cell.height() / 2, CELL_TEXT_SIZE, textColor(fill));
-        });
+        MultiBitBody.paint(graphics, type, parameters, scheme,
+                (cellGraphics, cell) -> paintBitCell(cellGraphics, cell, value, scheme));
+    }
+
+    private static void paintBitCell(Graphics2D cellGraphics, MultiBitLayout.BitCell cell, Value value,
+                                     ColorScheme scheme) {
+        boolean on = value.bit(cell.bit()) == BitState.ONE;
+        Color fill = SignalColors.valueColor(on ? Value.ONE : Value.ZERO, scheme);
+        cellGraphics.setColor(fill);
+        cellGraphics.fill(new RoundRectangle2D.Double(cell.x() + CELL_INSET, cell.y(),
+                cell.width() - 2 * CELL_INSET, cell.height(), CELL_CORNER, CELL_CORNER));
+        PainterSupport.centeredText(cellGraphics, on ? "1" : "0", cell.x() + cell.width() / 2,
+                cell.y() + cell.height() / 2, CELL_TEXT_SIZE, textColor(fill));
     }
 
     /**

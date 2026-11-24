@@ -4,6 +4,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.machine.MachineCopies;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
+import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.LinkedFileProblem;
 import cl.almejo.vsim.core.simulation.MachineProblem;
 import cl.almejo.vsim.core.simulation.Problem;
@@ -31,8 +33,8 @@ final class ProblemPlaces {
     static Optional<String> focusOf(Problem problem, CircuitDocument root) {
         return switch (problem) {
             case ShortCircuit shortCircuit -> shortCircuit.drivers().stream().findFirst()
-                    .map(driver -> driver.componentId());
-            case WidthMismatch mismatch -> mismatch.pins().stream().findFirst().map(pin -> pin.componentId());
+                    .map(DriverRef::componentId);
+            case WidthMismatch mismatch -> mismatch.pins().stream().findFirst().map(FlatPinRef::componentId);
             case DisplayBusOverride display -> Optional.of(display.componentId());
             case TunnelProblem tunnel -> tunnel.tunnels().stream().findFirst();
             case ConnectivityProblem connectivity -> Optional.of(connectivity.elementId())

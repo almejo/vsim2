@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.tools.SelectTool;
@@ -24,6 +25,7 @@ import cl.almejo.vsim.ui.window.MenuSlot;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +71,7 @@ public final class FramesFeatures {
 
     public FramesFeatures(EditorView view) {
         this.view = view;
-        this.frameSelection = Actions.of(Messages.text("action.frameSelection"), () -> frameSelectionNow());
+        this.frameSelection = Actions.of(Messages.text("action.frameSelection"), this::frameSelectionNow);
         frameSelection.setEnabled(!view.selection().isEmpty());
         this.selectionListener = () -> frameSelection.setEnabled(!view.selection().isEmpty());
         view.selection().addListener(selectionListener);
@@ -77,7 +79,7 @@ public final class FramesFeatures {
         this.menuItem = new JMenuItem(frameSelection);
         editMenu.insert(menuItem, indexAfterSelectAll());
         this.shortcutRemover = view.registerShortcutAction("edit.frameSelection", frameSelection);
-        this.titleEditor = frame -> view.editLabel(frame);
+        this.titleEditor = view::editLabel;
         this.frameTool = Actions.of(Messages.text("action.toolFrame"), () -> view.setToolOnEveryPane(FrameTool::new));
         Icons.install(frameTool, FrameIcons.FRAME_TOOL);
         this.toolButtonRemover = view.addToolButton(frameTool, FrameTool.class);
@@ -88,16 +90,23 @@ public final class FramesFeatures {
                 .ifPresent(view.statusBar()::showNotice));
         this.expansionRemover = view.selection().addExpansion(lockedBlocks(view.openDocument()));
         this.paneInstallation = view.forEachPane(this::installOn);
-        this.frameMenu = new FrameMenu(view.openDocument(), frame -> titleEditor.accept(frame),
+        this.frameMenu = new FrameMenu(view.openDocument(), this::editTitleOf,
                 frame -> view.templateActions().ifPresent(actions -> actions.createFromFrame(frame)));
-        this.contributorRemover = view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
-            if (target.isPresent() && target.get() instanceof Frame frame) {
-                frameMenu.addItems(menu, frame);
-            }
-            if (!selection.isEmpty() && target.isPresent()) {
-                menu.add(new JMenuItem(frameSelection));
-            }
-        });
+        this.contributorRemover = view.addContextMenuContributor(
+                (menu, target, selection, gridPosition) -> contributeFrameEntries(menu, target, selection));
+    }
+
+    private void editTitleOf(Frame frame) {
+        titleEditor.accept(frame);
+    }
+
+    private void contributeFrameEntries(JPopupMenu menu, Optional<DocumentElement> target, Selection selection) {
+        if (target.isPresent() && target.get() instanceof Frame frame) {
+            frameMenu.addItems(menu, frame);
+        }
+        if (!selection.isEmpty() && target.isPresent()) {
+            menu.add(new JMenuItem(frameSelection));
+        }
     }
 
     private int indexAfterSelectAll() {

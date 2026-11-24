@@ -183,17 +183,19 @@ public final class ParameterForm extends JPanel {
         // The parameters of no group come first (under «Configuración» in Properties), then the groups.
         List<Map.Entry<Optional<String>, List<ParameterSpec>>> ordered = new ArrayList<>(byGroup.entrySet());
         ordered.sort(Comparator.comparing(entry -> entry.getKey().isPresent()));
-        ordered.forEach(entry -> {
-            Optional<String> group = entry.getKey();
-            List<ParameterSpec> parameters = entry.getValue();
-            group.ifPresentOrElse(key -> rows.add(new HeaderRow(key)), () -> rows.add(new ConfigHeaderRow()));
-            for (ParameterSpec parameter : parameters) {
-                rows.add(new ParameterRow(parameter));
-                if (type.profileParameter().filter(parameter.name()::equals).isPresent()) {
-                    rows.add(new SummaryRow());
-                }
+        ordered.forEach(this::planGroupRows);
+    }
+
+    private void planGroupRows(Map.Entry<Optional<String>, List<ParameterSpec>> entry) {
+        Optional<String> group = entry.getKey();
+        List<ParameterSpec> parameters = entry.getValue();
+        group.ifPresentOrElse(key -> rows.add(new HeaderRow(key)), () -> rows.add(new ConfigHeaderRow()));
+        for (ParameterSpec parameter : parameters) {
+            rows.add(new ParameterRow(parameter));
+            if (type.profileParameter().filter(parameter.name()::equals).isPresent()) {
+                rows.add(new SummaryRow());
             }
-        });
+        }
     }
 
     private void buildRow(ParameterSpec parameter, Supplier<ColorScheme> scheme) {
@@ -356,19 +358,21 @@ public final class ParameterForm extends JPanel {
 
     private void showNumbersOnlyWithManyBits() {
         JFormattedTextField widthField = spinnerField((JSpinner) editors.get(StandardComponentTypes.WIDTH));
-        Runnable update = () -> {
-            boolean many;
-            try {
-                many = Long.parseLong(widthField.getText().strip()) > 1;
-            } catch (NumberFormatException exception) {
-                many = true;
-            }
-            labels.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
-            cells.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
-        };
+        Runnable update = () -> showNumbersFor(widthField);
         widthField.getDocument().addDocumentListener(documentListener(update));
         widthField.addPropertyChangeListener("value", event -> update.run());
         update.run();
+    }
+
+    private void showNumbersFor(JFormattedTextField widthField) {
+        boolean many;
+        try {
+            many = Long.parseLong(widthField.getText().strip()) > 1;
+        } catch (NumberFormatException exception) {
+            many = true;
+        }
+        labels.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
+        cells.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
     }
 
     private static DocumentListener documentListener(Runnable update) {

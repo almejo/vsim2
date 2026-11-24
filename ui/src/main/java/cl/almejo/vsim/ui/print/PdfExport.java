@@ -66,18 +66,22 @@ public final class PdfExport implements PdfExporter {
         Objects.requireNonNull(progress, "progress");
         CompletableFuture<Void> result = new CompletableFuture<>();
         try {
-            executor.execute(() -> {
-                try {
-                    write(pages, target.toAbsolutePath(), progress);
-                    result.complete(null);
-                } catch (Throwable failure) {
-                    result.completeExceptionally(failure);
-                }
-            });
+            executor.execute(() -> writeAndComplete(result, pages, target, progress));
         } catch (RuntimeException rejection) {
             result.completeExceptionally(rejection);
         }
         return result;
+    }
+
+    /** Runs on the executor: writes the sheets and completes {@code result} with how it went. */
+    private void writeAndComplete(CompletableFuture<Void> result, PagePainter pages, Path target,
+                                  ProgressListener progress) {
+        try {
+            write(pages, target.toAbsolutePath(), progress);
+            result.complete(null);
+        } catch (Throwable failure) {
+            result.completeExceptionally(failure);
+        }
     }
 
     private void write(PagePainter painter, Path target, ProgressListener progress) throws IOException {

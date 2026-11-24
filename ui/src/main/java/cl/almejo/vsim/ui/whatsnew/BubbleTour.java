@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Teardown;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
@@ -264,21 +265,24 @@ final class BubbleTour {
             ticker = seams.tickers().get();
         }
         long start = seams.clock().getAsLong();
-        ticker.start(() -> {
-            if (!isOpen()) {
-                ticker.stop();
-                return;
-            }
-            double progress = Math.min(1, (seams.clock().getAsLong() - start) / (double) SLIDE_MILLISECONDS);
-            if (progress >= 1 || !seams.animations().test(preferences)) {
-                overlay.moveBubble(target);
-                ticker.stop();
-                return;
-            }
-            double eased = 1 - Math.pow(1 - progress, 3);
-            overlay.moveBubble(new Rectangle((int) Math.round(from.x + (target.x - from.x) * eased),
-                    (int) Math.round(from.y + (target.y - from.y) * eased), target.width, target.height));
-        });
+        ticker.start(() -> slideFrame(from, target, start));
+    }
+
+    /** One frame of the slide; reads {@code ticker} when it runs, as the field may have been replaced. */
+    private void slideFrame(Point from, Rectangle target, long start) {
+        if (!isOpen()) {
+            ticker.stop();
+            return;
+        }
+        double progress = Math.min(1, (seams.clock().getAsLong() - start) / (double) SLIDE_MILLISECONDS);
+        if (progress >= 1 || !seams.animations().test(preferences)) {
+            overlay.moveBubble(target);
+            ticker.stop();
+            return;
+        }
+        double eased = 1 - Math.pow(1 - progress, 3);
+        overlay.moveBubble(new Rectangle((int) Math.round(from.x + (target.x - from.x) * eased),
+                (int) Math.round(from.y + (target.y - from.y) * eased), target.width, target.height));
     }
 
     private void stopSliding() {
@@ -370,20 +374,22 @@ final class BubbleTour {
 
     // --- listening while open ---
 
+    private Runnable endTourOnPress(CircuitCanvas pane) {
+        MouseListener startsEditing = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                done(); // a gesture on the circuit: the user is editing now
+            }
+        };
+        pane.addMouseListener(startsEditing);
+        return () -> pane.removeMouseListener(startsEditing);
+    }
+
     private void listen() {
         seams.dispatchers().add(keyHook);
         whileOpen.add(() -> seams.dispatchers().remove(keyHook));
         whileOpen.add(view.forEachPane(pane -> pane.addEscapeClaim(this::isOpen)));
-        whileOpen.add(view.forEachPane(pane -> {
-            MouseListener startsEditing = new MouseAdapter() {
-                @Override
-                public void mousePressed(MouseEvent event) {
-                    done(); // a gesture on the circuit: the user is editing now
-                }
-            };
-            pane.addMouseListener(startsEditing);
-            return () -> pane.removeMouseListener(startsEditing);
-        }));
+        whileOpen.add(view.forEachPane(this::endTourOnPress));
         Runnable edited = this::done;
         view.openDocument().addChangeListener(edited);
         whileOpen.add(() -> view.openDocument().removeChangeListener(edited));

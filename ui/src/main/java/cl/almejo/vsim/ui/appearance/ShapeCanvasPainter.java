@@ -299,19 +299,22 @@ final class ShapeCanvasPainter {
         canvas.dragTip.ifPresent(tip -> paintCallout(overlay, canvas.pointer,
                 tip.split("\n"), scheme.selection(), false, false));
         // While a handle is dragged the label next to its node would cover it; the drag tip speaks instead.
-        canvas.nodeLabel().filter(label -> canvas.grabbedHandle.isEmpty()).ifPresent(label -> {
-            SymbolPoint point = canvas.chosenPoint((SymbolPath) canvas.current.get().elements().get(canvas.pathIndex));
-            Point at = screen(point.x(), point.y());
-            overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
-            FontMetrics metrics = overlay.getFontMetrics();
-            int width = metrics.stringWidth(label) + 10;
-            int x = Math.min(at.x + 12, Math.max(0, canvas.getWidth() - width - 2));
-            int y = Math.max(metrics.getHeight() + 2, at.y - 10);
-            overlay.setColor(PainterSupport.withAlpha(scheme.background(), 220));
-            overlay.fill(new RoundRectangle2D.Double(x - 4, y - metrics.getAscent() - 1, width, metrics.getHeight() + 2, 6, 6));
-            overlay.setColor(scheme.text());
-            overlay.drawString(label, x, y);
-        });
+        canvas.nodeLabel().filter(label -> canvas.grabbedHandle.isEmpty())
+                .ifPresent(label -> paintNodeLabel(overlay, scheme, label));
+    }
+
+    private void paintNodeLabel(Graphics2D overlay, ColorScheme scheme, String label) {
+        SymbolPoint point = canvas.chosenPoint((SymbolPath) canvas.current.get().elements().get(canvas.pathIndex));
+        Point at = screen(point.x(), point.y());
+        overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
+        FontMetrics metrics = overlay.getFontMetrics();
+        int width = metrics.stringWidth(label) + 10;
+        int x = Math.min(at.x + 12, Math.max(0, canvas.getWidth() - width - 2));
+        int y = Math.max(metrics.getHeight() + 2, at.y - 10);
+        overlay.setColor(PainterSupport.withAlpha(scheme.background(), 220));
+        overlay.fill(new RoundRectangle2D.Double(x - 4, y - metrics.getAscent() - 1, width, metrics.getHeight() + 2, 6, 6));
+        overlay.setColor(scheme.text());
+        overlay.drawString(label, x, y);
     }
 
     /**
@@ -455,16 +458,18 @@ final class ShapeCanvasPainter {
     }
 
     private void paintInsertion(Graphics2D surface) {
-        canvas.insertion.ifPresent(hit -> {
-            SymbolPath path = (SymbolPath) canvas.current.get().elements().get(hit.pathIndex());
-            Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
-                    .createTransformedShape(ShapeSegments.shape(path, hit.segmentIndex()));
-            surface.setColor(canvas.colors.get().selection());
-            surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            surface.draw(segment);
-            surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - scaled(3) / zoom(),
-                    hit.point().y() / 8.0 * UNIT - scaled(3) / zoom(), scaled(6) / zoom(), scaled(6) / zoom()));
-        });
+        canvas.insertion.ifPresent(hit -> paintInsertionPoint(surface, hit));
+    }
+
+    private void paintInsertionPoint(Graphics2D surface, ShapeSegments.Hit hit) {
+        SymbolPath path = (SymbolPath) canvas.current.get().elements().get(hit.pathIndex());
+        Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
+                .createTransformedShape(ShapeSegments.shape(path, hit.segmentIndex()));
+        surface.setColor(canvas.colors.get().selection());
+        surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        surface.draw(segment);
+        surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - scaled(3) / zoom(),
+                hit.point().y() / 8.0 * UNIT - scaled(3) / zoom(), scaled(6) / zoom(), scaled(6) / zoom()));
     }
 
     /** Línea after its first click: the dashed rubber band from that point to the pointer (angle locked with Shift). */
@@ -554,18 +559,22 @@ final class ShapeCanvasPainter {
         List<SymbolElement> elements = canvas.current.get().elements();
         if (canvas.curving.isEmpty()) {
             canvas.curveTarget.filter(target -> target.pathIndex() < elements.size()
-                    && elements.get(target.pathIndex()) instanceof SymbolPath).ifPresent(target -> {
-                SymbolPath path = (SymbolPath) elements.get(target.pathIndex());
-                Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
-                        .createTransformedShape(ShapeSegments.shape(path, target.segment()));
-                surface.setColor(scheme.selection());
-                surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                surface.draw(segment);
-            });
+                    && elements.get(target.pathIndex()) instanceof SymbolPath)
+                    .ifPresent(target -> paintCurveTarget(surface, scheme, elements, target));
         }
         List<HandleRef> handles = canvas.curveHandles();
         paintHandleLines(surface, handles);
         paintHandles(surface, handles);
+    }
+
+    private void paintCurveTarget(Graphics2D surface, ColorScheme scheme, List<SymbolElement> elements,
+                                  ShapeCanvas.SegmentRef target) {
+        SymbolPath path = (SymbolPath) elements.get(target.pathIndex());
+        Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
+                .createTransformedShape(ShapeSegments.shape(path, target.segment()));
+        surface.setColor(scheme.selection());
+        surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        surface.draw(segment);
     }
 
     /** A corner node: a diamond centred on {@code point} (eighths), {@code radius} screen pixels to each tip. */
@@ -586,15 +595,17 @@ final class ShapeCanvasPainter {
 
     /** The node a click would remove: filled and ringed in the problem colour, larger than the other nodes. */
     private void paintRemoval(Graphics2D surface, ColorScheme scheme) {
-        canvas.removal.ifPresent(hit -> {
-            SymbolPoint point = ((SymbolPath) canvas.current.get().elements().get(hit.pathIndex())).nodes()
-                    .get(hit.nodeIndex()).point();
-            double x = point.x() / 8.0 * UNIT;
-            double y = point.y() / 8.0 * UNIT;
-            surface.setColor(scheme.wireConflict());
-            surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
-            surface.fill(new Ellipse2D.Double(x - 5 / zoom(), y - 5 / zoom(), 10 / zoom(), 10 / zoom()));
-            surface.draw(new Ellipse2D.Double(x - 9 / zoom(), y - 9 / zoom(), 18 / zoom(), 18 / zoom()));
-        });
+        canvas.removal.ifPresent(hit -> paintRemovalNode(surface, scheme, hit));
+    }
+
+    private void paintRemovalNode(Graphics2D surface, ColorScheme scheme, ShapeCanvas.NodeHit hit) {
+        SymbolPoint point = ((SymbolPath) canvas.current.get().elements().get(hit.pathIndex())).nodes()
+                .get(hit.nodeIndex()).point();
+        double x = point.x() / 8.0 * UNIT;
+        double y = point.y() / 8.0 * UNIT;
+        surface.setColor(scheme.wireConflict());
+        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
+        surface.fill(new Ellipse2D.Double(x - 5 / zoom(), y - 5 / zoom(), 10 / zoom(), 10 / zoom()));
+        surface.draw(new Ellipse2D.Double(x - 9 / zoom(), y - 9 / zoom(), 18 / zoom(), 18 / zoom()));
     }
 }

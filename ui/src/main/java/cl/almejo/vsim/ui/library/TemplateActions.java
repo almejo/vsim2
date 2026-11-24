@@ -40,6 +40,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuEntry;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.tools.EnterableInstances;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -354,28 +356,30 @@ public final class TemplateActions {
      * "Desarmar" and, when outdated, "Actualizar desde la librería" on a single instance.
      */
     public ContextMenuContributor contributor() {
-        return (menu, target, selection, gridPosition) -> {
-            if (target.isEmpty() || !selection.contains(target.get().id())) {
-                return;
+        return (menu, target, selection, gridPosition) -> contributeTemplateEntries(menu, target, selection);
+    }
+
+    private void contributeTemplateEntries(JPopupMenu menu, Optional<DocumentElement> target, Selection selection) {
+        if (target.isEmpty() || !selection.contains(target.get().id())) {
+            return;
+        }
+        boolean multiple = selection.size() > 1;
+        if (multiple || DefinitionBuilder.hasInterfacePins(openDocument.document(), selection.ids())
+                || !TestParts.of(openDocument.document(), selection.ids(), openDocument.registry()).isEmpty()) {
+            menu.add(new JMenuItem(createComponent));
+            if (updateComponent.isEnabled()) {
+                menu.add(new JMenuItem(updateComponent));
             }
-            boolean multiple = selection.size() > 1;
-            if (multiple || DefinitionBuilder.hasInterfacePins(openDocument.document(), selection.ids())
-                    || !TestParts.of(openDocument.document(), selection.ids(), openDocument.registry()).isEmpty()) {
-                menu.add(new JMenuItem(createComponent));
-                if (updateComponent.isEnabled()) {
-                    menu.add(new JMenuItem(updateComponent));
-                }
+        }
+        if (!multiple && target.get() instanceof Component instance && definitionIdOf(instance).isPresent()) {
+            if (EnterableInstances.definitionOf(openDocument, instance).isPresent()) {
+                menu.add(ContextMenuEntry.ENTER.tag(new JMenuItem(enterAction(instance))));
             }
-            if (!multiple && target.get() instanceof Component instance && definitionIdOf(instance).isPresent()) {
-                if (EnterableInstances.definitionOf(openDocument, instance).isPresent()) {
-                    menu.add(ContextMenuEntry.ENTER.tag(new JMenuItem(enterAction(instance))));
-                }
-                menu.add(new JMenuItem(disassembleAction(instance)));
-                if (isOutdated(instance)) {
-                    menu.add(new JMenuItem(updateFromLibraryAction(instance)));
-                }
+            menu.add(new JMenuItem(disassembleAction(instance)));
+            if (isOutdated(instance)) {
+                menu.add(new JMenuItem(updateFromLibraryAction(instance)));
             }
-        };
+        }
     }
 
     /** «Entrar» for {@code instance}: its component opens in a tab of the circuit's group (spec §4.4). */
@@ -466,15 +470,17 @@ public final class TemplateActions {
      * has its own, «Entrar ↘ para cambiarlas», under the summary of its machine.
      */
     public PropertiesPanel.ComponentRows enterRows() {
-        return (component, rows) -> {
-            boolean machine = EnterableInstances.definitionOf(openDocument, component)
-                    .flatMap(circuit().document()::definition).filter(ComponentDefinition::isMachine).isPresent();
-            if (definitionIdOf(component).isPresent() && !machine
-                    && EnterableInstances.definitionOf(openDocument, component).isPresent()) {
-                rows.addWide(new JButton(Actions.of(Messages.text("properties.enter"),
-                        () -> canvas.get().enterComponent(component))));
-            }
-        };
+        return this::addEnterRow;
+    }
+
+    private void addEnterRow(Component component, PropertiesPanel.Rows rows) {
+        boolean machine = EnterableInstances.definitionOf(openDocument, component)
+                .flatMap(circuit().document()::definition).filter(ComponentDefinition::isMachine).isPresent();
+        if (definitionIdOf(component).isPresent() && !machine
+                && EnterableInstances.definitionOf(openDocument, component).isPresent()) {
+            rows.addWide(new JButton(Actions.of(Messages.text("properties.enter"),
+                    () -> canvas.get().enterComponent(component))));
+        }
     }
 
     /**

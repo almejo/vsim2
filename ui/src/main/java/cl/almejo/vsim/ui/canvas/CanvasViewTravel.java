@@ -33,18 +33,24 @@ final class CanvasViewTravel {
         this.viewport = viewport;
         this.viewTakenListeners = viewTakenListeners;
         viewAnimator = new ViewAnimator(FrameTicker.swing(CircuitCanvas.FRAME_MILLISECONDS),
-                () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
+                () -> System.nanoTime() / 1_000_000, this::showTravelFrame, this::viewMovesAnimate);
     }
 
     /** Follows the moves of the view that are not travels: they stop a travel and set the user's zoom. */
     void listenForUserMoves() {
-        viewport.addChangeListener(() -> {
-            if (!movingWithTheTravel) {
-                viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
-                userZoom = viewport.zoom();
-                viewTakenListeners.forEach(Runnable::run);
-            }
-        });
+        viewport.addChangeListener(this::viewMovedByTheUser);
+    }
+
+    private void viewMovedByTheUser() {
+        if (!movingWithTheTravel) {
+            viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
+            userZoom = viewport.zoom();
+            viewTakenListeners.forEach(Runnable::run);
+        }
+    }
+
+    private boolean viewMovesAnimate() {
+        return animateViewMoves.getAsBoolean();
     }
 
     /** See {@link CircuitCanvas#travelTo(Bounds, Rectangle2D)}. */

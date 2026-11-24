@@ -52,14 +52,17 @@ public final class KeyboardInspectorRows implements PropertiesPanel.ComponentRow
         JComboBox<String> combo = new JComboBox<>(choices.toArray(String[]::new));
         combo.setName(COMBO_NAME);
         combo.setSelectedItem(linked.isBlank() ? none : linked);
-        combo.addActionListener(action -> {
-            String chosen = (String) combo.getSelectedItem();
-            String newLink = chosen == null || chosen.equals(none) ? "" : chosen;
-            if (!newLink.equals(linked)) {
-                link(component, type, newLink);
-            }
-        });
+        combo.addActionListener(action -> linkChosen(combo, none, linked, component, type));
         rows.add(Messages.text("keyboard.inspector.linkedTerminal"), combo);
+    }
+
+    private void linkChosen(JComboBox<String> combo, String none, String linked, Component component,
+                            ComponentType type) {
+        String chosen = (String) combo.getSelectedItem();
+        String newLink = chosen == null || chosen.equals(none) ? "" : chosen;
+        if (!newLink.equals(linked)) {
+            link(component, type, newLink);
+        }
     }
 
     /** The labels of the Terminals placed on the circuit, without repeats or blanks, in document order. */

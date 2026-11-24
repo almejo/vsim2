@@ -49,12 +49,15 @@ public final class ShortcutsExtension implements EditorExtension {
             tooltips.refresh();
         };
         preferences.addListener(listener);
-        return () -> {
-            preferences.removeListener(listener);
-            paneBindings.run();
-            tooltips.dispose();
-            applier.forgetShownKeys();
-        };
+        return () -> uninstall(preferences, listener, paneBindings, tooltips, applier);
+    }
+
+    private static void uninstall(AppPreferences preferences, Runnable listener, Runnable paneBindings,
+                                  ToolbarTooltips tooltips, Applier applier) {
+        preferences.removeListener(listener);
+        paneBindings.run();
+        tooltips.dispose();
+        applier.forgetShownKeys();
     }
 
     /** Every action of {@code view} the catalog can name: the editor's own plus the registered ones. */
@@ -164,15 +167,17 @@ public final class ShortcutsExtension implements EditorExtension {
                 if (entry.scope() != Scope.CANVAS || !actions.containsKey(entry.id())) {
                     continue;
                 }
-                entry.defaultStroke().ifPresent(stroke -> {
-                    Object name = keys.get(stroke);
-                    if (name != null && !name.toString().startsWith(BINDING_PREFIX)) {
-                        keys.remove(stroke);
-                        released.put(stroke, name);
-                    }
-                });
+                entry.defaultStroke().ifPresent(stroke -> releaseIfEditorBound(keys, stroke, released));
             }
             return released;
+        }
+
+        private static void releaseIfEditorBound(InputMap keys, KeyStroke stroke, Map<KeyStroke, Object> released) {
+            Object name = keys.get(stroke);
+            if (name != null && !name.toString().startsWith(BINDING_PREFIX)) {
+                keys.remove(stroke);
+                released.put(stroke, name);
+            }
         }
 
         /** The extension goes: the editor's own default strokes come back where nothing else took them. */

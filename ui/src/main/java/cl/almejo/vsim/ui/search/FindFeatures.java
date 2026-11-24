@@ -100,7 +100,7 @@ public final class FindFeatures {
 
     public FindFeatures(EditorView view) {
         this(view, () -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(),
-                component -> component.requestFocusInWindow());
+                JComponent::requestFocusInWindow);
     }
 
     /** {@code focusOwner} tells where the keyboard focus is; {@code focuser} gives it to a component (tests fake both). */

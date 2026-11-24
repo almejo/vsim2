@@ -93,7 +93,7 @@ public final class StepModeFeatures {
         this.nanoClock = nanoClock;
         this.stepModeAction = Actions.of(Messages.text("action.stepMode"),
                 () -> openDocument.setStepMode(!openDocument.stepMode()));
-        this.advanceAction = Actions.of(Messages.text("action.advance"), () -> openDocument.advanceToNextEvent());
+        this.advanceAction = Actions.of(Messages.text("action.advance"), openDocument::advanceToNextEvent);
         this.clockEdgeAction = Actions.of(Messages.text("action.advanceToClockEdge"),
                 () -> openDocument.advanceToNextClockEdge(ClockEdgeMode.ANY));
         this.clockCycleAction = Actions.of(Messages.text("action.advanceClockCycle"),

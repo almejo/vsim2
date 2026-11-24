@@ -177,18 +177,21 @@ public final class CanvasNotice extends JComponent {
         layers.add(notice, JLayeredPane.POPUP_LAYER);
         long start = nowMillis.getAsLong();
         notice.hider = () -> notice.remove(layers, over, ticker);
-        Runnable frame = () -> {
-            long elapsed = nowMillis.getAsLong() - start;
-            if (elapsed >= duration.toMillis()) {
-                notice.takeAway();
-                return;
-            }
-            notice.opacity = fade.getAsBoolean() ? fadeAt(elapsed, duration.toMillis()) : 1f;
-            notice.reposition(layers);
-        };
+        Runnable frame = () -> showFrame(notice, layers, start, duration, nowMillis, fade);
         notice.reposition(layers);
         ticker.start(frame);
         return notice;
+    }
+
+    private static void showFrame(CanvasNotice notice, JLayeredPane layers, long start, Duration duration,
+                                  LongSupplier nowMillis, BooleanSupplier fade) {
+        long elapsed = nowMillis.getAsLong() - start;
+        if (elapsed >= duration.toMillis()) {
+            notice.takeAway();
+            return;
+        }
+        notice.opacity = fade.getAsBoolean() ? fadeAt(elapsed, duration.toMillis()) : 1f;
+        notice.reposition(layers);
     }
 
     /** How opaque the notice is drawn now, 0 to 1 (it fades in and out). */

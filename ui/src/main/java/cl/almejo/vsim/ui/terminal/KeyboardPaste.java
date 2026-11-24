@@ -29,12 +29,16 @@ final class KeyboardPaste {
             return;
         }
         List<byte[]> characters = encodingOf(openDocument, componentId).encodeText(text);
-        openDocument.typeCharacters(componentId, characters).thenAccept(taken -> {
-            if (taken < total) {
-                SwingUtilities.invokeLater(() -> notices.accept(
-                        Messages.format("keyboard.pasteIncomplete", taken, total)));
-            }
-        });
+        openDocument.typeCharacters(componentId, characters)
+                .thenAccept(taken -> noticeIfIncomplete(notices, taken, total));
+    }
+
+    /** Runs where the future completes; the notice goes to the EDT. */
+    private static void noticeIfIncomplete(Consumer<String> notices, int taken, int total) {
+        if (taken < total) {
+            SwingUtilities.invokeLater(() -> notices.accept(
+                    Messages.format("keyboard.pasteIncomplete", taken, total)));
+        }
     }
 
     /** The encoding the parameters of {@code componentId} ask for; the Teclado's defaults when it is gone. */

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.AppearanceReconciler;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -15,6 +16,8 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.PinNames;
 import cl.almejo.vsim.ui.library.LibraryDialogs;
@@ -25,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -52,17 +56,8 @@ final class AppearanceFeatures {
     }
 
     void install() {
-        removals.add(view.addContextMenuContributor((menu, target, selection, point) -> {
-            if (selection.size() != 1 || target.isEmpty() || !(target.get() instanceof Component instance)
-                    || !selection.contains(instance.id()) || SubcircuitTypes.definitionIdOf(instance.typeId()).isEmpty()) {
-                return;
-            }
-            menu.add(item("shape.change", () -> edit(Optional.of(instance.id()),
-                    SubcircuitTypes.definitionIdOf(instance.typeId()).orElseThrow(), false)));
-            if (instance.appearance().isPresent()) {
-                menu.add(item("shape.useDefinition", () -> clear(instance.id())));
-            }
-        }));
+        removals.add(view.addContextMenuContributor(
+                (menu, target, selection, point) -> contributeShapeEntries(menu, target, selection)));
         removals.add(view.palette().addUserMenuContributor((entry, menu) -> entry.ifPresent(component ->
                 menu.add(item("shape.change",
                         () -> edit(Optional.empty(), component.bundle().root().id(), component.inLibrary()))))));
@@ -78,16 +73,30 @@ final class AppearanceFeatures {
 
     private void installOwnShapeMark() {
         OwnShapeMark mark = new OwnShapeMark(view.openDocument(), () -> view.canvas().scheme(), EveryPane.repaint(view));
-        removals.add(view.forEachPane(pane -> {
-            pane.addOverlay(mark);
-            Runnable unfollow = mark.follow(pane);
-            Runnable unhelp = pane.addToolTipOverride(mark::tooltipAt);
-            return () -> {
-                unhelp.run();
-                unfollow.run();
-                pane.removeOverlay(mark);
-            };
-        }));
+        removals.add(view.forEachPane(pane -> showOwnShapeMark(mark, pane)));
+    }
+
+    private static Runnable showOwnShapeMark(OwnShapeMark mark, CircuitCanvas pane) {
+        pane.addOverlay(mark);
+        Runnable unfollow = mark.follow(pane);
+        Runnable unhelp = pane.addToolTipOverride(mark::tooltipAt);
+        return () -> {
+            unhelp.run();
+            unfollow.run();
+            pane.removeOverlay(mark);
+        };
+    }
+
+    private void contributeShapeEntries(JPopupMenu menu, Optional<DocumentElement> target, Selection selection) {
+        if (selection.size() != 1 || target.isEmpty() || !(target.get() instanceof Component instance)
+                || !selection.contains(instance.id()) || SubcircuitTypes.definitionIdOf(instance.typeId()).isEmpty()) {
+            return;
+        }
+        menu.add(item("shape.change", () -> edit(Optional.of(instance.id()),
+                SubcircuitTypes.definitionIdOf(instance.typeId()).orElseThrow(), false)));
+        if (instance.appearance().isPresent()) {
+            menu.add(item("shape.useDefinition", () -> clear(instance.id())));
+        }
     }
 
     void dispose() {

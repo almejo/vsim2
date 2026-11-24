@@ -11,11 +11,13 @@ interface Delayer {
 
     /** The real one: a Swing timer, so {@code action} runs on the event thread. */
     static Delayer swing() {
-        return (milliseconds, action) -> {
-            Timer timer = new Timer((int) milliseconds, event -> action.run());
-            timer.setRepeats(false);
-            timer.start();
-            return timer::stop;
-        };
+        return Delayer::startSwingTimer;
+    }
+
+    private static Runnable startSwingTimer(long milliseconds, Runnable action) {
+        Timer timer = new Timer((int) milliseconds, event -> action.run());
+        timer.setRepeats(false);
+        timer.start();
+        return timer::stop;
     }
 }

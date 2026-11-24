@@ -132,15 +132,18 @@ final class TerminalWindowContent extends JPanel {
         }
         String text = screen.allText() + "\n";
         Path file = chosen.get();
-        services.files().execute(() -> {
-            try {
-                Files.writeString(file, text, StandardCharsets.UTF_8);
-            } catch (IOException exception) {
-                LOGGER.warn("Could not save the Terminal text to {}", file, exception);
-                services.edt().execute(() -> notices.accept(Messages.format("terminal.window.saveFailed",
-                        file.getFileName())));
-            }
-        });
+        services.files().execute(() -> writeText(file, text));
+    }
+
+    /** Runs off the EDT; a failure is told on the EDT. */
+    private void writeText(Path file, String text) {
+        try {
+            Files.writeString(file, text, StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            LOGGER.warn("Could not save the Terminal text to {}", file, exception);
+            services.edt().execute(() -> notices.accept(Messages.format("terminal.window.saveFailed",
+                    file.getFileName())));
+        }
     }
 
     /** «Limpiar»: screen and history empty, as CLR; a simulation request, not an edit. */

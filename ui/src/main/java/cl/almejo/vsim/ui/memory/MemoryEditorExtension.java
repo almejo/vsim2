@@ -44,15 +44,18 @@ public final class MemoryEditorExtension implements EditorExtension {
         JMenuItem importItem = new JMenuItem(Actions.of(Messages.text("action.importMemory"),
                 () -> links.fileImport().chooseAndImport(view)));
         Runnable removeImportItem = ImportMenu.add(view.menu(MenuId.FILE), importItem);
-        return () -> {
-            removeImportItem.run();
-            view.setMemoryFileImporter(null);
-            removeProblems.run();
-            removeRows.run();
-            links.releaseWatcher(view.openDocument());
-            removeContextMenu.run();
-            view.clearMemoryEditor();
-        };
+        return () -> uninstall(view, removeImportItem, removeProblems, removeRows, removeContextMenu);
+    }
+
+    private void uninstall(EditorView view, Runnable removeImportItem, Runnable removeProblems, Runnable removeRows,
+                           Runnable removeContextMenu) {
+        removeImportItem.run();
+        view.setMemoryFileImporter(null);
+        removeProblems.run();
+        removeRows.run();
+        links.releaseWatcher(view.openDocument());
+        removeContextMenu.run();
+        view.clearMemoryEditor();
     }
 
     /**

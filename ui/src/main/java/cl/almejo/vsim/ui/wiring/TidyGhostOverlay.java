@@ -35,15 +35,17 @@ final class TidyGhostOverlay {
 
     TidyGhostOverlay(EditorView view) {
         this.view = Objects.requireNonNull(view, "view");
-        this.removeFromPanes = view.forEachPane(pane -> {
-            CanvasOverlay overlay = (graphics, state) -> paintIn(graphics, pane);
-            panes.add(pane);
-            pane.addOverlay(overlay);
-            return () -> {
-                panes.remove(pane);
-                pane.removeOverlay(overlay);
-            };
-        });
+        this.removeFromPanes = view.forEachPane(this::showOn);
+    }
+
+    private Runnable showOn(CircuitCanvas pane) {
+        CanvasOverlay overlay = (graphics, state) -> paintIn(graphics, pane);
+        panes.add(pane);
+        pane.addOverlay(overlay);
+        return () -> {
+            panes.remove(pane);
+            pane.removeOverlay(overlay);
+        };
     }
 
     /**

@@ -134,32 +134,34 @@ public final class PdfExportDialog extends JPanel {
 
         /** A modal {@link JDialog}: Enter saves (prints, to print), Escape and the close box cancel. */
         static Presenter modal() {
-            return (parent, content) -> {
-                JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(parent), content.title(),
-                        JDialog.DEFAULT_MODALITY_TYPE);
-                dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-                dialog.add(content, BorderLayout.CENTER);
-                dialog.getRootPane().setDefaultButton(content.defaultButton());
-                dialog.getRootPane().registerKeyboardAction(event -> content.cancel(),
-                        KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
-                dialog.addWindowListener(new WindowAdapter() {
-                    @Override
-                    public void windowOpened(WindowEvent event) {
-                        content.initialFocus().requestFocusInWindow();
-                    }
+            return Presenter::showModal;
+        }
 
-                    @Override
-                    public void windowClosing(WindowEvent event) {
-                        content.cancel();
-                    }
-                });
-                content.onClose(dialog::dispose);
-                content.onContentGrew(() -> growToFit(dialog));
-                dialog.pack();
-                dialog.setLocationRelativeTo(parent);
-                dialog.setVisible(true);
-                content.dispose();
-            };
+        private static void showModal(Component parent, PdfExportDialog content) {
+            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(parent), content.title(),
+                    JDialog.DEFAULT_MODALITY_TYPE);
+            dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+            dialog.add(content, BorderLayout.CENTER);
+            dialog.getRootPane().setDefaultButton(content.defaultButton());
+            dialog.getRootPane().registerKeyboardAction(event -> content.cancel(),
+                    KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
+            dialog.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowOpened(WindowEvent event) {
+                    content.initialFocus().requestFocusInWindow();
+                }
+
+                @Override
+                public void windowClosing(WindowEvent event) {
+                    content.cancel();
+                }
+            });
+            content.onClose(dialog::dispose);
+            content.onContentGrew(() -> growToFit(dialog));
+            dialog.pack();
+            dialog.setLocationRelativeTo(parent);
+            dialog.setVisible(true);
+            content.dispose();
         }
     }
 
@@ -1025,18 +1027,20 @@ public final class PdfExportDialog extends JPanel {
         progress.setVisible(true);
     }
 
+    private void showPageDone(int done, int pages) {
+        if (!cancelRequested) {
+            progress.setMaximum(pages);
+            progress.setValue(done);
+            progress.setString(Messages.format("print.progress", done, pages));
+        }
+    }
+
     /** Reports each finished page on the EDT and answers whether the user asked to cancel. */
     private PdfExporter.ProgressListener progressListener() {
         return new PdfExporter.ProgressListener() {
             @Override
             public void pageDone(int done, int pages) {
-                collaborators.edt().execute(() -> {
-                    if (!cancelRequested) {
-                        progress.setMaximum(pages);
-                        progress.setValue(done);
-                        progress.setString(Messages.format("print.progress", done, pages));
-                    }
-                });
+                collaborators.edt().execute(() -> showPageDone(done, pages));
             }
 
             @Override

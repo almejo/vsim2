@@ -197,13 +197,17 @@ public final class LabelActions {
         editor.open(new InlineEditRequest(ConstantPainter.valueBox(type, current.get()),
                 ConstantPainter.valueFont(), String.valueOf(parameters.get("value")),
                 InlineValidators.constantValue(type, () -> currentParameters(id, parameters)),
-                text -> openDocument.document().component(id).ifPresent(component -> {
-                    Map<String, Object> changed = new HashMap<>(component.parameters());
-                    changed.put("value", text.strip());
-                    if (!type.resolveParameters(changed).equals(type.resolveParameters(component.parameters()))) {
-                        openDocument.execute(new ChangeParametersCommand(id, type, changed));
-                    }
-                }), InlineEditRequest.Anchor.CENTER), () -> openDocument.document().component(id).isPresent());
+                text -> openDocument.document().component(id)
+                        .ifPresent(component -> confirmConstantValue(id, type, component, text)),
+                InlineEditRequest.Anchor.CENTER), () -> openDocument.document().component(id).isPresent());
+    }
+
+    private void confirmConstantValue(ElementId id, ComponentType type, Component component, String text) {
+        Map<String, Object> changed = new HashMap<>(component.parameters());
+        changed.put("value", text.strip());
+        if (!type.resolveParameters(changed).equals(type.resolveParameters(component.parameters()))) {
+            openDocument.execute(new ChangeParametersCommand(id, type, changed));
+        }
     }
 
     /**
@@ -257,12 +261,17 @@ public final class LabelActions {
                 InlineValidators.busValue(() -> stillABusInput.get().map(InterfacePins::widthOf).orElse(width),
                         () -> pinFormat(stillABusInput.get(), type, format),
                         () -> pinFraction(stillABusInput.get(), type, fraction)),
-                text -> stillABusInput.get().ifPresent(found -> {
-                    int foundWidth = InterfacePins.widthOf(found);
-                    ConstantValue.bitsOf(text, foundWidth, pinFormat(Optional.of(found), type, format),
-                            pinFraction(Optional.of(found), type, fraction)).ifPresent(
-                            bits -> openDocument.setInputValue(id, Value.of(foundWidth, bits)));
-                }), InlineEditRequest.Anchor.CENTER), () -> stillABusInput.get().isPresent());
+                text -> stillABusInput.get()
+                        .ifPresent(found -> confirmBusValue(id, type, found, text, format, fraction)),
+                InlineEditRequest.Anchor.CENTER), () -> stillABusInput.get().isPresent());
+    }
+
+    private void confirmBusValue(ElementId id, ComponentType type, Component found, String text, String format,
+                                 int fraction) {
+        int foundWidth = InterfacePins.widthOf(found);
+        ConstantValue.bitsOf(text, foundWidth, pinFormat(Optional.of(found), type, format),
+                pinFraction(Optional.of(found), type, fraction)).ifPresent(
+                bits -> openDocument.setInputValue(id, Value.of(foundWidth, bits)));
     }
 
     private static String pinFormat(Optional<Component> pin, ComponentType type, String lastKnown) {
@@ -300,15 +309,17 @@ public final class LabelActions {
     public void addTextAt(GridPoint point) {
         TextLabel probe = new TextLabel(new ElementId("probe"), point, "");
         editor.open(InlineEditRequest.multiLine(LabelLayout.freeText(probe).bounds(), LabelLayout.font(), "",
-                InlineValidators.anyText(), raw -> {
-            String text = raw.strip();
-            if (text.isEmpty()) {
-                return;
-            }
-            TextLabel label = new TextLabel(openDocument.document().newLabelId(), point, text);
-            openDocument.execute(new AddElementsCommand(List.of(label)));
-            selection.select(label.id());
-        }));
+                InlineValidators.anyText(), raw -> addTextLabel(point, raw)));
+    }
+
+    private void addTextLabel(GridPoint point, String raw) {
+        String text = raw.strip();
+        if (text.isEmpty()) {
+            return;
+        }
+        TextLabel label = new TextLabel(openDocument.document().newLabelId(), point, text);
+        openDocument.execute(new AddElementsCommand(List.of(label)));
+        selection.select(label.id());
     }
 
     /** Removes the stretch of {@code wire} around {@code near} ("Borrar tramo"). */

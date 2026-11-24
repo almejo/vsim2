@@ -55,18 +55,21 @@ final class ResizeGripPainter {
      */
     static void paintTab(Graphics2D graphics, Component component, Rectangle2D tab, boolean corner, boolean dragging,
                          ColorScheme scheme) {
-        ComponentDrawing.paintPlaced(graphics, component, local -> {
-            local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            RoundRectangle2D shape = new RoundRectangle2D.Double(tab.getX(), tab.getY(), tab.getWidth(),
-                    tab.getHeight(), 2 * TAB_RADIUS, 2 * TAB_RADIUS);
-            local.setColor(dragging ? scheme.selection() : scheme.componentFill());
-            local.fill(shape);
-            local.setColor(scheme.selection());
-            local.setStroke(new BasicStroke(TAB_BORDER));
-            local.draw(shape);
-            local.setColor(dragging ? KeyboardPainter.textOn(scheme.selection()) : scheme.selection());
-            local.draw(corner ? diagonalArrow(tab) : arrow(tab));
-        });
+        ComponentDrawing.paintPlaced(graphics, component, local -> paintLocalTab(local, tab, corner, dragging, scheme));
+    }
+
+    private static void paintLocalTab(Graphics2D local, Rectangle2D tab, boolean corner, boolean dragging,
+                                      ColorScheme scheme) {
+        local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        RoundRectangle2D shape = new RoundRectangle2D.Double(tab.getX(), tab.getY(), tab.getWidth(),
+                tab.getHeight(), 2 * TAB_RADIUS, 2 * TAB_RADIUS);
+        local.setColor(dragging ? scheme.selection() : scheme.componentFill());
+        local.fill(shape);
+        local.setColor(scheme.selection());
+        local.setStroke(new BasicStroke(TAB_BORDER));
+        local.draw(shape);
+        local.setColor(dragging ? KeyboardPainter.textOn(scheme.selection()) : scheme.selection());
+        local.draw(corner ? diagonalArrow(tab) : arrow(tab));
     }
 
     /** «⤡»: a line from the tab's top left to its bottom right with a head at each end, its legs along the axes. */

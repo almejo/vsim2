@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.NetId;
@@ -47,14 +48,18 @@ public record ShortCircuitHighlight(Set<ElementId> wires, Set<ElementId> compone
             for (DriverRef driver : shortCircuit.drivers()) {
                 boolean nested = InstancePath.isNested(driver.componentId());
                 ElementId componentId = new ElementId(InstancePath.topLevel(driver.componentId()));
-                document.component(componentId).ifPresent(component -> {
-                    components.add(componentId);
-                    if (!nested) {
-                        driverPins.add(registry.typeOf(component).pinLocation(component, driver.pinIndex()));
-                    }
-                });
+                document.component(componentId).ifPresent(component ->
+                        addShortCircuitDriver(registry, component, driver, nested, components, driverPins));
             }
         }
         return new ShortCircuitHighlight(wires, components, driverPins);
+    }
+
+    private static void addShortCircuitDriver(ComponentTypeRegistry registry, Component component, DriverRef driver,
+                                              boolean nested, Set<ElementId> components, Set<GridPoint> driverPins) {
+        components.add(component.id());
+        if (!nested) {
+            driverPins.add(registry.typeOf(component).pinLocation(component, driver.pinIndex()));
+        }
     }
 }

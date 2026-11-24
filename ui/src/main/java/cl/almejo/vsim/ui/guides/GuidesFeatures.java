@@ -75,7 +75,7 @@ public final class GuidesFeatures {
     private boolean disposed;
 
     public GuidesFeatures(EditorView view) {
-        this(view, (menu, invoker, x, y) -> menu.show(invoker, x, y));
+        this(view, JPopupMenu::show);
     }
 
     GuidesFeatures(EditorView view, MenuShower menuShower) {

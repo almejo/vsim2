@@ -50,22 +50,24 @@ public final class MemoryLinks implements MemoryLinkActions {
 
         /** Every second and whenever a VSim window gets the focus, on the EDT; the first poll right after starting. */
         static PollScheduler swing() {
-            return poll -> {
-                Timer timer = new Timer(POLL_INTERVAL_MILLISECONDS, event -> poll.run());
-                timer.setRepeats(true);
-                timer.start();
-                PropertyChangeListener focus = event -> {
-                    if (event.getNewValue() != null) {
-                        poll.run();
-                    }
-                };
-                KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-                focusManager.addPropertyChangeListener("activeWindow", focus);
-                SwingUtilities.invokeLater(poll);
-                return () -> {
-                    timer.stop();
-                    focusManager.removePropertyChangeListener("activeWindow", focus);
-                };
+            return PollScheduler::startSwingPolling;
+        }
+
+        private static Runnable startSwingPolling(Runnable poll) {
+            Timer timer = new Timer(POLL_INTERVAL_MILLISECONDS, event -> poll.run());
+            timer.setRepeats(true);
+            timer.start();
+            PropertyChangeListener focus = event -> {
+                if (event.getNewValue() != null) {
+                    poll.run();
+                }
+            };
+            KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+            focusManager.addPropertyChangeListener("activeWindow", focus);
+            SwingUtilities.invokeLater(poll);
+            return () -> {
+                timer.stop();
+                focusManager.removePropertyChangeListener("activeWindow", focus);
             };
         }
     }

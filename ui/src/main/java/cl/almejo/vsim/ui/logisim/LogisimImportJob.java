@@ -60,24 +60,29 @@ final class LogisimImportJob {
 
     /** Starts the import of {@code file}; called on the event thread. */
     void start(Path file) {
-        stopTimer = delayer.after(PROGRESS_DELAY_MILLISECONDS, () -> {
-            if (!finished) {
-                progressShown = true;
-                progress.show(this::cancel);
-            }
-        });
-        worker.execute(() -> {
-            try {
-                ImportResult result = loader.load(file);
-                eventThread.execute(() -> end(() -> outcome.imported(file, result)));
-            } catch (CircuitFormatException | RuntimeException problem) {
-                eventThread.execute(() -> end(() -> outcome.failed(file, problem)));
-            } catch (Error error) {
-                // A stack overflow or an out-of-memory in a huge file must not leave the progress dialog up.
-                IllegalStateException problem = new IllegalStateException(error.toString(), error);
-                eventThread.execute(() -> end(() -> outcome.failed(file, problem)));
-            }
-        });
+        stopTimer = delayer.after(PROGRESS_DELAY_MILLISECONDS, this::showProgressUnlessFinished);
+        worker.execute(() -> loadInTheBackground(file));
+    }
+
+    private void showProgressUnlessFinished() {
+        if (!finished) {
+            progressShown = true;
+            progress.show(this::cancel);
+        }
+    }
+
+    /** Runs on the worker; every outcome goes back to the event thread. */
+    private void loadInTheBackground(Path file) {
+        try {
+            ImportResult result = loader.load(file);
+            eventThread.execute(() -> end(() -> outcome.imported(file, result)));
+        } catch (CircuitFormatException | RuntimeException problem) {
+            eventThread.execute(() -> end(() -> outcome.failed(file, problem)));
+        } catch (Error error) {
+            // A stack overflow or an out-of-memory in a huge file must not leave the progress dialog up.
+            IllegalStateException problem = new IllegalStateException(error.toString(), error);
+            eventThread.execute(() -> end(() -> outcome.failed(file, problem)));
+        }
     }
 
     private void cancel() {

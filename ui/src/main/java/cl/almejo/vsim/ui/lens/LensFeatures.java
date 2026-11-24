@@ -220,13 +220,15 @@ public final class LensFeatures {
     }
 
     private void setOn(boolean on) {
-        changing(() -> {
-            state.setOn(on);
-            if (on) {
-                showUnderThePointer();
-            }
-        });
+        changing(() -> switchLens(on));
         toggle.putValue(Action.SELECTED_KEY, on);
+    }
+
+    private void switchLens(boolean on) {
+        state.setOn(on);
+        if (on) {
+            showUnderThePointer();
+        }
     }
 
     /**
@@ -347,12 +349,14 @@ public final class LensFeatures {
                 LensPainter.paint(screen, painted, state.pointer().orElseThrow(), state.factor(), state.look());
             }
         });
-        return () -> {
-            changing(() -> state.pointerLeft(pane));
-            overlayRemover.run();
-            pane.removeMouseListener(pointer);
-            pane.removeMouseMotionListener(pointer);
-        };
+        return () -> stopListeningTo(pane, pointer, overlayRemover);
+    }
+
+    private void stopListeningTo(CircuitCanvas pane, MouseAdapter pointer, Runnable overlayRemover) {
+        changing(() -> state.pointerLeft(pane));
+        overlayRemover.run();
+        pane.removeMouseListener(pointer);
+        pane.removeMouseMotionListener(pointer);
     }
 
     /**

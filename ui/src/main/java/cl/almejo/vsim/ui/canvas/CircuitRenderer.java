@@ -525,20 +525,25 @@ public final class CircuitRenderer {
     private void paintTerminal(Graphics2D graphics, RenderState state, ColorScheme scheme, Component component,
                                ComponentType type, TerminalPainter painter, TerminalAnimation animation) {
         ScreenPart part = screenPart(state, component, type, animation);
+        AffineTransform documentToDevice = graphics.getTransform();
+        ComponentDrawing.paintPlaced(graphics, component,
+                local -> paintTerminalPlaced(local, component, type, painter, animation, part, scheme, documentToDevice));
+    }
+
+    private void paintTerminalPlaced(Graphics2D local, Component component, ComponentType type,
+                                     TerminalPainter painter, TerminalAnimation animation, ScreenPart part,
+                                     ColorScheme scheme, AffineTransform documentToDevice) {
         VisibleState terminalState = part.state();
         TerminalMoment moment = part.moment();
         Optional<String> label = part.label();
-        AffineTransform documentToDevice = graphics.getTransform();
-        ComponentDrawing.paintPlaced(graphics, component, local -> {
-            if (animation == TerminalAnimation.EXPORT) {
-                painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment);
-            } else {
-                painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment,
-                        terminalScreen(component.id()));
-            }
-            rememberMotion(component.id(), painter.movingArea(type, component.parameters(), terminalState, moment),
-                    local, documentToDevice, moment);
-        });
+        if (animation == TerminalAnimation.EXPORT) {
+            painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment);
+        } else {
+            painter.paintLive(local, type, component.parameters(), terminalState, scheme, label, moment,
+                    terminalScreen(component.id()));
+        }
+        rememberMotion(component.id(), painter.movingArea(type, component.parameters(), terminalState, moment),
+                local, documentToDevice, moment);
     }
 
     /**
@@ -557,17 +562,23 @@ public final class CircuitRenderer {
         boolean animated = animation != TerminalAnimation.EXPORT
                 && VisibleState.terminalScreen(uartState).isPresent();
         AffineTransform documentToDevice = graphics.getTransform();
-        ComponentDrawing.paintPlaced(graphics, component, local -> {
-            if (animated) {
-                painter.paintLive(local, type, component.parameters(), uartState, scheme, partLook, moment,
-                        terminalScreen(component.id()));
-            } else {
-                painter.paintWithCapture(local, type, component.parameters(), uartState, scheme, label, capturing);
-                terminalScreens.remove(component.id());
-            }
-            rememberMotion(component.id(), painter.movingArea(type, component.parameters(), uartState, moment),
-                    local, documentToDevice, moment);
-        });
+        ComponentDrawing.paintPlaced(graphics, component, local -> paintUartPlaced(local, component, type, painter,
+                uartState, scheme, partLook, moment, label, capturing, animated, documentToDevice));
+    }
+
+    private void paintUartPlaced(Graphics2D local, Component component, ComponentType type, UartPainter painter,
+                                 VisibleState uartState, ColorScheme scheme, UartPainter.Look partLook,
+                                 TerminalMoment moment, Optional<String> label, boolean capturing, boolean animated,
+                                 AffineTransform documentToDevice) {
+        if (animated) {
+            painter.paintLive(local, type, component.parameters(), uartState, scheme, partLook, moment,
+                    terminalScreen(component.id()));
+        } else {
+            painter.paintWithCapture(local, type, component.parameters(), uartState, scheme, label, capturing);
+            terminalScreens.remove(component.id());
+        }
+        rememberMotion(component.id(), painter.movingArea(type, component.parameters(), uartState, moment),
+                local, documentToDevice, moment);
     }
 
     /** Remembers {@code component}'s {@code moving} area, drawn with {@code local}, or that nothing of it moves. */

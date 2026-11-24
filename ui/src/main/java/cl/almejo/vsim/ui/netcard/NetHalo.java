@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.netcard;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.RenderState;
@@ -89,18 +90,20 @@ final class NetHalo implements CanvasOverlay {
         Area outer = new Area();
         Area inner = new Area();
         for (ElementId wireId : summary.wires()) {
-            document.wire(wireId).ifPresent(wire -> {
-                Shape line = new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
-                        wire.end().x() * UNIT, wire.end().y() * UNIT);
-                outer.add(new Area(band.createStrokedShape(line)));
-                inner.add(new Area(hollow.createStrokedShape(line)));
-            });
+            document.wire(wireId).ifPresent(wire -> addWireBand(wire, band, hollow, outer, inner));
         }
         for (GridPoint point : summary.points()) {
             outer.add(new Area(circle(point, JUNCTION_RADIUS)));
         }
         outer.subtract(inner);
         return outer;
+    }
+
+    private static void addWireBand(Wire wire, BasicStroke band, BasicStroke hollow, Area outer, Area inner) {
+        Shape line = new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
+                wire.end().x() * UNIT, wire.end().y() * UNIT);
+        outer.add(new Area(band.createStrokedShape(line)));
+        inner.add(new Area(hollow.createStrokedShape(line)));
     }
 
     @Override

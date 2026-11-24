@@ -53,13 +53,15 @@ final class SheetSummaryHandle implements EdgeHandle {
 
     /** Where the label stands on this pane now, in logical pixels; empty while there are no sheets to sum up. */
     Optional<Rectangle> box() {
-        return features.picture().map(picture -> {
-            Point2D corner = pane.viewport().gridToScreen(picture.summaryCorner().getX(),
-                    picture.summaryCorner().getY());
-            Rectangle box = SheetText.box(pane, picture.summary(), (int) Math.round(corner.getX()), 0);
-            box.y = (int) Math.round(corner.getY()) - GAP - box.height;
-            return box;
-        });
+        return features.picture().map(this::summaryBoxOf);
+    }
+
+    private Rectangle summaryBoxOf(SheetPicture picture) {
+        Point2D corner = pane.viewport().gridToScreen(picture.summaryCorner().getX(),
+                picture.summaryCorner().getY());
+        Rectangle box = SheetText.box(pane, picture.summary(), (int) Math.round(corner.getX()), 0);
+        box.y = (int) Math.round(corner.getY()) - GAP - box.height;
+        return box;
     }
 
     @Override

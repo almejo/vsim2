@@ -265,27 +265,31 @@ final class ShortcutSheetFeatures {
         opened.setOpacity(0f);
         FrameTicker ticker = seams.tickers().get();
         long start = seams.clock().getAsLong();
-        ticker.start(() -> {
-            long elapsed = seams.clock().getAsLong() - start;
-            boolean whole = elapsed >= FADE_MILLISECONDS || !seams.animations().test(preferences);
-            opened.setOpacity(whole ? 1f : (float) elapsed / FADE_MILLISECONDS);
-            if (whole) {
-                ticker.stop();
-            }
-        });
+        ticker.start(() -> fadeFrame(opened, ticker, start));
         whileOpen.add(ticker::stop);
+    }
+
+    private void fadeFrame(ShortcutSheetPanel opened, FrameTicker ticker, long start) {
+        long elapsed = seams.clock().getAsLong() - start;
+        boolean whole = elapsed >= FADE_MILLISECONDS || !seams.animations().test(preferences);
+        opened.setOpacity(whole ? 1f : (float) elapsed / FADE_MILLISECONDS);
+        if (whole) {
+            ticker.stop();
+        }
     }
 
     /** The link: the sheet closes, then Preferencias opens on «Atajos de teclado». */
     private void showAllShortcuts() {
         Optional<Action> shortcutsTab = shortcutsPreferences();
         close();
-        shortcutsTab.ifPresent(action -> seams.later().accept(() -> {
-            if (!disposed) {
-                action.actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED,
-                        String.valueOf(action.getValue(Action.NAME))));
-            }
-        }));
+        shortcutsTab.ifPresent(action -> seams.later().accept(() -> openShortcutsPreferences(action)));
+    }
+
+    private void openShortcutsPreferences(Action action) {
+        if (!disposed) {
+            action.actionPerformed(new ActionEvent(view, ActionEvent.ACTION_PERFORMED,
+                    String.valueOf(action.getValue(Action.NAME))));
+        }
     }
 
     /** The command of Preferencias that opens it on «Atajos de teclado» (one per group, as the palette lists them). */

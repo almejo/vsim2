@@ -215,14 +215,16 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
 
     private void exportTable() {
         Path directory = view.openDocument().startDirectory(Optional.empty());
-        TruthTableExport.choose(this, directory, view.openDocument().displayName()).ifPresent(target -> {
-            try {
-                TruthTableExport.write(target, shown);
-            } catch (IOException exception) {
-                JOptionPane.showMessageDialog(this, Messages.format("truthTable.exportFailed", target.getFileName(),
-                        exception.getMessage()), getTitle(), JOptionPane.ERROR_MESSAGE);
-            }
-        });
+        TruthTableExport.choose(this, directory, view.openDocument().displayName()).ifPresent(this::writeExport);
+    }
+
+    private void writeExport(Path target) {
+        try {
+            TruthTableExport.write(target, shown);
+        } catch (IOException exception) {
+            JOptionPane.showMessageDialog(this, Messages.format("truthTable.exportFailed", target.getFileName(),
+                    exception.getMessage()), getTitle(), JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**

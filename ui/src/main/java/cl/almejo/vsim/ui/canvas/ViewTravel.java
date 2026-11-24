@@ -97,12 +97,15 @@ final class ViewTravel {
         if (!anchorShows) {
             return Optional.empty();
         }
-        return Optional.of(progress -> {
-            double zoom = from.zoom() * Math.pow(to.zoom() / from.zoom(), progress);
-            double shrink = from.zoom() / zoom;
-            return new ViewState(zoom, anchorX - (anchorX - from.centerX()) * shrink,
-                    anchorY - (anchorY - from.centerY()) * shrink);
-        });
+        return Optional.of(progress -> anchoredView(from, to, anchorX, anchorY, progress));
+    }
+
+    private static ViewState anchoredView(ViewState from, ViewState to, double anchorX, double anchorY,
+                                          double progress) {
+        double zoom = from.zoom() * Math.pow(to.zoom() / from.zoom(), progress);
+        double shrink = from.zoom() / zoom;
+        return new ViewState(zoom, anchorX - (anchorX - from.centerX()) * shrink,
+                anchorY - (anchorY - from.centerY()) * shrink);
     }
 
     /** A straight pan; a zoom change, if any, goes evenly in scale (each frame the same ratio). */

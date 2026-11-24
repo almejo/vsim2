@@ -210,13 +210,7 @@ public final class EditorActions {
         start = Actions.of(Messages.text("action.start"), null, openDocument::resume);
         pause = Actions.of(Messages.text("action.pause"), null, openDocument::pause);
         startOrPause = Actions.of(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
-                () -> {
-                    if (pause.isEnabled()) {
-                        openDocument.pause();
-                    } else {
-                        openDocument.resume();
-                    }
-                });
+                this::startOrPauseSimulation);
         restart = Actions.of(Messages.text("action.restart"), shortcut(KeyEvent.VK_F5, 0), openDocument::restart);
         step = Actions.of(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
                 () -> openDocument.step(stepUnits));
@@ -360,16 +354,26 @@ public final class EditorActions {
         stepSource = Optional.of(source);
         stopFollowingStepSource = source.addListener(this::refresh);
         refresh();
-        return () -> {
-            if (stepSource.filter(installed -> installed == source).isPresent()) {
-                stopFollowingStepSource.run();
-                stopFollowingStepSource = () -> { };
-                stepSource = Optional.empty();
-                undo.putValue(Action.SHORT_DESCRIPTION, usualUndoDescription);
-                redo.putValue(Action.SHORT_DESCRIPTION, usualRedoDescription);
-                refresh();
-            }
-        };
+        return () -> stopSteppingInstead(source);
+    }
+
+    private void stopSteppingInstead(StepSource source) {
+        if (stepSource.filter(installed -> installed == source).isPresent()) {
+            stopFollowingStepSource.run();
+            stopFollowingStepSource = () -> { };
+            stepSource = Optional.empty();
+            undo.putValue(Action.SHORT_DESCRIPTION, usualUndoDescription);
+            redo.putValue(Action.SHORT_DESCRIPTION, usualRedoDescription);
+            refresh();
+        }
+    }
+
+    private void startOrPauseSimulation() {
+        if (pause.isEnabled()) {
+            openDocument.pause();
+        } else {
+            openDocument.resume();
+        }
     }
 
     public Action undo() { return undo; }
@@ -691,12 +695,14 @@ public final class EditorActions {
         Optional<ContentDeletion> deleting = Optional.of(Objects.requireNonNull(content, "content"));
         contentDeletion = deleting;
         refresh();
-        return () -> {
-            if (contentDeletion.equals(deleting)) {
-                contentDeletion = Optional.empty();
-                refresh();
-            }
-        };
+        return () -> stopDeletingContentInstead(deleting);
+    }
+
+    private void stopDeletingContentInstead(Optional<ContentDeletion> deleting) {
+        if (contentDeletion.equals(deleting)) {
+            contentDeletion = Optional.empty();
+            refresh();
+        }
     }
 
     /** The content the zoom actions act on now, when the view shows one instead of its panes. */

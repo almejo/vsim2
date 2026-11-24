@@ -204,12 +204,13 @@ public final class ZoomControl extends JPanel {
         bindSliderKey(KeyEvent.VK_PAGE_DOWN, "zoomHalve", zoom -> zoom / 2);
         bindSliderKey(KeyEvent.VK_HOME, "zoomMinimum", zoom -> Viewport.MINIMUM_ZOOM);
         bindSliderKey(KeyEvent.VK_END, "zoomMaximum", zoom -> Viewport.MAXIMUM_ZOOM);
-        slider.addMouseWheelListener(event -> {
-            int notches = event.getWheelRotation();
-            if (notches != 0) {
-                zoomInstantly(target.zoom() * Math.pow(Viewport.ZOOM_STEP, -notches));
-            }
-        });
+        slider.addMouseWheelListener(event -> zoomByWheel(event.getWheelRotation()));
+    }
+
+    private void zoomByWheel(int notches) {
+        if (notches != 0) {
+            zoomInstantly(target.zoom() * Math.pow(Viewport.ZOOM_STEP, -notches));
+        }
     }
 
     private void bindSliderKey(int keyCode, String name, DoubleUnaryOperator change) {
@@ -222,6 +223,17 @@ public final class ZoomControl extends JPanel {
         });
     }
 
+    private void fieldCommitted(ActionEvent event) {
+        if (updating || EDITED_COMMAND.equals(event.getActionCommand())) {
+            return;
+        }
+        if (listOpen) {
+            pickPending = true; // the arrows or a click in the list: applies when the list closes
+        } else {
+            applyChosen(); // the text committed when the field lost the focus
+        }
+    }
+
     private void buildField() {
         DefaultComboBoxModel<String> presets = new DefaultComboBoxModel<>();
         ZoomScale.presets().forEach(percent -> presets.addElement(Messages.format("zoom.percent", percent)));
@@ -231,16 +243,7 @@ public final class ZoomControl extends JPanel {
         field.setMaximumRowCount(presets.getSize());
         field.setToolTipText(Messages.text("zoom.field.tip"));
         field.getAccessibleContext().setAccessibleName(Messages.text("zoom.field.name"));
-        field.addActionListener(event -> {
-            if (updating || EDITED_COMMAND.equals(event.getActionCommand())) {
-                return;
-            }
-            if (listOpen) {
-                pickPending = true; // the arrows or a click in the list: applies when the list closes
-            } else {
-                applyChosen(); // the text committed when the field lost the focus
-            }
-        });
+        field.addActionListener(this::fieldCommitted);
         field.addPopupMenuListener(new PresetList());
         // the look and feel replaces its editor on a theme change: follow it
         PropertyChangeListener editorFollower = event -> attachEditor();

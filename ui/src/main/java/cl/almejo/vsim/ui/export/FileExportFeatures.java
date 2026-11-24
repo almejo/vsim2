@@ -41,22 +41,26 @@ public abstract class FileExportFeatures {
      */
     protected FileExportFeatures(EditorView view, String actionTextKey, String itemTextKey, String iconName,
                                  String shortcutId, Action... anchors) {
-        this(view, actionTextKey, iconName, action -> {
-            JMenuItem item = new JMenuItem(action);
-            item.setText(Messages.text(itemTextKey));
-            Runnable shortcutRemover = view.registerShortcutAction(shortcutId, action);
-            Runnable menuRemover;
-            try {
-                menuRemover = ExportMenu.add(view.menu(MenuId.FILE), item, anchors);
-            } catch (RuntimeException failure) {
-                shortcutRemover.run();
-                throw failure;
-            }
-            return () -> {
-                shortcutRemover.run();
-                menuRemover.run();
-            };
-        });
+        this(view, actionTextKey, iconName,
+                action -> installInExportMenu(view, itemTextKey, shortcutId, anchors, action));
+    }
+
+    private static Runnable installInExportMenu(EditorView view, String itemTextKey, String shortcutId,
+                                                Action[] anchors, Action action) {
+        JMenuItem item = new JMenuItem(action);
+        item.setText(Messages.text(itemTextKey));
+        Runnable shortcutRemover = view.registerShortcutAction(shortcutId, action);
+        Runnable menuRemover;
+        try {
+            menuRemover = ExportMenu.add(view.menu(MenuId.FILE), item, anchors);
+        } catch (RuntimeException failure) {
+            shortcutRemover.run();
+            throw failure;
+        }
+        return () -> {
+            shortcutRemover.run();
+            menuRemover.run();
+        };
     }
 
     /**
@@ -78,7 +82,7 @@ public abstract class FileExportFeatures {
     private FileExportFeatures(EditorView view, String actionTextKey, String iconName,
                                Function<Action, Runnable> installer) {
         this.view = view;
-        this.action = Actions.of(Messages.text(actionTextKey), () -> export());
+        this.action = Actions.of(Messages.text(actionTextKey), this::export);
         Icons.install(action, iconName);
         this.itemRemover = installer.apply(action);
         view.openDocument().addChangeListener(changeListener);

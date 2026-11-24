@@ -248,15 +248,17 @@ final class TipShowing {
         FrameTicker ticker = seams.tickers().get();
         long start = seams.clock().getAsLong();
         whileOpen.add(ticker::stop);
-        ticker.start(() -> {
-            double progress = Math.min(1, (seams.clock().getAsLong() - start) / (double) FADE_MILLISECONDS);
-            if (!isOpen() || progress >= 1 || !seams.animations().test(preferences)) {
-                setAppearing(1f);
-                ticker.stop();
-                return;
-            }
-            setAppearing((float) (1 - Math.pow(1 - progress, 3)));
-        });
+        ticker.start(() -> appearFrame(ticker, start));
+    }
+
+    private void appearFrame(FrameTicker ticker, long start) {
+        double progress = Math.min(1, (seams.clock().getAsLong() - start) / (double) FADE_MILLISECONDS);
+        if (!isOpen() || progress >= 1 || !seams.animations().test(preferences)) {
+            setAppearing(1f);
+            ticker.stop();
+            return;
+        }
+        setAppearing((float) (1 - Math.pow(1 - progress, 3)));
     }
 
     private void setAppearing(float progress) {

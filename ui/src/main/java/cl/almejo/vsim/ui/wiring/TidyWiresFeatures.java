@@ -116,8 +116,8 @@ public final class TidyWiresFeatures {
         this.delay = delay;
         this.progressFactory = progressFactory;
         this.ghost = new TidyGhostOverlay(view);
-        this.tidy = Actions.of(Messages.text("action.tidyWires"), () -> tidyNow());
-        this.tidyWithOptions = Actions.of(Messages.text("action.tidyWiresOptions"), () -> tidyWithDialog());
+        this.tidy = Actions.of(Messages.text("action.tidyWires"), this::tidyNow);
+        this.tidyWithOptions = Actions.of(Messages.text("action.tidyWiresOptions"), this::tidyWithDialog);
         // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) makes the button
         // icon-only with the action name as tooltip, and the shortcuts extension appends the shortcut
         Icons.install(tidy, TidyIcons.TIDY_WIRES);
@@ -326,12 +326,23 @@ public final class TidyWiresFeatures {
         ghost.clear();
         delivered = null;
         stopPreviewRefresh.run();
-        stopPreviewRefresh = delay.after(PREVIEW_REFRESH_DELAY_MILLISECONDS, () -> {
-            stopPreviewRefresh = () -> { };
-            if (latestResults != null) {
-                latestResults.stale();
+        stopPreviewRefresh = delay.after(PREVIEW_REFRESH_DELAY_MILLISECONDS, this::markPreviewStale);
+    }
+
+    private void markPreviewStale() {
+        stopPreviewRefresh = () -> { };
+        if (latestResults != null) {
+            latestResults.stale();
+        }
+    }
+
+    private void showProgressOf(Running mine) {
+        if (running == mine && mine.progress == null) {
+            mine.progress = progressFactory.open(view, this::cancelByUser);
+            if (mine.stage != null) {
+                mine.progress.stage(mine.stage, mine.done, mine.total);
             }
-        });
+        }
     }
 
     /** Whether a tidy is computing right now. */
@@ -347,14 +358,7 @@ public final class TidyWiresFeatures {
         Running mine = new Running();
         running = mine;
         // the timer first: a manual runner may deliver the result before start returns
-        mine.stopTimer = delay.after(PROGRESS_DELAY_MILLISECONDS, () -> {
-            if (running == mine && mine.progress == null) {
-                mine.progress = progressFactory.open(view, this::cancelByUser);
-                if (mine.stage != null) {
-                    mine.progress.stage(mine.stage, mine.done, mine.total);
-                }
-            }
-        });
+        mine.stopTimer = delay.after(PROGRESS_DELAY_MILLISECONDS, () -> showProgressOf(mine));
         mine.job = runner.start(snapshot, registryFor(snapshot), scope, options, new TidyRunner.Callbacks() {
             @Override
             public void progress(CircuitTidyProgress.Stage stage, int done, int total) {

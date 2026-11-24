@@ -233,6 +233,13 @@ public final class PainterSupport {
         graphics.setTransform(saved);
     }
 
+    private static void drawTextBorder(Graphics2D upright, Color borderColor, float borderWidth, Rectangle2D box) {
+        upright.setColor(borderColor);
+        upright.setStroke(new BasicStroke(borderWidth));
+        upright.draw(new RoundRectangle2D.Double(box.getX(), box.getY(), box.getWidth(), box.getHeight(),
+                BORDER_CORNER, BORDER_CORNER));
+    }
+
     /** Where a block of text goes: its anchor, font size and the part of each line, from its left, on the anchor. */
     record TextPlace(double anchorX, double anchorY, float size, double alignment) { }
 
@@ -252,13 +259,10 @@ public final class PainterSupport {
             double top = place.anchorY() - lines.size() * lineHeight / 2;
             double widest = lines.stream().mapToDouble(line -> FallbackText.width(metrics, line, upright))
                     .max().orElse(0);
-            border.ifPresent(borderColor -> {
-                upright.setColor(borderColor);
-                upright.setStroke(new BasicStroke(borderWidth));
-                upright.draw(new RoundRectangle2D.Double(place.anchorX() - widest * place.alignment() - BORDER_PADDING,
-                        top - BORDER_PADDING, widest + 2 * BORDER_PADDING,
-                        lines.size() * lineHeight + 2 * BORDER_PADDING, BORDER_CORNER, BORDER_CORNER));
-            });
+            border.ifPresent(borderColor -> drawTextBorder(upright, borderColor, borderWidth,
+                    new Rectangle2D.Double(place.anchorX() - widest * place.alignment() - BORDER_PADDING,
+                            top - BORDER_PADDING, widest + 2 * BORDER_PADDING,
+                            lines.size() * lineHeight + 2 * BORDER_PADDING)));
             upright.setColor(color);
             for (int index = 0; index < lines.size(); index++) {
                 double width = FallbackText.width(metrics, lines.get(index), upright);

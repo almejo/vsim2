@@ -568,19 +568,21 @@ public final class MemoryEditorDialog {
     }
 
     private void exportToFile() {
-        prompts.chooseSave(suggestedName(), "memory.export.title", this::linkedRefusal).ifPresent(choice -> {
-            Path target = MemoryFileIo.withExtension(choice.path(), choice.format());
-            Optional<String> refusal = linkedRefusal(target);
-            if (refusal.isPresent()) {
-                prompts.inform(refusal.get());
-                return;
-            }
-            try {
-                MemoryFileIo.write(target, choice.format(), new MemoryFile(header(), model.edited()), model.width());
-            } catch (MemoryFileIo.Unreadable problem) {
-                prompts.inform(problem.getMessage());
-            }
-        });
+        prompts.chooseSave(suggestedName(), "memory.export.title", this::linkedRefusal).ifPresent(this::exportTo);
+    }
+
+    void exportTo(MemoryEditorPrompts.SaveChoice choice) {
+        Path target = MemoryFileIo.withExtension(choice.path(), choice.format());
+        Optional<String> refusal = linkedRefusal(target);
+        if (refusal.isPresent()) {
+            prompts.inform(refusal.get());
+            return;
+        }
+        try {
+            MemoryFileIo.write(target, choice.format(), new MemoryFile(header(), model.edited()), model.width());
+        } catch (MemoryFileIo.Unreadable problem) {
+            prompts.inform(problem.getMessage());
+        }
     }
 
     /** The scheme of the editor window the dialog opened from (the light one without a window, in tests). */
@@ -605,14 +607,17 @@ public final class MemoryEditorDialog {
             return CompletableFuture.completedFuture(null);
         }
         return document.requestMemoryContents(componentId)
-                .thenAcceptAsync(contents -> {
-                    try {
-                        MemoryFileIo.write(target, choice.format(),
-                                new MemoryFile(header(), contents.orElse(model.edited())), model.width());
-                    } catch (MemoryFileIo.Unreadable problem) {
-                        SwingUtilities.invokeLater(() -> prompts.inform(problem.getMessage()));
-                    }
-                }, ForkJoinPool.commonPool());
+                .thenAcceptAsync(contents -> writeDump(target, choice, contents), ForkJoinPool.commonPool());
+    }
+
+    /** Runs off the EDT (the common pool); a refusal to write is told to the user on the EDT. */
+    private void writeDump(Path target, MemoryEditorPrompts.SaveChoice choice, Optional<MemoryContents> contents) {
+        try {
+            MemoryFileIo.write(target, choice.format(),
+                    new MemoryFile(header(), contents.orElse(model.edited())), model.width());
+        } catch (MemoryFileIo.Unreadable problem) {
+            SwingUtilities.invokeLater(() -> prompts.inform(problem.getMessage()));
+        }
     }
 
     /** Why {@code file} must not be written (a memory of the document is linked to it), when so. */
@@ -647,23 +652,25 @@ public final class MemoryEditorDialog {
             range = visibleAddressRange();
         }
         prompts.askFill(Long.toHexString(range[0]).toUpperCase(), Long.toHexString(range[1]).toUpperCase())
-                .ifPresent(request -> {
-                    OptionalLong from = model.parseAddress(request.firstAddress());
-                    OptionalLong to = model.parseAddress(request.lastAddress());
-                    if (from.isEmpty() || to.isEmpty()) {
-                        updateStatus(Optional.of(MemoryGridModel.OUT_OF_RANGE));
-                        prompts.inform(Messages.text(MemoryGridModel.OUT_OF_RANGE));
-                        return;
-                    }
-                    long count = to.getAsLong() - from.getAsLong() + 1;
-                    if (count > FILL_CONFIRM_WORDS && !prompts.confirm(
-                            Messages.format("memory.fill.large", String.valueOf(count)))) {
-                        return;
-                    }
-                    Optional<String> refusal = model.fill(from.getAsLong(), to.getAsLong(), request.value());
-                    updateStatus(refusal);
-                    refusal.ifPresent(key -> prompts.inform(Messages.text(key)));
-                });
+                .ifPresent(this::fill);
+    }
+
+    void fill(MemoryEditorPrompts.FillRequest request) {
+        OptionalLong from = model.parseAddress(request.firstAddress());
+        OptionalLong to = model.parseAddress(request.lastAddress());
+        if (from.isEmpty() || to.isEmpty()) {
+            updateStatus(Optional.of(MemoryGridModel.OUT_OF_RANGE));
+            prompts.inform(Messages.text(MemoryGridModel.OUT_OF_RANGE));
+            return;
+        }
+        long count = to.getAsLong() - from.getAsLong() + 1;
+        if (count > FILL_CONFIRM_WORDS && !prompts.confirm(
+                Messages.format("memory.fill.large", String.valueOf(count)))) {
+            return;
+        }
+        Optional<String> refusal = model.fill(from.getAsLong(), to.getAsLong(), request.value());
+        updateStatus(refusal);
+        refusal.ifPresent(key -> prompts.inform(Messages.text(key)));
     }
 
     /** The addresses of the rows on screen (the first rows when nothing is laid out yet): never the whole memory. */
@@ -699,15 +706,17 @@ public final class MemoryEditorDialog {
     }
 
     private void askGoTo() {
-        prompts.askAddress().ifPresent(text -> {
-            OptionalLong address = model.parseAddress(text);
-            if (address.isPresent()) {
-                goTo(address.getAsLong());
-            } else {
-                prompts.inform(Messages.format("memory.goTo.invalid", text.trim(),
-                        Long.toHexString(model.words() - 1).toUpperCase()));
-            }
-        });
+        prompts.askAddress().ifPresent(this::goToTyped);
+    }
+
+    private void goToTyped(String text) {
+        OptionalLong address = model.parseAddress(text);
+        if (address.isPresent()) {
+            goTo(address.getAsLong());
+        } else {
+            prompts.inform(Messages.format("memory.goTo.invalid", text.trim(),
+                    Long.toHexString(model.words() - 1).toUpperCase()));
+        }
     }
 
     /** Selects the cell of {@code address} and scrolls to it. */
@@ -838,17 +847,20 @@ public final class MemoryEditorDialog {
         livePending = true;
         CompletableFuture<Void> done = new CompletableFuture<>();
         document.requestMemoryContents(componentId).whenComplete((contents, failure) ->
-                SwingUtilities.invokeLater(() -> {
-                    livePending = false;
-                    if (contents != null) {
-                        contents.ifPresent(model::showLive);
-                        if (findBar.isVisible()) {
-                            refreshFindCount();
-                        }
-                    }
-                    done.complete(null);
-                }));
+                SwingUtilities.invokeLater(() -> showLiveAnswer(contents, done)));
         return done;
+    }
+
+    /** On the EDT: the words the simulation answered with (null when the request failed). */
+    private void showLiveAnswer(Optional<MemoryContents> contents, CompletableFuture<Void> done) {
+        livePending = false;
+        if (contents != null) {
+            contents.ifPresent(model::showLive);
+            if (findBar.isVisible()) {
+                refreshFindCount();
+            }
+        }
+        done.complete(null);
     }
 
     // Find

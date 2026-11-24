@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import javax.swing.JPopupMenu;
 
 /**
  * Adds «Mostrar hojas de impresión» (Ver and the toolbar) and the sheets drawn over the circuit to every editor view
@@ -23,7 +24,7 @@ public final class SheetsExtension implements EditorExtension {
     private final List<SheetsFeatures> installed = new ArrayList<>();
 
     public SheetsExtension(SheetAnchors anchors) {
-        this(anchors, (menu, invoker, x, y) -> menu.show(invoker, x, y));
+        this(anchors, JPopupMenu::show);
     }
 
     /** With {@code menuShower} instead of showing the quick options popup (headless tests record it). */

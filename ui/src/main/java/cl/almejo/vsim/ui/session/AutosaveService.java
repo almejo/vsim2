@@ -257,21 +257,24 @@ public final class AutosaveService {
             RecoveryMetadata metadata = new RecoveryMetadata(document.path(), name, clock.instant());
             state.copiedChangeCount = document.changeCount();
             state.copiedDraftCount = draftCount;
-            writer.execute(() -> {
-                if (shutDown) {
-                    return;
-                }
-                try {
-                    store.write(id, content, metadata);
-                    failing.remove(id);
-                    writeTroubleMayHaveChanged();
-                } catch (IOException | RuntimeException exception) {
-                    reportFailure(id, name, exception);
-                    return;
-                }
-                runAfterCopied(state);
-            });
+            writer.execute(() -> writeCopy(state, id, name, content, metadata));
         }
+    }
+
+    /** Runs on the writer. */
+    private void writeCopy(Tracked state, UUID id, String name, String content, RecoveryMetadata metadata) {
+        if (shutDown) {
+            return;
+        }
+        try {
+            store.write(id, content, metadata);
+            failing.remove(id);
+            writeTroubleMayHaveChanged();
+        } catch (IOException | RuntimeException exception) {
+            reportFailure(id, name, exception);
+            return;
+        }
+        runAfterCopied(state);
     }
 
     /**
@@ -288,13 +291,7 @@ public final class AutosaveService {
         tracked.clear();
         live.clear();
         waitingForTracking.clear();
-        writer.execute(() -> {
-            try {
-                store.deleteSession();
-            } catch (IOException exception) {
-                LOGGER.warn("Could not delete the recovery folder {}", store.sessionFolder(), exception);
-            }
-        });
+        writer.execute(this::deleteSessionFolder);
         if (writer instanceof ExecutorService service) {
             service.shutdown();
             try {
@@ -362,13 +359,25 @@ public final class AutosaveService {
         state.copiedChangeCount = -1;
         state.copiedDraftCount = -1;
         UUID id = document.recoveryId();
-        writer.execute(() -> {
-            try {
-                store.delete(id);
-            } catch (IOException exception) {
-                LOGGER.warn("Could not delete the recovery copy {}", id, exception);
-            }
-        });
+        writer.execute(() -> deleteCopy(id));
+    }
+
+    /** Runs on the writer. */
+    private void deleteCopy(UUID id) {
+        try {
+            store.delete(id);
+        } catch (IOException exception) {
+            LOGGER.warn("Could not delete the recovery copy {}", id, exception);
+        }
+    }
+
+    /** Runs on the writer. */
+    private void deleteSessionFolder() {
+        try {
+            store.deleteSession();
+        } catch (IOException exception) {
+            LOGGER.warn("Could not delete the recovery folder {}", store.sessionFolder(), exception);
+        }
     }
 
     private void reportFailure(UUID id, String name, Exception exception) {

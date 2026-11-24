@@ -272,12 +272,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         });
         setTransferHandler(new CanvasTransferHandler(this));
         canvasDragOut.listenForDragExit();
-        addHierarchyListener(event -> {
-            if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
-                showingChanged(isShowing());
-                updateAnimation();
-            }
-        });
+        addHierarchyListener(this::hierarchyChangedAbout);
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
         problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
@@ -1258,12 +1253,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         Runnable remover = edgeController.add(handle);
         updateToolTipRegistration();
         repaint();
-        return () -> {
-            remover.run();
-            updateToolTipRegistration();
-            showCursor();
-            repaint();
-        };
+        return () -> removeEdgeHandle(remover);
+    }
+
+    private void removeEdgeHandle(Runnable remover) {
+        remover.run();
+        updateToolTipRegistration();
+        showCursor();
+        repaint();
+    }
+
+    private void hierarchyChangedAbout(HierarchyEvent event) {
+        if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
+            showingChanged(isShowing());
+            updateAnimation();
+        }
     }
 
     /** For tests: the edge handles installed now. */

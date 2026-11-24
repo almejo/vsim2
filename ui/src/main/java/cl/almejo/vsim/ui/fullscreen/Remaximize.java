@@ -44,17 +44,19 @@ final class Remaximize {
         Objects.requireNonNull(target, "target");
         Insets atStart = target.insets();
         long start = clock.getAsLong();
-        pending = () -> {
-            if (target.insets().equals(atStart) && clock.getAsLong() - start < TIMEOUT_MILLISECONDS) {
-                return; // the title bar is not back yet
-            }
-            cancel();
-            if ((target.state() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
-                target.setState(wanted & ~Frame.MAXIMIZED_BOTH); // a real change, so the next one reaches the system
-            }
-            target.setState(wanted);
-        };
+        pending = () -> remaximizeStep(target, wanted, atStart, start);
         ticker.start(this::check);
+    }
+
+    private void remaximizeStep(Window target, int wanted, Insets atStart, long start) {
+        if (target.insets().equals(atStart) && clock.getAsLong() - start < TIMEOUT_MILLISECONDS) {
+            return; // the title bar is not back yet
+        }
+        cancel();
+        if ((target.state() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
+            target.setState(wanted & ~Frame.MAXIMIZED_BOTH); // a real change, so the next one reaches the system
+        }
+        target.setState(wanted);
     }
 
     /** The frame moved, was resized or changed state: looks now instead of at the next tick. */

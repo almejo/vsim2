@@ -50,7 +50,7 @@ final class SwingLogisimImportDialogs implements LogisimImportDialogs {
         dialog.add(new ImportReportPanel(summary, report, host), BorderLayout.CENTER);
         dialog.add(buttons, BorderLayout.SOUTH);
         dialog.getRootPane().setDefaultButton(close);
-        bindEscape(dialog, () -> dialog.dispose());
+        bindEscape(dialog, dialog::dispose);
         dialog.setMinimumSize(MINIMUM_REPORT_SIZE);
         dialog.setSize(host.size().orElse(REPORT_SIZE));
         dialog.addWindowListener(new WindowAdapter() {

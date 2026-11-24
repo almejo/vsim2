@@ -167,13 +167,7 @@ public final class PreferencesForm {
                 .filter(LANGUAGES::containsKey));
 
         themeChoice.addActionListener(event -> preferences.setTheme(selected(themeChoice)));
-        schemeChoice.addActionListener(event -> {
-            if (!refreshingSchemes) {
-                preferences.setColorScheme(selected(schemeChoice));
-                deleteSchemeButton.setEnabled(selectedCustomScheme().isPresent());
-                refreshSchemeNote();
-            }
-        });
+        schemeChoice.addActionListener(event -> schemeChosen());
         customizeSchemeButton.addActionListener(event -> customizeScheme());
         deleteSchemeButton.addActionListener(event -> deleteScheme());
         languageChoice.addActionListener(event -> preferences.setLanguage(selected(languageChoice)));
@@ -450,8 +444,24 @@ public final class PreferencesForm {
         schemeNote.setApplicable(selected(schemeChoice).filter(LOW_CONTRAST_SCHEMES::contains).isPresent());
     }
 
+    private void schemeChosen() {
+        if (!refreshingSchemes) {
+            preferences.setColorScheme(selected(schemeChoice));
+            deleteSchemeButton.setEnabled(selectedCustomScheme().isPresent());
+            refreshSchemeNote();
+        }
+    }
+
     private Optional<NamedColorScheme> selectedCustomScheme() {
         return selected(schemeChoice).flatMap(customSchemes::byId);
+    }
+
+    private NamedColorScheme copyOfTheSelectedBuiltInScheme() {
+        String id = selected(schemeChoice).filter(chosen -> ColorSchemes.byId(chosen).isPresent())
+                .orElse(themeIsDark.getAsBoolean() ? ColorSchemes.DARK_ID : ColorSchemes.LIGHT_ID);
+        ColorScheme scheme = ColorSchemes.byId(id).orElseThrow();
+        return new NamedColorScheme(id, Messages.format("preferences.scheme.copyName",
+                ColorSchemes.displayName(id)), scheme);
     }
 
     /**
@@ -460,13 +470,7 @@ public final class PreferencesForm {
      */
     private void customizeScheme() {
         Optional<NamedColorScheme> custom = selectedCustomScheme();
-        NamedColorScheme start = custom.orElseGet(() -> {
-            String id = selected(schemeChoice).filter(chosen -> ColorSchemes.byId(chosen).isPresent())
-                    .orElse(themeIsDark.getAsBoolean() ? ColorSchemes.DARK_ID : ColorSchemes.LIGHT_ID);
-            ColorScheme scheme = ColorSchemes.byId(id).orElseThrow();
-            return new NamedColorScheme(id, Messages.format("preferences.scheme.copyName",
-                    ColorSchemes.displayName(id)), scheme);
-        });
+        NamedColorScheme start = custom.orElseGet(this::copyOfTheSelectedBuiltInScheme);
         SchemeEditorPanel editor = new SchemeEditorPanel(start, colorChooser);
         if (!schemeEditorOpener.open(appearance, editor)) {
             return;

@@ -473,14 +473,16 @@ public final class CircuitTree extends JPanel {
      * that tab's view with the piece's id; without a window, only for a piece of this tab's place.
      */
     private void inItsPlace(String path, Consumer<PlacedPiece> action) {
-        SeePiece.targetOf(path, circuit().document()).ifPresent(target -> {
-            Optional<EditorView> shown = window().showPlace(circuit(), target.definitionId(), target.contextPath())
-                    .or(() -> isHere(target) ? Optional.of(view) : Optional.empty())
-                    .filter(window()::isShown); // not in a hidden tab, when the shown one kept the front
-            shown.ifPresent(where -> {
-                SeePiece.selectAndTravel(where, target.part());
-                action.accept(new PlacedPiece(where, target.part()));
-            });
+        SeePiece.targetOf(path, circuit().document()).ifPresent(target -> runInItsPlace(target, action));
+    }
+
+    private void runInItsPlace(SeePiece.Target target, Consumer<PlacedPiece> action) {
+        Optional<EditorView> shown = window().showPlace(circuit(), target.definitionId(), target.contextPath())
+                .or(() -> isHere(target) ? Optional.of(view) : Optional.empty())
+                .filter(window()::isShown); // not in a hidden tab, when the shown one kept the front
+        shown.ifPresent(where -> {
+            SeePiece.selectAndTravel(where, target.part());
+            action.accept(new PlacedPiece(where, target.part()));
         });
     }
 
@@ -525,13 +527,15 @@ public final class CircuitTree extends JPanel {
         String id = ids.iterator().next().value();
         Optional<String> path = place.isBody() ? place.contextPath().map(context -> InstancePath.child(context, id))
                 : Optional.of(id);
-        path.ifPresent(found -> {
-            int separator = found.lastIndexOf(InstancePath.SEPARATOR);
-            if (separator > 0) {
-                expandTo(found.substring(0, separator));
-            }
-            choose(found);
-        });
+        path.ifPresent(this::expandToAndChoose);
+    }
+
+    private void expandToAndChoose(String found) {
+        int separator = found.lastIndexOf(InstancePath.SEPARATOR);
+        if (separator > 0) {
+            expandTo(found.substring(0, separator));
+        }
+        choose(found);
     }
 
     /** Chooses the row {@code path} (scrolled into view), doing nothing else. */
@@ -571,13 +575,15 @@ public final class CircuitTree extends JPanel {
     }
 
     List<String> childPaths(String path) {
-        return Optional.ofNullable(nodesByPath.get(path)).map(node -> {
-            List<String> paths = new ArrayList<>();
-            for (int index = 0; index < node.getChildCount(); index++) {
-                paths.add(((Row) ((DefaultMutableTreeNode) node.getChildAt(index)).getUserObject()).node().path());
-            }
-            return paths;
-        }).orElse(List.of());
+        return Optional.ofNullable(nodesByPath.get(path)).map(CircuitTree::pathsOfChildren).orElse(List.of());
+    }
+
+    private static List<String> pathsOfChildren(DefaultMutableTreeNode node) {
+        List<String> paths = new ArrayList<>();
+        for (int index = 0; index < node.getChildCount(); index++) {
+            paths.add(((Row) ((DefaultMutableTreeNode) node.getChildAt(index)).getUserObject()).node().path());
+        }
+        return paths;
     }
 
     /** The colour the grey text of an unselected row is drawn with now (for tests); none for an unknown row. */
@@ -595,7 +601,7 @@ public final class CircuitTree extends JPanel {
     /** The row's tooltip: what a click does, and the piece's id. */
     Optional<String> toolTipOf(String path) {
         return nodeAt(path).filter(node -> !node.isDocument()).map(node -> node.machineRow()
-                .map(row -> machineToolTip(row)).orElseGet(() -> Messages.format(
+                .map(CircuitTree::machineToolTip).orElseGet(() -> Messages.format(
                         node.isUserComponent() ? "tree.tooltip.component" : "tree.tooltip.piece", node.path())));
     }
 

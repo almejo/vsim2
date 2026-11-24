@@ -74,14 +74,17 @@ public final class SystemPrinterAccess implements PrinterAccess {
 
     @Override
     public CompletableFuture<Optional<Paper>> defaultPaper() {
-        return CompletableFuture.supplyAsync(() -> {
-            PrintService service = PrintServiceLookup.lookupDefaultPrintService();
-            if (service == null) {
-                PrintService[] services = PrintServiceLookup.lookupPrintServices(null, null);
-                service = services.length == 0 ? null : services[0];
-            }
-            return defaultPaperOf(service);
-        }, lookupThread);
+        return CompletableFuture.supplyAsync(SystemPrinterAccess::lookUpDefaultPaper, lookupThread);
+    }
+
+    /** Runs on the lookup thread: the default printer's paper, or the first printer's when there is no default. */
+    private static Optional<Paper> lookUpDefaultPaper() {
+        PrintService service = PrintServiceLookup.lookupDefaultPrintService();
+        if (service == null) {
+            PrintService[] services = PrintServiceLookup.lookupPrintServices(null, null);
+            service = services.length == 0 ? null : services[0];
+        }
+        return defaultPaperOf(service);
     }
 
     /** The paper {@code service} prints on by default, when it says and it is one of {@link Paper}. */
@@ -124,18 +127,22 @@ public final class SystemPrinterAccess implements PrinterAccess {
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
         try {
-            printThread.execute(() -> {
-                try {
-                    send(systemJob, pages, setup, progress);
-                    result.complete(null);
-                } catch (Throwable failure) {
-                    result.completeExceptionally(failure);
-                }
-            });
+            printThread.execute(() -> sendAndComplete(result, systemJob, pages, setup, progress));
         } catch (RuntimeException rejection) {
             result.completeExceptionally(rejection);
         }
         return result;
+    }
+
+    /** Runs on the print thread: sends the sheets and completes {@code result} with how it went. */
+    private static void sendAndComplete(CompletableFuture<Void> result, SystemJob systemJob, PagePainter pages,
+                                        PrintSetup setup, PdfExporter.ProgressListener progress) {
+        try {
+            send(systemJob, pages, setup, progress);
+            result.complete(null);
+        } catch (Throwable failure) {
+            result.completeExceptionally(failure);
+        }
     }
 
     private static void send(SystemJob job, PagePainter pages, PrintSetup setup,

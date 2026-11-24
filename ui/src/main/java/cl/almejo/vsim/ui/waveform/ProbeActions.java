@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -104,14 +105,16 @@ public final class ProbeActions {
         ids.stream()
                 .filter(id -> document.element(id).isPresent())
                 .sorted(Comparator.comparingLong(document::orderOf))
-                .forEach(id -> {
-                    if (document.wire(id).isPresent()) {
-                        wireTarget(id).ifPresent(targets::add);
-                    } else if (document.component(id).isPresent()) {
-                        targets.addAll(pinTargets(id));
-                    }
-                });
+                .forEach(id -> addTargetsOf(document, id, targets));
         return add(targets);
+    }
+
+    private void addTargetsOf(CircuitDocument document, ElementId id, List<ProbeTarget> targets) {
+        if (document.wire(id).isPresent()) {
+            wireTarget(id).ifPresent(targets::add);
+        } else if (document.component(id).isPresent()) {
+            targets.addAll(pinTargets(id));
+        }
     }
 
     /** Whether {@code ids} hold a wire or a component (a selection of only labels has nothing to show). */
@@ -140,7 +143,7 @@ public final class ProbeActions {
                 .findFirst()
                 .flatMap(probe -> ProbeResolver.netOf(probe.target(), document, netlist))
                 .flatMap(netId -> netlist.nets().stream().filter(net -> net.id().value().equals(netId)).findFirst())
-                .map(net -> net.width())
+                .map(Net::width)
                 .orElse(1);
     }
 

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
@@ -53,19 +54,7 @@ public record WidthMismatchHighlight(Set<ElementId> wires, Map<GridPoint, List<I
         Set<ElementId> wires = new HashSet<>();
         Map<GridPoint, TreeSet<Integer>> widths = new HashMap<>();
         for (NetId id : nets) {
-            netlist.net(id).ifPresent(net -> {
-                wires.addAll(net.wires());
-                for (PinRef pin : net.pins()) {
-                    document.component(pin.componentId()).ifPresent(component -> {
-                        ComponentType type = registry.typeOf(component);
-                        // a tunnel's pin has no width of its own (it takes the net's), so it is not part of the clash
-                        if (!type.pin(pin.pinIndex()).isAdaptiveWidth()) {
-                            widths.computeIfAbsent(type.pinLocation(component, pin.pinIndex()),
-                                    point -> new TreeSet<>()).add(type.pin(pin.pinIndex()).width());
-                        }
-                    });
-                }
-            });
+            netlist.net(id).ifPresent(net -> addNetPinWidths(net, document, registry, wires, widths));
         }
         if (wires.isEmpty() && widths.isEmpty()) {
             return NONE;
@@ -73,5 +62,24 @@ public record WidthMismatchHighlight(Set<ElementId> wires, Map<GridPoint, List<I
         Map<GridPoint, List<Integer>> pinWidths = new HashMap<>();
         widths.forEach((point, sorted) -> pinWidths.put(point, List.copyOf(sorted)));
         return new WidthMismatchHighlight(wires, pinWidths);
+    }
+
+    private static void addNetPinWidths(Net net, CircuitDocument document, ComponentTypeRegistry registry,
+                                        Set<ElementId> wires, Map<GridPoint, TreeSet<Integer>> widths) {
+        wires.addAll(net.wires());
+        for (PinRef pin : net.pins()) {
+            document.component(pin.componentId())
+                    .ifPresent(component -> addPinWidth(component, pin, registry, widths));
+        }
+    }
+
+    private static void addPinWidth(Component component, PinRef pin, ComponentTypeRegistry registry,
+                                    Map<GridPoint, TreeSet<Integer>> widths) {
+        ComponentType type = registry.typeOf(component);
+        // a tunnel's pin has no width of its own (it takes the net's), so it is not part of the clash
+        if (!type.pin(pin.pinIndex()).isAdaptiveWidth()) {
+            widths.computeIfAbsent(type.pinLocation(component, pin.pinIndex()),
+                    point -> new TreeSet<>()).add(type.pin(pin.pinIndex()).width());
+        }
     }
 }

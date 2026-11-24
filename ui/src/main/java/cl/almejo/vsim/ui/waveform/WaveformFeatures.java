@@ -144,12 +144,14 @@ public final class WaveformFeatures {
         pane.addOverlay(markers);
         Runnable toolTipRemover = pane.addToolTipOverride(this::markerToolTip);
         Runnable pressRemover = pane.addPressInterceptor(event -> markerPressed(pane, event));
-        return () -> {
-            pressRemover.run();
-            toolTipRemover.run();
-            pane.removeOverlay(markers);
-            pane.removeOverlay(blink);
-        };
+        return () -> uninstallFrom(pane, pressRemover, toolTipRemover);
+    }
+
+    private void uninstallFrom(CircuitCanvas pane, Runnable pressRemover, Runnable toolTipRemover) {
+        pressRemover.run();
+        toolTipRemover.run();
+        pane.removeOverlay(markers);
+        pane.removeOverlay(blink);
     }
 
     /** The panel's «Ocultar»: closes the dock, or in presentation mode takes the panel out of sight. */

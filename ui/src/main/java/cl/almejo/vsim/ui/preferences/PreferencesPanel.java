@@ -23,6 +23,7 @@ import javax.swing.KeyStroke;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.event.ListSelectionEvent;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -119,12 +120,14 @@ final class PreferencesPanel extends JPanel {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new GroupRenderer());
         list.getAccessibleContext().setAccessibleName(Messages.text("preferences.title"));
-        list.addListSelectionListener(event -> {
-            PreferencesGroup chosen = list.getSelectedValue();
-            if (!event.getValueIsAdjusting() && !adjusting && chosen != null) {
-                choose(chosen.id());
-            }
-        });
+        list.addListSelectionListener(this::groupSelected);
+    }
+
+    private void groupSelected(ListSelectionEvent event) {
+        PreferencesGroup chosen = list.getSelectedValue();
+        if (!event.getValueIsAdjusting() && !adjusting && chosen != null) {
+            choose(chosen.id());
+        }
     }
 
     /** Esc in the field clears it (and only then consumes the key); Enter goes to the page's first control (never to

@@ -46,7 +46,7 @@ public final class FixedStepFeatures {
         this.view = view;
         this.preferences = view.services().preferences();
         this.chooser = chooser;
-        Action stepSizeAction = Actions.of(Messages.text("action.stepSize"), () -> askForASize());
+        Action stepSizeAction = Actions.of(Messages.text("action.stepSize"), this::askForASize);
         this.stepSizeItem = new JMenuItem(stepSizeAction);
         stepSizeItem.putClientProperty(COMPANION, Boolean.TRUE);
         JMenu simulation = view.menu(MenuId.SIMULATION);

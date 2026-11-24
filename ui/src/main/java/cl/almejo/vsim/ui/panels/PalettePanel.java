@@ -478,10 +478,14 @@ public final class PalettePanel extends JPanel {
         rebuild();
     }
 
+    private void runEscapeAction() {
+        escapeAction.run();
+    }
+
     /** Starts placing the highlighted entry: a click on it, or Enter. */
     private void chooseSelected() {
         selectedEntry().ifPresent(onChoose);
-        selectedUserComponent().ifPresent(component -> userChooser.accept(component));
+        selectedUserComponent().ifPresent(userChooser::accept);
     }
 
     /**
@@ -494,7 +498,7 @@ public final class PalettePanel extends JPanel {
                 this::chooseSelected);
         Keys.bindWhenFocused(tree, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "palette.up", this::pressUp);
         Keys.bindWhenFocused(tree, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "palette.escape",
-                () -> escapeAction.run());
+                this::runEscapeAction);
         Keys.bindWhenFocused(search, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "palette.toTheRows",
                 this::downFromTheSearch);
     }
