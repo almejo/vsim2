@@ -26,6 +26,12 @@ import java.util.Set;
  */
 public final class ElementDrag {
 
+    /** What the press grabbed the element for: to move it (with the selection) or to resize it. */
+    public enum Grab {
+        MOVE,
+        RESIZE
+    }
+
     private GridPoint pressPoint;
     private boolean resizes;
     /** What the press left for a release without moving: narrow the selection to the element or take it out. */
@@ -40,10 +46,10 @@ public final class ElementDrag {
     private final MovePreview movePreview = new MovePreview();
     private SnappedMove snappedMove = SnappedMove.unsnapped(0, 0);
 
-    /** Starts a drag at {@code event}'s snapped point; {@code resizes} when the grab resizes instead of moving. */
-    public void start(CanvasMouseEvent event, boolean resizes) {
+    /** Starts a drag at {@code event}'s snapped point, to move or to resize the element as {@code grab} says. */
+    public void start(CanvasMouseEvent event, Grab grab) {
         this.pressPoint = event.snapped();
-        this.resizes = resizes;
+        this.resizes = grab == Grab.RESIZE;
     }
 
     /** Whether a drag started and has not been released or cancelled. */

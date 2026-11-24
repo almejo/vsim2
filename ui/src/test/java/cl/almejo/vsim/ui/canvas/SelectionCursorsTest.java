@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.ui.icons.DrawnCursors;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Cursor;
@@ -21,8 +22,8 @@ class SelectionCursorsTest {
 
     @Test
     void theImageHasADarkArrowAtTheTipAndADifferentBadgeForEachMode() {
-        BufferedImage adding = SelectionCursors.image(32, false);
-        BufferedImage removing = SelectionCursors.image(32, true);
+        BufferedImage adding = SelectionCursors.image(32, DrawnCursors.Sign.PLUS);
+        BufferedImage removing = SelectionCursors.image(32, DrawnCursors.Sign.MINUS);
         assertThat(adding.getWidth()).isEqualTo(32);
         int insideArrow = adding.getRGB(SelectionCursors.HOTSPOT + 2, SelectionCursors.HOTSPOT + 6);
         assertThat(insideArrow >>> 24).isEqualTo(255);

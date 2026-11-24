@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.appearance;
 
 import cl.almejo.vsim.ui.icons.DrawnCursors;
+import cl.almejo.vsim.ui.icons.SignedCursors;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -8,6 +9,7 @@ import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 /**
  * The cursors of «Agregar nodo» and «Quitar nodo»: a crosshair with a «+» or a «−» badge, so the hand knows what a
@@ -27,41 +29,32 @@ final class ShapeCursors {
     /** The badge's centre (on both axes) and its sign's arm, in pixels of a 32-pixel cursor. */
     private static final double BADGE_CENTRE = 22;
     private static final double BADGE_ARM = 4;
+    private static final DrawnCursors.Badge BADGE = new DrawnCursors.Badge(BADGE_CENTRE, BADGE_CENTRE, BADGE_ARM,
+            OUTLINE);
 
-    private static Cursor addNode;
-    private static Cursor removeNode;
+    private static final SignedCursors CURSORS = new SignedCursors(
+            Map.of(DrawnCursors.Sign.PLUS, "vsim-shape-node-add", DrawnCursors.Sign.MINUS, "vsim-shape-node-remove"),
+            ShapeCursors::paint, HOTSPOT, Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 
     private ShapeCursors() {
     }
 
     /** The crosshair with a «+» (EDT only, like every cursor change). */
     static Cursor addNode() {
-        if (addNode == null) {
-            addNode = create(false);
-        }
-        return addNode;
+        return CURSORS.cursor(DrawnCursors.Sign.PLUS);
     }
 
     /** The crosshair with a «−». */
     static Cursor removeNode() {
-        if (removeNode == null) {
-            removeNode = create(true);
-        }
-        return removeNode;
-    }
-
-    private static Cursor create(boolean removes) {
-        return DrawnCursors.create(removes ? "vsim-shape-node-remove" : "vsim-shape-node-add",
-                size -> image(size, removes), DrawnCursors.scaledHotspot(HOTSPOT),
-                Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+        return CURSORS.cursor(DrawnCursors.Sign.MINUS);
     }
 
     /** The cursor's picture, {@code size} pixels square: the cross top left, the badge towards the bottom right. */
-    static BufferedImage image(int size, boolean removes) {
-        return DrawnCursors.picture(size, graphics -> paint(graphics, removes));
+    static BufferedImage image(int size, DrawnCursors.Sign sign) {
+        return CURSORS.image(size, sign);
     }
 
-    private static void paint(Graphics2D graphics, boolean removes) {
+    private static void paint(Graphics2D graphics, DrawnCursors.Sign sign) {
         Line2D.Double horizontal = new Line2D.Double(HOTSPOT - ARM, HOTSPOT, HOTSPOT + ARM, HOTSPOT);
         Line2D.Double vertical = new Line2D.Double(HOTSPOT, HOTSPOT - ARM, HOTSPOT, HOTSPOT + ARM);
         graphics.setColor(OUTLINE);
@@ -72,7 +65,6 @@ final class ShapeCursors {
         graphics.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
         graphics.draw(horizontal);
         graphics.draw(vertical);
-        DrawnCursors.paintBadge(graphics, BADGE_CENTRE, BADGE_CENTRE, OUTLINE, removes ? BADGE_REMOVE : BADGE_ADD,
-                BADGE_ARM, removes);
+        DrawnCursors.paintBadge(graphics, BADGE, sign == DrawnCursors.Sign.MINUS ? BADGE_REMOVE : BADGE_ADD, sign);
     }
 }

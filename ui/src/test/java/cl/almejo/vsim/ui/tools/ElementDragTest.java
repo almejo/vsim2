@@ -49,7 +49,7 @@ class ElementDragTest {
 
     /** The grab of {@link #first} at ({@code x}, 6), a drag to each of {@code toX} (y 6) and the release there. */
     private void grabAndRelease(int x, boolean shiftDown, int... toX) {
-        drag.start(TestToolContext.at(x, 6), false);
+        drag.start(TestToolContext.at(x, 6), ElementDrag.Grab.MOVE);
         if (shiftDown) {
             drag.toggleOnPress(context.selection, first.id());
         } else {
@@ -79,7 +79,7 @@ class ElementDragTest {
     @Test
     void aReleaseWithoutMovingIsAClick() {
         selectBoth(4, 30);
-        drag.start(TestToolContext.at(6, 6), false);
+        drag.start(TestToolContext.at(6, 6), ElementDrag.Grab.MOVE);
         drag.dragged(context, TestToolContext.at(6, 6));
         assertThat(drag.isClick()).isTrue();
     }
@@ -90,7 +90,7 @@ class ElementDragTest {
                 "Muro", FrameTint.BLUE, true);
         context.openDocument().execute(new CreateFrameCommand(wall));
         selectBoth(16, 4); // the first gate's right side is on the wall (x 20)
-        drag.start(TestToolContext.at(18, 6), false);
+        drag.start(TestToolContext.at(18, 6), ElementDrag.Grab.MOVE);
         drag.selectOnPress(context.selection, first.id());
         drag.dragged(context, TestToolContext.at(26, 6));
         assertThat(drag.displaced()).isFalse();
