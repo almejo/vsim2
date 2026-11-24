@@ -113,7 +113,9 @@ tasks.register<JavaExec>("cpdMain") {
                     + "$reportFile\n" + reportFile.readText())
         }
         if (exitValue != 0 && exitValue != violationsFound) {
-            throw GradleException("CPD did not run (exit value $exitValue); see the output above")
+            val processingErrors = 5
+            val what = if (exitValue == processingErrors) "CPD ran with processing errors" else "CPD did not run"
+            throw GradleException("$what (exit value $exitValue); report: $reportFile; see the output above")
         }
     }
     argumentProviders.add(CommandLineArgumentProvider {
