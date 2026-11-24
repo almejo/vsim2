@@ -4,10 +4,12 @@ import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.DraftHistory;
 import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.SymbolDraft;
+import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.component.appearance.TextAlignment;
 import cl.almejo.vsim.core.component.appearance.TextSize;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -48,6 +50,7 @@ import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.event.ListSelectionEvent;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -310,6 +313,15 @@ public final class ShapeEditorPanel extends JPanel {
         return body;
     }
 
+    private void pinRowChosen(ListSelectionEvent event) {
+        if (!event.getValueIsAdjusting() && !refreshing && pins.getSelectedRow() >= 0) {
+            canvas.selectPin(request.definition().pinout().get(pins.getSelectedRow()).source());
+            refresh();
+            // The arrows move the pin that was just chosen: the keys must reach the canvas, not the table.
+            SwingUtilities.invokeLater(this::focusCanvas);
+        }
+    }
+
     private JComponent sidePanel() {
         JPanel side = new Surface(new MigLayout("wrap 1, insets 0, gap 0, fillx, hidemode 3", "[grow, fill]"));
         side.setBorder(new EdgeBorder(Set.of(EdgeBorder.Side.LEFT), new Insets(0, 0, 0, 0)));
@@ -318,14 +330,7 @@ public final class ShapeEditorPanel extends JPanel {
         pinScroll.setBorder(BorderFactory.createEmptyBorder());
         pinScroll.setColumnHeaderView(pins.getTableHeader());
         side.add(pinScroll, "hmin 60, shrinky 100");
-        pins.getSelectionModel().addListSelectionListener(event -> {
-            if (!event.getValueIsAdjusting() && !refreshing && pins.getSelectedRow() >= 0) {
-                canvas.selectPin(request.definition().pinout().get(pins.getSelectedRow()).source());
-                refresh();
-                // The arrows move the pin that was just chosen: the keys must reach the canvas, not the table.
-                SwingUtilities.invokeLater(this::focusCanvas);
-            }
-        });
+        pins.getSelectionModel().addListSelectionListener(this::pinRowChosen);
         side.add(sectionTitle(Messages.text("shape.size")), "gap 10 10 10 2");
         side.add(sizeRow());
         pinNames.setIcon(new SwitchIcon());
@@ -626,22 +631,26 @@ public final class ShapeEditorPanel extends JPanel {
         return canAccept() && hasChanges();
     }
 
+    private void escapePressed() {
+        switch (ShapeKeys.escape(canvas.operationActive(), canvas.hasSelection())) {
+            case CANCEL_OPERATION -> canvas.escapeOperation();
+            case CLEAR_SELECTION -> canvas.clearSelection();
+            default -> onClose.run();
+        }
+    }
+
+    private void enterPressed() {
+        if (ShapeKeys.enter(canvas.operationActive()) == ShapeKeys.Intent.FINISH_OPERATION) {
+            canvas.finishOperation();
+        } else if (acceptable()) {
+            onAccept.run();
+        }
+    }
+
     private void bindKeys() {
         int menu = ShortcutCatalog.menuMask();
-        bind(KeyStroke.getKeyStroke("ESCAPE"), "escape", () -> {
-            switch (ShapeKeys.escape(canvas.operationActive(), canvas.hasSelection())) {
-                case CANCEL_OPERATION -> canvas.escapeOperation();
-                case CLEAR_SELECTION -> canvas.clearSelection();
-                default -> onClose.run();
-            }
-        });
-        bind(KeyStroke.getKeyStroke("ENTER"), "enter", () -> {
-            if (ShapeKeys.enter(canvas.operationActive()) == ShapeKeys.Intent.FINISH_OPERATION) {
-                canvas.finishOperation();
-            } else if (acceptable()) {
-                onAccept.run();
-            }
-        });
+        bind(KeyStroke.getKeyStroke("ESCAPE"), "escape", this::escapePressed);
+        bind(KeyStroke.getKeyStroke("ENTER"), "enter", this::enterPressed);
         // The selection keys belong to the canvas: a text, a spinner or a combo box that has the focus keeps them.
         bindSelectionKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", canvas::deleteSelection);
         bindSelectionKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "backspace", canvas::deleteSelection);
@@ -824,7 +833,7 @@ public final class ShapeEditorPanel extends JPanel {
         }
         width.setEnabled(!draft.pinsLocked());
         height.setEnabled(!draft.pinsLocked());
-        pinNames.setSelected(draft.appearance().drawing().map(drawing -> drawing.showPinNames()).orElse(true));
+        pinNames.setSelected(draft.appearance().drawing().map(SymbolDrawing::showPinNames).orElse(true));
     }
 
     private void refreshTextGroup() {
@@ -833,14 +842,16 @@ public final class ShapeEditorPanel extends JPanel {
             textGroup.setVisible(text.isPresent());
             revalidate();
         }
-        text.ifPresent(chosen -> {
-            List<SymbolText> texts = selectedTexts();
-            showShared(textColors, texts.stream().map(SymbolText::color).toList());
-            showShared(textBorders, texts.stream().map(SymbolText::border).toList());
-            textSizes.setSelectedIndex(chosen.size().ordinal());
-            textAlignments.setSelectedIndex(chosen.alignment().ordinal());
-            componentName.setSelected(chosen.text().isEmpty());
-        });
+        text.ifPresent(this::showTextChoices);
+    }
+
+    private void showTextChoices(SymbolText chosen) {
+        List<SymbolText> texts = selectedTexts();
+        showShared(textColors, texts.stream().map(SymbolText::color).toList());
+        showShared(textBorders, texts.stream().map(SymbolText::border).toList());
+        textSizes.setSelectedIndex(chosen.size().ordinal());
+        textAlignments.setSelectedIndex(chosen.alignment().ordinal());
+        componentName.setSelected(chosen.text().isEmpty());
     }
 
     private void refreshFigureGroup() {
@@ -888,16 +899,18 @@ public final class ShapeEditorPanel extends JPanel {
         return rows;
     }
 
-    private void syncPinSelection() {
-        Optional<Integer> row = canvas.selectedPin().flatMap(source -> {
-            List<DefinitionPin> pinout = request.definition().pinout();
-            for (int index = 0; index < pinout.size(); index++) {
-                if (pinout.get(index).source().equals(source)) {
-                    return Optional.of(index);
-                }
+    private Optional<Integer> pinRowOf(ElementId source) {
+        List<DefinitionPin> pinout = request.definition().pinout();
+        for (int index = 0; index < pinout.size(); index++) {
+            if (pinout.get(index).source().equals(source)) {
+                return Optional.of(index);
             }
-            return Optional.empty();
-        });
+        }
+        return Optional.empty();
+    }
+
+    private void syncPinSelection() {
+        Optional<Integer> row = canvas.selectedPin().flatMap(this::pinRowOf);
         if (row.isPresent()) {
             if (pins.getSelectedRow() != row.get()) {
                 pins.setRowSelectionInterval(row.get(), row.get());

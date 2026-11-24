@@ -35,6 +35,22 @@ public final class SwingShapeEditor implements ShapeEditor {
         this.scheme = scheme;
     }
 
+    private static void closeUnlessDiscardRefused(ShapeEditorPanel panel, JDialog dialog) {
+        if (!panel.hasChanges() || JOptionPane.showConfirmDialog(dialog, Messages.text("shape.discard.message"),
+                Messages.text("shape.discard.title"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE)
+                == JOptionPane.OK_OPTION) {
+            dialog.dispose();
+        }
+    }
+
+    private static void acceptResult(ShapeEditorPanel panel, JDialog dialog,
+                                     AtomicReference<Optional<ShapeEditResult>> result) {
+        if (panel.canAccept()) {
+            result.set(Optional.of(panel.result()));
+            dialog.dispose();
+        }
+    }
+
     @Override
     public Optional<ShapeEditResult> edit(Component owner, ShapeEditRequest request) {
         ShapeEditorPanel panel = new ShapeEditorPanel(request, preferences, scheme);
@@ -42,20 +58,9 @@ public final class SwingShapeEditor implements ShapeEditor {
         JDialog dialog = new JDialog(ownerWindow, Messages.format("shape.title", request.definition().name()),
                 Dialog.ModalityType.APPLICATION_MODAL);
         AtomicReference<Optional<ShapeEditResult>> result = new AtomicReference<>(Optional.empty());
-        Runnable close = () -> {
-            if (!panel.hasChanges() || JOptionPane.showConfirmDialog(dialog, Messages.text("shape.discard.message"),
-                    Messages.text("shape.discard.title"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE)
-                    == JOptionPane.OK_OPTION) {
-                dialog.dispose();
-            }
-        };
+        Runnable close = () -> closeUnlessDiscardRefused(panel, dialog);
         panel.onClose(close);
-        panel.onAccept(() -> {
-            if (panel.canAccept()) {
-                result.set(Optional.of(panel.result()));
-                dialog.dispose();
-            }
-        });
+        panel.onAccept(() -> acceptResult(panel, dialog, result));
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(new WindowAdapter() {
             @Override

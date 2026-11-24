@@ -1394,15 +1394,17 @@ final class ShapeCanvas extends JPanel {
         if (onlyTextsSelected()) {
             return Optional.empty();
         }
-        return current.get().selectionBounds().flatMap(box -> {
-            for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
-                SymbolPoint point = handlePoint(handle, box);
-                if (screen(point.x(), point.y()).distance(at) < hitRadius()) {
-                    return Optional.of(handle);
-                }
+        return current.get().selectionBounds().flatMap(box -> handleUnder(box, at));
+    }
+
+    private Optional<SymbolDraft.Handle> handleUnder(SymbolDraft.Box box, Point at) {
+        for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
+            SymbolPoint point = handlePoint(handle, box);
+            if (screen(point.x(), point.y()).distance(at) < hitRadius()) {
+                return Optional.of(handle);
             }
-            return Optional.empty();
-        });
+        }
+        return Optional.empty();
     }
 
     private Point boxHandleLocation() {
