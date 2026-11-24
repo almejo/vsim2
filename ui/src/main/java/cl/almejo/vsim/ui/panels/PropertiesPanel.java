@@ -52,16 +52,11 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.Scrollable;
-import javax.swing.ScrollPaneConstants;
 import javax.swing.JTextField;
-import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 import java.awt.Color;
 import java.awt.Container;
-import java.awt.Dimension;
-import java.awt.Rectangle;
 import java.awt.KeyboardFocusManager;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -85,9 +80,8 @@ import java.util.stream.Stream;
  * is one undo step; invalid values only show an inline error. A single part ends with its «Descripción»
  * ({@link DescriptionBox}), which follows its parameters.
  */
-public final class PropertiesPanel extends JPanel implements Scrollable {
+public final class PropertiesPanel extends VerticalScrollPanel {
 
-    private static final int UNIT_INCREMENT = 16;
     private static final String WHEEL_HANDED_UP = "vsim.wheelHandedUp";
     private static final String ERROR_CONSTRAINTS = "span 2, growx, wmin 0";
 
@@ -155,7 +149,8 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
     /** {@code painters} are the editor's own: the card draws a component (also a user's) as the canvas does. */
     public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
                            Supplier<ColorScheme> scheme, PainterRegistry painters) {
-        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"));
+        // a short form fills the pane; a tall one keeps its height and scrolls
+        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60::]"), true);
         this.scheme = scheme;
         this.painters = painters;
         this.openDocument = openDocument;
@@ -172,47 +167,13 @@ public final class PropertiesPanel extends JPanel implements Scrollable {
         this.noticeSink = sink;
     }
 
-    // CPD-OFF the machine inspector (MachineInspectorRows) scrolls the same way; it is on the state-machine branch
     /**
      * {@code panel} in a vertical scroll pane (never a horizontal one: the form follows the pane's width): a form
-     * taller than the inspector, like the Teclado's, scrolls instead of being clipped. A text area inside the form that
-     * needs no scrolling of its own hands the mouse wheel to this pane (Swing forwards the wheel from a scroll pane
-     * whose bar is hidden).
+     * taller than the inspector, like the Teclado's, scrolls instead of being clipped.
      */
     public static JScrollPane inScrollPane(PropertiesPanel panel) {
-        JScrollPane scroll = new JScrollPane(panel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setBorder(null);
-        scroll.getVerticalScrollBar().setUnitIncrement(UNIT_INCREMENT);
-        return scroll;
+        return panel.inScrollPane();
     }
-
-    @Override
-    public Dimension getPreferredScrollableViewportSize() {
-        return getPreferredSize();
-    }
-
-    @Override
-    public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-        return UNIT_INCREMENT;
-    }
-
-    @Override
-    public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-        return Math.max(UNIT_INCREMENT, visible.height - UNIT_INCREMENT);
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportWidth() {
-        return true;
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportHeight() {
-        // a short form fills the pane; a tall one keeps its height and scrolls
-        return getParent() instanceof JViewport viewport && getPreferredSize().height < viewport.getHeight();
-    }
-    // CPD-ON
 
     /**
      * Rows an extension adds under a component's own rows (the memory's «Contenido», its buttons and warnings). They

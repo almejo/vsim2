@@ -24,6 +24,7 @@ import cl.almejo.vsim.ui.karnaugh.ExpressionProblemText;
 import cl.almejo.vsim.ui.panels.ColorSwatches;
 import cl.almejo.vsim.ui.panels.NoteColorSwatches;
 import cl.almejo.vsim.ui.panels.NoteTextArea;
+import cl.almejo.vsim.ui.panels.VerticalScrollPanel;
 import cl.almejo.vsim.ui.problems.MachineProblemText;
 import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import net.miginfocom.swing.MigLayout;
@@ -33,15 +34,11 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.ScrollPaneConstants;
-import javax.swing.Scrollable;
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Rectangle;
 import java.awt.Font;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -73,11 +70,10 @@ import java.util.function.UnaryOperator;
  * Under the rows, the problems of what is selected (what makes it glow), or with nothing selected the machine's
  * problems, each one with a «Ver» that shows it on the diagram; they follow every change and the running copy.
  */
-final class MachineInspectorRows extends JPanel implements Scrollable {
+final class MachineInspectorRows extends VerticalScrollPanel {
 
     private static final long serialVersionUID = 1L;
     private static final String WIDE = "span 2, growx, wmin 0";
-    private static final int UNIT_INCREMENT = 16;
     private static final String MACHINE_ROWS = "machine";
     private static final String SEVERAL_ROWS = "several:";
     private static final String NO_ROWS = "none";
@@ -147,7 +143,8 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
     MachineInspectorRows(MachineCanvas canvas, Consumer<MachineFinding> reveal, MachineLibrary library,
                          Consumer<String> notices, BooleanSupplier animations, Consumer<String> editNote,
                          Supplier<String> deleteKey) {
-        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60lp::]"));
+        // the rows keep their own height, short or tall (only the height scrolls)
+        super(new MigLayout("wrap 2, insets dialog", "[left][grow, fill, 60lp::]"), false);
         this.notices = Objects.requireNonNull(notices, "notices");
         this.animations = Objects.requireNonNull(animations, "animations");
         this.canvas = Objects.requireNonNull(canvas, "canvas");
@@ -163,43 +160,6 @@ final class MachineInspectorRows extends JPanel implements Scrollable {
         // a running copy's problems (an input in Z at the edge) come with the simulation, not with a change
         stopFollowingFrames = canvas.addFrameListener(this::refreshProblemList);
         rebuild();
-    }
-
-    /** This panel in a scroll pane that only scrolls up and down, as the circuit's «Propiedades». */
-    JScrollPane inScrollPane() {
-        JScrollPane scroll = new JScrollPane(this, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroll.setBorder(null);
-        scroll.getVerticalScrollBar().setUnitIncrement(UNIT_INCREMENT);
-        return scroll;
-    }
-
-    // --- Scrollable: the rows take the panel's width (fix round 4: at 150 % and 200 % they stuck out on the right,
-    // cut, since the pane never scrolls sideways); only the height scrolls ---
-
-    @Override
-    public Dimension getPreferredScrollableViewportSize() {
-        return getPreferredSize();
-    }
-
-    @Override
-    public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-        return UNIT_INCREMENT;
-    }
-
-    @Override
-    public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-        return Math.max(UNIT_INCREMENT, visible.height - UNIT_INCREMENT);
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportWidth() {
-        return true;
-    }
-
-    @Override
-    public boolean getScrollableTracksViewportHeight() {
-        return false;
     }
 
     /** A condition's problem as the user reads it: «Falta cerrar un paréntesis (posición 3)». */
