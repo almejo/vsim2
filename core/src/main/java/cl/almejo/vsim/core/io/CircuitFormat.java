@@ -555,18 +555,21 @@ public final class CircuitFormat {
             throw new IllegalArgumentException("memoryContents is only allowed on user components: " + component.id());
         }
         Map<String, String> canonical = new TreeMap<>();
-        component.memoryContents().forEach((path, text) -> {
-            if (path == null || path.isBlank() || text == null) {
-                throw new IllegalArgumentException("memoryContents of " + component.id() + ": empty entry");
-            }
-            try {
-                canonical.put(path, MemoryContents.decode(text).encode());
-            } catch (IllegalArgumentException exception) {
-                throw new IllegalArgumentException("memoryContents of " + component.id() + " at " + path + ": "
-                        + exception.getMessage(), exception);
-            }
-        });
+        component.memoryContents().forEach((path, text) -> canonicalizeMemoryEntry(component, canonical, path, text));
         return component.withMemoryContents(canonical);
+    }
+
+    private static void canonicalizeMemoryEntry(Component component, Map<String, String> canonical, String path,
+                                                String text) {
+        if (path == null || path.isBlank() || text == null) {
+            throw new IllegalArgumentException("memoryContents of " + component.id() + ": empty entry");
+        }
+        try {
+            canonical.put(path, MemoryContents.decode(text).encode());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("memoryContents of " + component.id() + " at " + path + ": "
+                    + exception.getMessage(), exception);
+        }
     }
 
     static Wire wire(WireEntry entry) {

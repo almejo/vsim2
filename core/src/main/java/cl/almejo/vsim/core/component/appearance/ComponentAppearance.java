@@ -82,13 +82,15 @@ public record ComponentAppearance(GridSize size, Optional<SymbolDrawing> drawing
                 throw new IllegalArgumentException("coinciding pin placements: " + pin.offset());
             }
         }
-        List<PinPlacement> ordered = pinout.stream().map(pin -> {
-            PinPlacement placement = bySource.get(pin.source());
-            if (placement == null) {
-                throw new IllegalArgumentException("appearance does not place pin " + pin.source());
-            }
-            return placement;
-        }).toList();
+        List<PinPlacement> ordered = pinout.stream().map(pin -> placementOf(bySource, pin)).toList();
         return new ComponentAppearance(size, drawing, ordered);
+    }
+
+    private static PinPlacement placementOf(Map<ElementId, PinPlacement> bySource, DefinitionPin pin) {
+        PinPlacement placement = bySource.get(pin.source());
+        if (placement == null) {
+            throw new IllegalArgumentException("appearance does not place pin " + pin.source());
+        }
+        return placement;
     }
 }

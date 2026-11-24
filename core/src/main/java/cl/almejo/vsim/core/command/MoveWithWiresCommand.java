@@ -141,19 +141,22 @@ public final class MoveWithWiresCommand implements Command {
         replacedOriginals.clear();
         removedOriginals.clear();
         removedOrders.clear();
-        document.batch(() -> {
-            Map<ElementId, Set<GridPoint>> endsBefore = cleanUpPlanned ? Map.of() : endsOfWires(document);
-            applyPlan(document);
-            // A run that came back to where it started (total delta 0) moved nothing, so there is nothing to tidy.
-            if (!cleanUpPlanned && registry != null && (deltaX != 0 || deltaY != 0)) {
-                TidyPlan tidy = TouchedWiresCleanup.plan(document, registry, cleanUpScope(document, endsBefore));
-                cleanUp = tidy.isEmpty() ? null : new TidyWiresCommand(tidy);
-            }
-            cleanUpPlanned = true;
-            if (cleanUp != null) {
-                cleanUp.apply(document);
-            }
-        });
+        document.batch(() -> applyPlanAndCleanUp(document));
+    }
+
+    /** Moves, then tidies the touched wires (planning the tidy the first time only). */
+    private void applyPlanAndCleanUp(CircuitDocument document) {
+        Map<ElementId, Set<GridPoint>> endsBefore = cleanUpPlanned ? Map.of() : endsOfWires(document);
+        applyPlan(document);
+        // A run that came back to where it started (total delta 0) moved nothing, so there is nothing to tidy.
+        if (!cleanUpPlanned && registry != null && (deltaX != 0 || deltaY != 0)) {
+            TidyPlan tidy = TouchedWiresCleanup.plan(document, registry, cleanUpScope(document, endsBefore));
+            cleanUp = tidy.isEmpty() ? null : new TidyWiresCommand(tidy);
+        }
+        cleanUpPlanned = true;
+        if (cleanUp != null) {
+            cleanUp.apply(document);
+        }
     }
 
     /** The next reserved id that is free in {@code document}, or a new one once they run out. */
@@ -168,22 +171,27 @@ public final class MoveWithWiresCommand implements Command {
     }
 
     private void applyPlan(CircuitDocument document) {
-        document.batch(() -> {
-            translate(document, deltaX, deltaY);
-            for (Wire replacement : plan.replacedWires()) {
-                replacedOriginals.put(replacement.id(), document.wire(replacement.id()).orElseThrow(
-                        () -> new IllegalStateException("no wire with id " + replacement.id())));
-                document.replace(replacement);
-            }
-            for (ElementId removedId : plan.removedWireIds()) {
-                document.wire(removedId).ifPresent(wire -> {
-                    removedOriginals.put(removedId, wire);
-                    removedOrders.put(removedId, document.orderOf(removedId));
-                    document.remove(removedId);
-                });
-            }
-            plan.addedWires().forEach(document::add);
-        });
+        document.batch(() -> translateAndRewire(document));
+    }
+
+    /** Translates what moves whole, then replaces, removes and adds the planned wires, remembering the originals. */
+    private void translateAndRewire(CircuitDocument document) {
+        translate(document, deltaX, deltaY);
+        for (Wire replacement : plan.replacedWires()) {
+            replacedOriginals.put(replacement.id(), document.wire(replacement.id()).orElseThrow(
+                    () -> new IllegalStateException("no wire with id " + replacement.id())));
+            document.replace(replacement);
+        }
+        for (ElementId removedId : plan.removedWireIds()) {
+            document.wire(removedId).ifPresent(wire -> removeRememberingIt(document, removedId, wire));
+        }
+        plan.addedWires().forEach(document::add);
+    }
+
+    private void removeRememberingIt(CircuitDocument document, ElementId removedId, Wire wire) {
+        removedOriginals.put(removedId, wire);
+        removedOrders.put(removedId, document.orderOf(removedId));
+        document.remove(removedId);
     }
 
     /** The ends of every wire of {@code document}, by id. */
@@ -239,15 +247,17 @@ public final class MoveWithWiresCommand implements Command {
 
     @Override
     public void revert(CircuitDocument document) {
-        document.batch(() -> {
-            if (cleanUp != null) {
-                cleanUp.revert(document);
-            }
-            plan.addedWires().forEach(wire -> document.remove(wire.id()));
-            removedOriginals.forEach((id, wire) -> document.restore(wire, removedOrders.get(id)));
-            replacedOriginals.values().forEach(document::replace);
-            translate(document, -deltaX, -deltaY);
-        });
+        document.batch(() -> undoPlanAndCleanUp(document));
+    }
+
+    private void undoPlanAndCleanUp(CircuitDocument document) {
+        if (cleanUp != null) {
+            cleanUp.revert(document);
+        }
+        plan.addedWires().forEach(wire -> document.remove(wire.id()));
+        removedOriginals.forEach((id, wire) -> document.restore(wire, removedOrders.get(id)));
+        replacedOriginals.values().forEach(document::replace);
+        translate(document, -deltaX, -deltaY);
     }
 
     private void translate(CircuitDocument document, int byX, int byY) {

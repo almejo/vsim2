@@ -322,18 +322,20 @@ public final class StageChecks {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("version", view.version().value());
         details.put("faultCount", view.faults().size());
-        details.put("faults", view.faults().stream().limit(LISTED).map(fault -> {
-            Map<String, Object> listed = new LinkedHashMap<>();
-            listed.put("kind", fault.kind().name());
-            listed.put("elementIds", fault.elementIds());
-            listed.put("message", fault.message());
-            return listed;
-        }).toList());
+        details.put("faults", view.faults().stream().limit(LISTED).map(StageChecks::listedFault).toList());
         if (!view.faults().isEmpty()) {
             return new CheckResult(check.kind(), Status.FAILED, view.faults().size() + " layout faults", details);
         }
         return new CheckResult(check.kind(), Status.PASSED, "No overlapping parts or texts and no wire through a "
                 + "part's body", details);
+    }
+
+    private static Map<String, Object> listedFault(LayoutCheck.Fault fault) {
+        Map<String, Object> listed = new LinkedHashMap<>();
+        listed.put("kind", fault.kind().name());
+        listed.put("elementIds", fault.elementIds());
+        listed.put("message", fault.message());
+        return listed;
     }
 
     private CheckResult signals(DocumentId document, Check.Signals check) {

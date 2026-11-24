@@ -112,17 +112,20 @@ public final class MemoryContents {
     public String encode() {
         StringBuilder text = new StringBuilder();
         long[] nextAddress = {-1};
-        forEachNonZero((address, value) -> {
-            if (address != nextAddress[0]) {
-                if (!text.isEmpty()) {
-                    text.append(' ');
-                }
-                text.append('@').append(Long.toHexString(address).toUpperCase());
-            }
-            text.append(' ').append(Long.toHexString(value).toUpperCase());
-            nextAddress[0] = address + 1;
-        });
+        forEachNonZero((address, value) -> appendEncoded(text, nextAddress, address, value));
         return text.toString();
+    }
+
+    /** Appends a word to the encoded text, starting a new {@code @address} run when it is not the next one. */
+    private static void appendEncoded(StringBuilder text, long[] nextAddress, long address, long value) {
+        if (address != nextAddress[0]) {
+            if (!text.isEmpty()) {
+                text.append(' ');
+            }
+            text.append('@').append(Long.toHexString(address).toUpperCase());
+        }
+        text.append(' ').append(Long.toHexString(value).toUpperCase());
+        nextAddress[0] = address + 1;
     }
 
     /** The inverse of {@link #encode()}; throws IllegalArgumentException for text that cannot be read. */

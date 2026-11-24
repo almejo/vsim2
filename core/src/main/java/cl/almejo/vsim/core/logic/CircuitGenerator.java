@@ -376,7 +376,7 @@ public final class CircuitGenerator {
                     keys.put(cell, consumersIn(cell.driven, next).stream()
                             .mapToInt(consumer -> consumer.rank).average().orElse(0));
                 }
-                columns.get(column).sort(Comparator.comparingDouble((Cell cell) -> keys.get(cell))
+                columns.get(column).sort(Comparator.<Cell>comparingDouble(keys::get)
                         .thenComparingInt(cell -> cell.order));
                 setRanks(columns.get(column));
             }

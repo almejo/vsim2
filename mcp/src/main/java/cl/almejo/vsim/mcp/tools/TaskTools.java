@@ -110,13 +110,15 @@ final class TaskTools {
                         .required("taskId", "document", "title", "layoutGuidesRemoved").build(),
                 Tool.Hints.CHANGES_IDEMPOTENT, List.of(Map.of("taskId", "task-1"),
                         Map.of("taskId", "task-1", "keepLayoutGuides", true)),
-                arguments -> {
-                    TaskEnding ending = api.endTask(arguments.string("taskId"),
-                            arguments.bool("keepLayoutGuides", false));
-                    Map<String, Object> result = new LinkedHashMap<>(task(ending.task()));
-                    result.put("layoutGuidesRemoved", ending.layoutGuidesRemoved());
-                    return Tool.Output.of(result);
-                });
+                arguments -> endTaskCall(api, arguments));
+    }
+
+    private static Tool.Output endTaskCall(AutomationApi api, Arguments arguments) {
+        TaskEnding ending = api.endTask(arguments.string("taskId"),
+                arguments.bool("keepLayoutGuides", false));
+        Map<String, Object> result = new LinkedHashMap<>(task(ending.task()));
+        result.put("layoutGuidesRemoved", ending.layoutGuidesRemoved());
+        return Tool.Output.of(result);
     }
 
     private static Tool undoTask(AutomationApi api) {

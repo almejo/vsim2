@@ -391,25 +391,27 @@ final class EditTools {
                                                 "targets", List.of("c1", "c2", "c3", "c4"),
                                                 "replaceSelection", false),
                                         Map.of("op", "PlaceInstance", "definition", "new:latch", "x", 40, "y", 0)))),
-                arguments -> {
-                    List<EditOperation> operations = new ArrayList<>();
-                    for (Arguments operation : arguments.objects("operations")) {
-                        operations.add(operationOf(operation));
-                    }
-                    Optional<TaskStep> step = Optional.of(new TaskStep(arguments.string("taskId"),
-                            arguments.string("stage", ""), arguments.string("step", ""),
-                            arguments.string("text", ""),
-                            arguments.optionalString("reason").filter(reason -> !reason.isBlank())));
-                    PresentedEdit presented = api.editStep(new EditRequest(arguments.document(),
-                            arguments.version("version"), arguments.string("operationId"), step, operations,
-                            arguments.bool("validateOnly", false)),
-                            arguments.optionalString("narration").filter(line -> !line.isBlank()));
-                    Map<String, Object> structured = new LinkedHashMap<>();
-                    structured.put("document", arguments.document().value());
-                    statusOf(presented).ifPresent(status -> structured.put("status", status.name()));
-                    structured.putAll(receipt(presented.receipt()));
-                    return Tool.Output.of(structured);
-                });
+                arguments -> editCall(api, arguments));
+    }
+
+    private static Tool.Output editCall(AutomationApi api, Arguments arguments) {
+        List<EditOperation> operations = new ArrayList<>();
+        for (Arguments operation : arguments.objects("operations")) {
+            operations.add(operationOf(operation));
+        }
+        Optional<TaskStep> step = Optional.of(new TaskStep(arguments.string("taskId"),
+                arguments.string("stage", ""), arguments.string("step", ""),
+                arguments.string("text", ""),
+                arguments.optionalString("reason").filter(reason -> !reason.isBlank())));
+        PresentedEdit presented = api.editStep(new EditRequest(arguments.document(),
+                arguments.version("version"), arguments.string("operationId"), step, operations,
+                arguments.bool("validateOnly", false)),
+                arguments.optionalString("narration").filter(line -> !line.isBlank()));
+        Map<String, Object> structured = new LinkedHashMap<>();
+        structured.put("document", arguments.document().value());
+        statusOf(presented).ifPresent(status -> structured.put("status", status.name()));
+        structured.putAll(receipt(presented.receipt()));
+        return Tool.Output.of(structured);
     }
 
     // --- the receipt ---

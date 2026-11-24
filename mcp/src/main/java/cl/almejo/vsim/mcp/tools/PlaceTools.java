@@ -57,15 +57,17 @@ final class PlaceTools {
                         .required("document", "definition").build(),
                 Tool.Hints.CHANGES_IDEMPOTENT,
                 List.of(Map.of("document", "circuit-1", "place", Map.of("definition", "alu", "context", "c7"))),
-                arguments -> {
-                    DocumentId document = arguments.document().base();
-                    PlaceRef place = arguments.place();
-                    api.openPlace(document, place);
-                    Map<String, Object> shown = new LinkedHashMap<>();
-                    shown.put("document", document.value());
-                    shown.put("definition", place.definition());
-                    place.context().ifPresent(context -> shown.put("context", context));
-                    return Tool.Output.of(shown);
-                });
+                arguments -> openPlaceCall(api, arguments));
+    }
+
+    private static Tool.Output openPlaceCall(AutomationApi api, Arguments arguments) {
+        DocumentId document = arguments.document().base();
+        PlaceRef place = arguments.place();
+        api.openPlace(document, place);
+        Map<String, Object> shown = new LinkedHashMap<>();
+        shown.put("document", document.value());
+        shown.put("definition", place.definition());
+        place.context().ifPresent(context -> shown.put("context", context));
+        return Tool.Output.of(shown);
     }
 }

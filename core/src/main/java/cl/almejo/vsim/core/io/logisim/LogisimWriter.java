@@ -184,12 +184,17 @@ public final class LogisimWriter {
                     LogisimVersion.LATEST).asMap();
             boolean splitter = component.library().equals(LogisimLibraries.WIRING)
                     && component.name().equals(SPLITTER);
-            component.attributes().asMap().forEach((name, value) -> {
-                boolean always = splitter && SPLITTER_BIT.matcher(name).matches();
-                if (always || !value.equals(defaults.get(name))) {
-                    attribute(element, name, value);
-                }
-            });
+            component.attributes().asMap().forEach((name, value) ->
+                    writeAttributeUnlessDefault(element, splitter, defaults, name, value));
+        }
+
+        /** Writes the attribute unless it is the default (a splitter's bit attributes are always written). */
+        private void writeAttributeUnlessDefault(Element element, boolean splitter, Map<String, String> defaults,
+                                                 String name, String value) {
+            boolean always = splitter && SPLITTER_BIT.matcher(name).matches();
+            if (always || !value.equals(defaults.get(name))) {
+                attribute(element, name, value);
+            }
         }
 
         // --- <appear> ---

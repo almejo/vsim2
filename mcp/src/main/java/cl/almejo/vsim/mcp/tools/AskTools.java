@@ -69,15 +69,17 @@ final class AskTools {
                 Tool.Hints.CHANGES,
                 List.of(Map.of("taskId", "task-1", "question", "¿De cuántos bits hago el contador?",
                         "choices", List.of("2 bits", "3 bits", "4 bits"))),
-                arguments -> {
-                    Question question = api.askUser(arguments.string("taskId"), arguments.string("question"),
-                            arguments.strings("choices"), arguments.bool("allowText", true));
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("questionId", question.questionId());
-                    result.put("taskId", question.taskId());
-                    result.put("status", "ASKED");
-                    return Tool.Output.of(result);
-                });
+                arguments -> askUserCall(api, arguments));
+    }
+
+    private static Tool.Output askUserCall(AutomationApi api, Arguments arguments) {
+        Question question = api.askUser(arguments.string("taskId"), arguments.string("question"),
+                arguments.strings("choices"), arguments.bool("allowText", true));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("questionId", question.questionId());
+        result.put("taskId", question.taskId());
+        result.put("status", "ASKED");
+        return Tool.Output.of(result);
     }
 
     private static Tool awaitAnswer(AutomationApi api, Duration answerWait) {
@@ -97,18 +99,20 @@ final class AskTools {
                         .property("text", Schema.string("With ANSWERED: what the user wrote"))
                         .required("questionId", "status").build(),
                 Tool.Hints.READS, List.of(Map.of("questionId", "question-1")),
-                arguments -> {
-                    String id = arguments.string("questionId");
-                    AnswerOutcome outcome = api.awaitAnswer(id, answerWait);
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("questionId", id);
-                    result.put("status", outcome.status().name());
-                    outcome.answer().ifPresent(answer -> {
-                        answer.choice().ifPresent(choice -> result.put("choice", choice));
-                        answer.text().ifPresent(text -> result.put("text", text));
-                    });
-                    return Tool.Output.of(result);
-                });
+                arguments -> awaitAnswerCall(api, answerWait, arguments));
+    }
+
+    private static Tool.Output awaitAnswerCall(AutomationApi api, Duration answerWait, Arguments arguments) {
+        String id = arguments.string("questionId");
+        AnswerOutcome outcome = api.awaitAnswer(id, answerWait);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("questionId", id);
+        result.put("status", outcome.status().name());
+        outcome.answer().ifPresent(answer -> {
+            answer.choice().ifPresent(choice -> result.put("choice", choice));
+            answer.text().ifPresent(text -> result.put("text", text));
+        });
+        return Tool.Output.of(result);
     }
 
     private static Tool withdrawQuestion(AutomationApi api) {

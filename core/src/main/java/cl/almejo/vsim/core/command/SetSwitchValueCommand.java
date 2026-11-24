@@ -44,17 +44,21 @@ public final class SetSwitchValueCommand implements Command {
     @Override
     public void apply(CircuitDocument document) {
         Map<ElementId, Map<String, Object>> previous = new LinkedHashMap<>();
-        document.changeLiveValues(() -> values.forEach((id, text) -> {
-            Component component = document.component(id).orElseThrow();
-            if (!component.typeId().equals(StandardComponentTypes.SWITCH)) {
-                throw new IllegalArgumentException(id + " is a " + component.typeId() + ", not a switch");
-            }
-            previous.put(id, component.parameters());
-            Map<String, Object> parameters = new HashMap<>(component.parameters());
-            parameters.put(StandardComponentTypes.VALUE, text);
-            document.replace(component.withParameters(Map.copyOf(parameters)));
-        }));
+        document.changeLiveValues(() -> values.forEach((id, text) -> setValue(document, previous, id, text)));
         previousParameters = previous;
+    }
+
+    /** Sets the switch's value to {@code text}, remembering its parameters before in {@code previous}. */
+    private static void setValue(CircuitDocument document, Map<ElementId, Map<String, Object>> previous,
+                                 ElementId id, String text) {
+        Component component = document.component(id).orElseThrow();
+        if (!component.typeId().equals(StandardComponentTypes.SWITCH)) {
+            throw new IllegalArgumentException(id + " is a " + component.typeId() + ", not a switch");
+        }
+        previous.put(id, component.parameters());
+        Map<String, Object> parameters = new HashMap<>(component.parameters());
+        parameters.put(StandardComponentTypes.VALUE, text);
+        document.replace(component.withParameters(Map.copyOf(parameters)));
     }
 
     @Override

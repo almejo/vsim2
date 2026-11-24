@@ -189,16 +189,18 @@ final class SimulationTools {
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1"),
                         Map.of("document", "circuit-1", "elementIds", List.of("c9"), "maximumRows", 512)),
-                arguments -> {
-                    TruthTableView table = api.truthTable(arguments.document(), arguments.stringSet("elementIds"),
-                            arguments.integer("maximumRows", 0), arguments.integer("eventBudget", 0));
-                    if (table.rowsLeftOut()) {
-                        throw new AutomationException(AutomationError.BUDGET_EXCEEDED, "The event budget of "
-                                + table.eventBudget() + " events ran out after " + table.rows().size() + " of "
-                                + table.totalRows() + " rows; the rows done are in recovery.table",
-                                Map.of("table", Json.object(table)));
-                    }
-                    return Tool.Output.of(table);
-                });
+                arguments -> truthTableCall(api, arguments));
+    }
+
+    private static Tool.Output truthTableCall(AutomationApi api, Arguments arguments) {
+        TruthTableView table = api.truthTable(arguments.document(), arguments.stringSet("elementIds"),
+                arguments.integer("maximumRows", 0), arguments.integer("eventBudget", 0));
+        if (table.rowsLeftOut()) {
+            throw new AutomationException(AutomationError.BUDGET_EXCEEDED, "The event budget of "
+                    + table.eventBudget() + " events ran out after " + table.rows().size() + " of "
+                    + table.totalRows() + " rows; the rows done are in recovery.table",
+                    Map.of("table", Json.object(table)));
+        }
+        return Tool.Output.of(table);
     }
 }

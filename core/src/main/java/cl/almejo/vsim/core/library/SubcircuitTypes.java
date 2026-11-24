@@ -74,13 +74,17 @@ public final class SubcircuitTypes {
      */
     public static ComponentTypeRegistry.TypeResolver resolverFor(CircuitDocument document) {
         Map<String, ComponentType> types = new ConcurrentHashMap<>();
-        return typeId -> {
-            types.keySet().removeIf(id -> document.definition(id).isEmpty());
-            return definitionIdOf(typeId)
-                .flatMap(document::definition)
-                .map(definition -> types.compute(definition.id(), (id, cached) ->
-                        cached != null && definitionOf(cached).orElseThrow() == definition ? cached : typeOf(definition)));
-        };
+        return typeId -> resolve(document, types, typeId);
+    }
+
+    /** The type of the definition {@code typeId} names, cached in {@code types} until its definition changes. */
+    private static Optional<ComponentType> resolve(CircuitDocument document, Map<String, ComponentType> types,
+                                                   String typeId) {
+        types.keySet().removeIf(id -> document.definition(id).isEmpty());
+        return definitionIdOf(typeId)
+            .flatMap(document::definition)
+            .map(definition -> types.compute(definition.id(), (id, cached) ->
+                    cached != null && definitionOf(cached).orElseThrow() == definition ? cached : typeOf(definition)));
     }
 
     public static Optional<ComponentDefinition> definitionOf(ComponentType type) {

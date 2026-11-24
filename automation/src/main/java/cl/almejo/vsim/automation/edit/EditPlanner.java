@@ -322,14 +322,7 @@ final class EditPlanner {
             // AI may take them out or bring them closer; only where a move ends is checked (requireMovedWithinLimit)
             case AddWire addWire -> requirePointsWithinLimit(addWire.points(), "points");
             case Connect connect -> requirePointsWithinLimit(connect.via(), "via");
-            case MakeFrame makeFrame -> makeFrame.bounds().ifPresent(bounds -> {
-                requireWithinLimit("bounds.x", bounds.x());
-                requireWithinLimit("bounds.y", bounds.y());
-                requireWithinLimit("bounds.width", bounds.width());
-                requireWithinLimit("bounds.height", bounds.height());
-                requireWithinLimit("bounds.x + width", (long) bounds.x() + bounds.width());
-                requireWithinLimit("bounds.y + height", (long) bounds.y() + bounds.height());
-            });
+            case MakeFrame makeFrame -> makeFrame.bounds().ifPresent(EditPlanner::requireBoundsWithinLimit);
             case SetComponentShape setComponentShape -> setComponentShape.pins().forEach(pin -> {
                 requireWithinLimit("pins.x", pin.x());
                 requireWithinLimit("pins.y", pin.y());
@@ -337,6 +330,15 @@ final class EditPlanner {
             default -> {
             }
         }
+    }
+
+    private static void requireBoundsWithinLimit(Bounds bounds) {
+        requireWithinLimit("bounds.x", bounds.x());
+        requireWithinLimit("bounds.y", bounds.y());
+        requireWithinLimit("bounds.width", bounds.width());
+        requireWithinLimit("bounds.height", bounds.height());
+        requireWithinLimit("bounds.x + width", (long) bounds.x() + bounds.width());
+        requireWithinLimit("bounds.y + height", (long) bounds.y() + bounds.height());
     }
 
     private static void requirePointsWithinLimit(List<GridPoint> points, String name) {
@@ -896,12 +898,14 @@ final class EditPlanner {
      */
     private void requireMovedWithinLimit(Set<ElementId> ids, int deltaX, int deltaY) {
         ElementBounds.union(ids.stream().flatMap(id -> candidate.element(id).stream()).toList(), registry)
-                .ifPresent(bounds -> {
-                    requireMovedEdgeWithinLimit("the moved elements' x", bounds.x(), deltaX);
-                    requireMovedEdgeWithinLimit("the moved elements' x", bounds.maximumX(), deltaX);
-                    requireMovedEdgeWithinLimit("the moved elements' y", bounds.y(), deltaY);
-                    requireMovedEdgeWithinLimit("the moved elements' y", bounds.maximumY(), deltaY);
-                });
+                .ifPresent(bounds -> requireMovedBoundsWithinLimit(bounds, deltaX, deltaY));
+    }
+
+    private static void requireMovedBoundsWithinLimit(Bounds bounds, int deltaX, int deltaY) {
+        requireMovedEdgeWithinLimit("the moved elements' x", bounds.x(), deltaX);
+        requireMovedEdgeWithinLimit("the moved elements' x", bounds.maximumX(), deltaX);
+        requireMovedEdgeWithinLimit("the moved elements' y", bounds.y(), deltaY);
+        requireMovedEdgeWithinLimit("the moved elements' y", bounds.maximumY(), deltaY);
     }
 
     private static void requireMovedEdgeWithinLimit(String name, int edge, int delta) {
@@ -991,13 +995,16 @@ final class EditPlanner {
 
     private void addGuide(AddGuide operation) {
         Guide guide = new Guide(operation.orientation(), operation.position());
-        SetGuidesCommand.adding(candidate, guide).ifPresentOrElse(command -> {
-            command.apply(candidate);
-            if (operation.layoutOnly()) {
-                layoutGuides.add(guide);
-            }
-        }, () -> warnings.add(at() + "that guide was there already" + (operation.layoutOnly()
+        SetGuidesCommand.adding(candidate, guide).ifPresentOrElse(
+                command -> applyAddedGuide(command, guide, operation.layoutOnly()), () -> warnings.add(at() + "that guide was there already" + (operation.layoutOnly()
                 ? " (it is not yours, so it stays when the task ends)" : "")));
+    }
+
+    private void applyAddedGuide(SetGuidesCommand command, Guide guide, boolean layoutOnly) {
+        command.apply(candidate);
+        if (layoutOnly) {
+            layoutGuides.add(guide);
+        }
     }
 
     private void removeGuide(RemoveGuide operation) {
@@ -1103,19 +1110,23 @@ final class EditPlanner {
     private Map<ElementId, String> renamedPins(Map<String, String> pinNames, ConvertedSelection selection) {
         PinOrder order = selection.defaultPinOrder();
         Map<ElementId, String> renamed = new LinkedHashMap<>();
-        pinNames.forEach((target, newName) -> {
-            ElementId id = requireElement(target).id();
-            ConvertedSelection.PartPins partPins = selection.parts().get(id);
-            if (order.inputs().contains(id) || order.outputs().contains(id)) {
-                renamed.put(id, newName);
-            } else if (partPins != null && partPins.pins().size() == 1) {
-                renamed.put(partPins.pins().getFirst(), newName);
-            } else {
-                throw new AutomationException(AutomationError.INVALID_PIN, target + " does not give one pin of the "
-                        + "component, so it cannot be renamed");
-            }
-        });
+        pinNames.forEach((target, newName) -> renamePinOf(target, newName, selection, order, renamed));
         return renamed;
+    }
+
+    /** Names the pin {@code target} points at: an interface pin of the new component, or the only pin of a part. */
+    private void renamePinOf(String target, String newName, ConvertedSelection selection, PinOrder order,
+                             Map<ElementId, String> renamed) {
+        ElementId id = requireElement(target).id();
+        ConvertedSelection.PartPins partPins = selection.parts().get(id);
+        if (order.inputs().contains(id) || order.outputs().contains(id)) {
+            renamed.put(id, newName);
+        } else if (partPins != null && partPins.pins().size() == 1) {
+            renamed.put(partPins.pins().getFirst(), newName);
+        } else {
+            throw new AutomationException(AutomationError.INVALID_PIN, target + " does not give one pin of the "
+                    + "component, so it cannot be renamed");
+        }
     }
 
     private static List<String> pinNames(ComponentDefinition definition, PinDirection direction) {

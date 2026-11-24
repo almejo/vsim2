@@ -48,7 +48,7 @@ public final class BreakpointTypes {
                 parameters -> new ComponentShape(SIZE, List.of(PinSpec.input("in", 0, PIN_ROW,
                         (Integer) parameters.get(StandardComponentTypes.WIDTH)))),
                 raw -> StandardComponentTypes.checkValueFitsWidth(raw, DEFAULT_WIDTH, MAXIMUM_WIDTH),
-                parameters -> BreakpointBehavior.from(parameters)));
+                BreakpointBehavior::from));
     }
 
     /** The condition's choice as a boolean: {@code true} for «igual a». */

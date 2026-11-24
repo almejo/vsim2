@@ -147,16 +147,21 @@ public final class TruthTableEvaluator {
         SimulationEngine engine = new SimulationEngine();
         List<Value> inputs = inputValues(ready.inputs(), index);
         Outcome[] outcome = new Outcome[1];
-        EventBudgetRun run = engine.runWithEventBudget(budget, () -> {
-            engine.update(ready.circuit());
-            for (int column = 0; column < inputs.size(); column++) {
-                engine.setInput(ready.inputs().get(column).componentId(), inputs.get(column));
-            }
-            outcome[0] = settle(engine, () -> false, timeLimit);
-        });
+        EventBudgetRun run = engine.runWithEventBudget(budget,
+                () -> outcome[0] = applyInputsAndSettle(engine, ready, inputs, timeLimit));
         boolean ranOut = run.exceeded();
         return new BudgetedRow(row(ready, engine, inputs, !ranOut && outcome[0] == Outcome.SETTLED),
                 run.eventsProcessed(), ranOut);
+    }
+
+    /** Loads the circuit into {@code engine}, sets the input values and lets it settle. */
+    private static Outcome applyInputsAndSettle(SimulationEngine engine, Preparation.Ready ready, List<Value> inputs,
+                                                long timeLimit) {
+        engine.update(ready.circuit());
+        for (int column = 0; column < inputs.size(); column++) {
+            engine.setInput(ready.inputs().get(column).componentId(), inputs.get(column));
+        }
+        return settle(engine, () -> false, timeLimit);
     }
 
     private static Row row(Preparation.Ready ready, SimulationEngine engine, List<Value> inputs, boolean settled) {

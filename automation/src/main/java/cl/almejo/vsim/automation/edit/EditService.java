@@ -316,14 +316,7 @@ public final class EditService {
         List<AiTask> ended = new ArrayList<>();
         synchronized (tasks) {
             closeCounts.merge(document, 1, Integer::sum);
-            tasks.values().removeIf(task -> {
-                boolean ofDocument = task.info().document().equals(document);
-                if (ofDocument) {
-                    ended.add(task);
-                    closedTasks.put(task.info().taskId(), document);
-                }
-                return ofDocument;
-            });
+            tasks.values().removeIf(task -> endsWithDocument(task, document, ended));
         }
         // the circuit is gone: nothing to clean up (no layout guides to take away), the task simply ends
         for (AiTask task : ended) {
@@ -331,6 +324,16 @@ public final class EditService {
                 announce(listener -> listener.taskEnded(task.info(), task.changedElementIds()));
             }
         }
+    }
+
+    /** Whether {@code task} is of the closed {@code document}; if so it is listed in {@code ended} and remembered. */
+    private boolean endsWithDocument(AiTask task, DocumentId document, List<AiTask> ended) {
+        boolean ofDocument = task.info().document().equals(document);
+        if (ofDocument) {
+            ended.add(task);
+            closedTasks.put(task.info().taskId(), document);
+        }
+        return ofDocument;
     }
 
     /** How many documents the service still remembers something about (tests). */
@@ -525,14 +528,16 @@ public final class EditService {
      */
     public StageUndoOutcome undoLatestStage(String taskId) {
         AiTask task = requireTask(taskId);
-        return editorWait.await(host.onCircuit(task.info().document(), circuit -> {
-            OptionalInt stage = topStepOf(circuit.history(), task)
-                    .filter(edit -> edit.stageIndex() >= 0)
-                    .map(edit -> OptionalInt.of(edit.stageIndex()))
-                    .orElseGet(task::latestStageWithAppliedEdits);
-            return stage.isPresent() ? undoStage(circuit.history(), task, stage.getAsInt())
-                    : StageUndoOutcome.NOTHING_TO_UNDO;
-        }));
+        return editorWait.await(host.onCircuit(task.info().document(), circuit -> undoLatestStageOn(circuit, task)));
+    }
+
+    private static StageUndoOutcome undoLatestStageOn(EditableCircuit circuit, AiTask task) {
+        OptionalInt stage = topStepOf(circuit.history(), task)
+                .filter(edit -> edit.stageIndex() >= 0)
+                .map(edit -> OptionalInt.of(edit.stageIndex()))
+                .orElseGet(task::latestStageWithAppliedEdits);
+        return stage.isPresent() ? undoStage(circuit.history(), task, stage.getAsInt())
+                : StageUndoOutcome.NOTHING_TO_UNDO;
     }
 
     private static StageUndoOutcome undoStage(History history, AiTask task, int stageIndex) {
@@ -616,16 +621,19 @@ public final class EditService {
     /** The task {@code taskId}; {@code INVALID_REFERENCE} when there is none. */
     public AiTask requireTask(String taskId) {
         Objects.requireNonNull(taskId, "taskId");
-        return task(taskId).orElseThrow(() -> {
-            synchronized (tasks) {
-                DocumentId closed = closedTasks.get(taskId);
-                if (closed != null) {
-                    return closedRefusal(closed);
-                }
+        return task(taskId).orElseThrow(() -> missingTask(taskId));
+    }
+
+    /** The refusal for a task that is not there: its circuit was closed, or it never began. */
+    private AutomationException missingTask(String taskId) {
+        synchronized (tasks) {
+            DocumentId closed = closedTasks.get(taskId);
+            if (closed != null) {
+                return closedRefusal(closed);
             }
-            return new AutomationException(AutomationError.INVALID_REFERENCE,
-                    "There is no task " + taskId + "; begin one first", Map.of("taskId", taskId));
-        });
+        }
+        return new AutomationException(AutomationError.INVALID_REFERENCE,
+                "There is no task " + taskId + "; begin one first", Map.of("taskId", taskId));
     }
 
     private static AutomationException closedRefusal(DocumentId document) {

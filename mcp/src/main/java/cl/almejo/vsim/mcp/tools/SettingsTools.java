@@ -56,13 +56,15 @@ final class SettingsTools {
                 Tool.Hints.CHANGES_IDEMPOTENT,
                 List.of(Map.of("document", "circuit-1", "setting", "GRID_STYLE", "value", "LINES"),
                         Map.of("document", "circuit-1", "setting", "SNAP_TO_GUIDES", "value", "true")),
-                arguments -> {
-                    EditorSetting setting = arguments.enumeration("setting", EditorSetting.class);
-                    String value = arguments.string("value");
-                    api.setEditorSetting(arguments.document(), setting, value);
-                    return Tool.Output.of(Map.of("document", arguments.document().value(), "setting",
-                            setting.name(), "value", value));
-                });
+                arguments -> setEditorSettingCall(api, arguments));
+    }
+
+    private static Tool.Output setEditorSettingCall(AutomationApi api, Arguments arguments) {
+        EditorSetting setting = arguments.enumeration("setting", EditorSetting.class);
+        String value = arguments.string("value");
+        api.setEditorSetting(arguments.document(), setting, value);
+        return Tool.Output.of(Map.of("document", arguments.document().value(), "setting",
+                setting.name(), "value", value));
     }
 
     private static Tool proposePreference(AutomationApi api) {
@@ -108,14 +110,16 @@ final class SettingsTools {
                         .property("answer", Schema.enumeration("", List.of("ACCEPTED", "DECLINED", "WAITING")))
                         .required("proposalId", "answer").build(),
                 Tool.Hints.READS, List.of(Map.of("proposalId", "proposal-1", "waitSeconds", 20)),
-                arguments -> {
-                    String proposalId = arguments.string("proposalId");
-                    Optional<ProposalAnswer> answer = api.awaitProposal(proposalId,
-                            Duration.ofSeconds(arguments.integer("waitSeconds", (int) maximumSeconds)));
-                    Map<String, Object> structured = new LinkedHashMap<>();
-                    structured.put("proposalId", proposalId);
-                    structured.put("answer", answer.map(Enum::name).orElse("WAITING"));
-                    return Tool.Output.of(structured);
-                });
+                arguments -> awaitProposalCall(api, maximumSeconds, arguments));
+    }
+
+    private static Tool.Output awaitProposalCall(AutomationApi api, long maximumSeconds, Arguments arguments) {
+        String proposalId = arguments.string("proposalId");
+        Optional<ProposalAnswer> answer = api.awaitProposal(proposalId,
+                Duration.ofSeconds(arguments.integer("waitSeconds", (int) maximumSeconds)));
+        Map<String, Object> structured = new LinkedHashMap<>();
+        structured.put("proposalId", proposalId);
+        structured.put("answer", answer.map(Enum::name).orElse("WAITING"));
+        return Tool.Output.of(structured);
     }
 }

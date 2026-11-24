@@ -52,12 +52,15 @@ final class PlannedShapeChange {
     void revert(CircuitDocument document) {
         plan.wires().addedWires().forEach(wire -> document.remove(wire.id()));
         previousInstances.values().forEach(document::replace);
-        previousWires.forEach((id, wire) -> {
-            if (removedOrders.containsKey(id)) {
-                document.restore(wire, removedOrders.get(id));
-            } else {
-                document.replace(wire);
-            }
-        });
+        previousWires.forEach((id, wire) -> restoreOrReplace(document, id, wire));
+    }
+
+    /** Puts a removed wire back where it was in the order, or swaps back one that was only replaced. */
+    private void restoreOrReplace(CircuitDocument document, ElementId id, Wire wire) {
+        if (removedOrders.containsKey(id)) {
+            document.restore(wire, removedOrders.get(id));
+        } else {
+            document.replace(wire);
+        }
     }
 }

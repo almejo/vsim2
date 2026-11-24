@@ -87,19 +87,21 @@ final class ExportTools {
                 List.of(Map.of("document", "circuit-1", "format", "PNG", "scale", 2),
                         Map.of("document", "circuit-1", "format", "PDF", "scope", Map.of("kind", "frame",
                                 "frameId", "f1"), "fileName", "latch", "orientation", "LANDSCAPE")),
-                arguments -> {
-                    ImageOptions image = new ImageOptions(arguments.integer("scale", ImageOptions.DEFAULT.scale()),
-                            arguments.bool("printBackground", ImageOptions.DEFAULT.printBackground()));
-                    PdfOptions pdf = new PdfOptions(arguments.string("paper", PdfOptions.DEFAULT.paper()),
-                            arguments.string("orientation", PdfOptions.DEFAULT.orientation()),
-                            arguments.integer("scalePercent", 0),
-                            arguments.bool("withValues", PdfOptions.DEFAULT.withValues()),
-                            arguments.bool("blackAndWhite", false), arguments.bool("headerFooter", false),
-                            arguments.string("title", ""));
-                    return Tool.Output.of(api.export(new ExportRequest(arguments.document(),
-                            arguments.enumeration("format", ExportRequest.Format.class), scopeOf(arguments),
-                            arguments.optionalString("fileName").filter(name -> !name.isBlank()), image, pdf,
-                            arguments.bool("includeStickyNotes", false))));
-                });
+                arguments -> exportCall(api, arguments));
+    }
+
+    private static Tool.Output exportCall(AutomationApi api, Arguments arguments) {
+        ImageOptions image = new ImageOptions(arguments.integer("scale", ImageOptions.DEFAULT.scale()),
+                arguments.bool("printBackground", ImageOptions.DEFAULT.printBackground()));
+        PdfOptions pdf = new PdfOptions(arguments.string("paper", PdfOptions.DEFAULT.paper()),
+                arguments.string("orientation", PdfOptions.DEFAULT.orientation()),
+                arguments.integer("scalePercent", 0),
+                arguments.bool("withValues", PdfOptions.DEFAULT.withValues()),
+                arguments.bool("blackAndWhite", false), arguments.bool("headerFooter", false),
+                arguments.string("title", ""));
+        return Tool.Output.of(api.export(new ExportRequest(arguments.document(),
+                arguments.enumeration("format", ExportRequest.Format.class), scopeOf(arguments),
+                arguments.optionalString("fileName").filter(name -> !name.isBlank()), image, pdf,
+                arguments.bool("includeStickyNotes", false))));
     }
 }

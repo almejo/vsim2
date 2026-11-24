@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.IntUnaryOperator;
 import java.util.function.UnaryOperator;
@@ -247,15 +248,20 @@ public final class SymbolDraft {
         SymbolPoint moved = bounded(point, snap);
         nodes.set(nodeIndex, nodes.get(nodeIndex).withPoint(moved));
         for (HandleSide side : HandleSide.values()) {
-            path.segmentOf(nodeIndex, side).ifPresent(segment -> {
-                if (nodes.get(segment).curve().orElse(null) instanceof SegmentCurve.Cubic) {
-                    SymbolPoint handle = path.handle(nodeIndex, side).orElseThrow();
-                    setHandle(nodes, segment, side, bounded(new SymbolPoint(handle.x() + moved.x() - original.x(),
-                            handle.y() + moved.y() - original.y()), SnapMode.FREE));
-                }
-            });
+            carryHandle(path, nodes, nodeIndex, side, original, moved);
         }
         return replacePath(pathIndex, path, nodes);
+    }
+
+    /** Moves the cubic handle {@code side} of node {@code nodeIndex} by what the node moved, if it has one. */
+    private void carryHandle(SymbolPath path, List<SymbolNode> nodes, int nodeIndex, HandleSide side,
+                             SymbolPoint original, SymbolPoint moved) {
+        OptionalInt segment = path.segmentOf(nodeIndex, side);
+        if (segment.isPresent() && nodes.get(segment.getAsInt()).curve().orElse(null) instanceof SegmentCurve.Cubic) {
+            SymbolPoint handle = path.handle(nodeIndex, side).orElseThrow();
+            setHandle(nodes, segment.getAsInt(), side, bounded(new SymbolPoint(handle.x() + moved.x() - original.x(),
+                    handle.y() + moved.y() - original.y()), SnapMode.FREE));
+        }
     }
 
     /** Whether node {@code nodeIndex} is smooth: between two curves, as the user chose or as its handles say. */
@@ -774,25 +780,31 @@ public final class SymbolDraft {
     /** The choices with each figure at its new index ({@code -1}: gone). */
     private Map<NodeKey, Boolean> choicesForElements(IntUnaryOperator newIndex) {
         Map<NodeKey, Boolean> moved = new HashMap<>();
-        smoothChoices.forEach((key, smooth) -> {
-            int index = newIndex.applyAsInt(key.path());
-            if (index >= 0) {
-                moved.put(new NodeKey(index, key.node()), smooth);
-            }
-        });
+        smoothChoices.forEach((key, smooth) -> keepChoiceOfElement(moved, newIndex, key, smooth));
         return moved;
+    }
+
+    private static void keepChoiceOfElement(Map<NodeKey, Boolean> moved, IntUnaryOperator newIndex, NodeKey key,
+                                            boolean smooth) {
+        int index = newIndex.applyAsInt(key.path());
+        if (index >= 0) {
+            moved.put(new NodeKey(index, key.node()), smooth);
+        }
     }
 
     /** The choices with the nodes of figure {@code pathIndex} at their new places ({@code -1}: gone). */
     private Map<NodeKey, Boolean> choicesForNodes(int pathIndex, IntUnaryOperator newIndex) {
         Map<NodeKey, Boolean> moved = new HashMap<>();
-        smoothChoices.forEach((key, smooth) -> {
-            int node = key.path() == pathIndex ? newIndex.applyAsInt(key.node()) : key.node();
-            if (node >= 0) {
-                moved.put(new NodeKey(key.path(), node), smooth);
-            }
-        });
+        smoothChoices.forEach((key, smooth) -> keepChoiceOfNode(moved, pathIndex, newIndex, key, smooth));
         return moved;
+    }
+
+    private static void keepChoiceOfNode(Map<NodeKey, Boolean> moved, int pathIndex, IntUnaryOperator newIndex,
+                                         NodeKey key, boolean smooth) {
+        int node = key.path() == pathIndex ? newIndex.applyAsInt(key.node()) : key.node();
+        if (node >= 0) {
+            moved.put(new NodeKey(key.path(), node), smooth);
+        }
     }
 
     /** Sets handle {@code side} of segment {@code segment}'s cubic (a quadratic or straight one is raised first). */

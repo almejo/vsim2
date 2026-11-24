@@ -228,12 +228,7 @@ public final class StandardComponentTypes {
                 parameters -> constantShape((Integer) parameters.get(WIDTH), (String) parameters.get("format"),
                         (Integer) parameters.get(ConstantValue.FRACTION)),
                 StandardComponentTypes::checkConstant,
-                parameters -> {
-                    int width = (Integer) parameters.get(WIDTH);
-                    return new ConstantBehavior(Value.of(width, ConstantValue.bitsOf((String) parameters.get("value"),
-                            width, (String) parameters.get(ConstantValue.FORMAT),
-                            (Integer) parameters.get(ConstantValue.FRACTION)).orElseThrow()));
-                }));
+                StandardComponentTypes::constantBehavior));
         registry.register(ComponentType.parameterized(LED, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 1, MultiBitLayout.MINIMUM_WIDTH, MultiBitLayout.MAXIMUM_WIDTH),
                         MultiBitLayout.sideParameter(MultiBitLayout.LEFT),
@@ -403,6 +398,13 @@ public final class StandardComponentTypes {
     }
 
     /** One bit is today's round light with its pin below; more bits are the rows of {@link MultiBitLayout}. */
+    private static ConstantBehavior constantBehavior(Map<String, Object> parameters) {
+        int width = (Integer) parameters.get(WIDTH);
+        return new ConstantBehavior(Value.of(width, ConstantValue.bitsOf((String) parameters.get("value"),
+                width, (String) parameters.get(ConstantValue.FORMAT),
+                (Integer) parameters.get(ConstantValue.FRACTION)).orElseThrow()));
+    }
+
     private static ComponentShape ledShape(int width, String side) {
         if (width == 1) {
             return new ComponentShape(new GridSize(2, 3), List.of(PinSpec.input("in", 1, 3)));

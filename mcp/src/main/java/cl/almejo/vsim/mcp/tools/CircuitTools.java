@@ -123,12 +123,14 @@ final class CircuitTools {
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1"), Map.of("document", "circuit-1", "region",
                         Map.of("x", 0, "y", 0, "width", 40, "height", 20), "asOnScreen", true)),
-                arguments -> {
-                    RegionPicture picture = api.pictureOf(arguments.document(), arguments.optionalBounds("region"),
-                            arguments.bool("asOnScreen", false));
-                    return new Tool.Output(Json.object(picture),
-                            Optional.of(Base64.getEncoder().encodeToString(picture.png())));
-                });
+                arguments -> pictureCall(api, arguments));
+    }
+
+    private static Tool.Output pictureCall(AutomationApi api, Arguments arguments) {
+        RegionPicture picture = api.pictureOf(arguments.document(), arguments.optionalBounds("region"),
+                arguments.bool("asOnScreen", false));
+        return new Tool.Output(Json.object(picture),
+                Optional.of(Base64.getEncoder().encodeToString(picture.png())));
     }
 
     private static Tool windowPicture(AutomationApi api) {
@@ -146,11 +148,13 @@ final class CircuitTools {
                         .property("height", Schema.integer("Pixels"))
                         .required("width", "height").build(),
                 Tool.Hints.READS, List.of(Map.of("document", "circuit-1")),
-                arguments -> {
-                    WindowPicture picture = api.pictureOfWindow(arguments.document());
-                    Map<String, Object> structured = new LinkedHashMap<>(Json.object(picture));
-                    return new Tool.Output(structured,
-                            Optional.of(Base64.getEncoder().encodeToString(picture.png())));
-                });
+                arguments -> windowPictureCall(api, arguments));
+    }
+
+    private static Tool.Output windowPictureCall(AutomationApi api, Arguments arguments) {
+        WindowPicture picture = api.pictureOfWindow(arguments.document());
+        Map<String, Object> structured = new LinkedHashMap<>(Json.object(picture));
+        return new Tool.Output(structured,
+                Optional.of(Base64.getEncoder().encodeToString(picture.png())));
     }
 }

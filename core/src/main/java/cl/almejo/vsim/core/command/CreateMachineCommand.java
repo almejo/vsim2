@@ -48,15 +48,18 @@ public final class CreateMachineCommand implements Command {
             putDefinition = new PutDefinitionsCommand(List.of(definition));
             addPiece = new AddElementsCommand(List.of(piece));
         }
-        document.batch(() -> {
-            putDefinition.apply(document);
-            try {
-                addPiece.apply(document);
-            } catch (RuntimeException exception) {
-                putDefinition.revert(document);
-                throw exception;
-            }
-        });
+        document.batch(() -> putDefinitionAndPiece(document));
+    }
+
+    /** Puts the definition and adds the piece; if the piece fails, takes the definition back and rethrows. */
+    private void putDefinitionAndPiece(CircuitDocument document) {
+        putDefinition.apply(document);
+        try {
+            addPiece.apply(document);
+        } catch (RuntimeException exception) {
+            putDefinition.revert(document);
+            throw exception;
+        }
     }
 
     @Override

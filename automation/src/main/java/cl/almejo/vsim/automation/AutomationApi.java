@@ -491,15 +491,7 @@ public final class AutomationApi {
                     + "task on that circuit (call vsim_set_presentation after vsim_begin_task, before the first "
                     + "step): they go back to the user's when it ends", Map.of("document", document.value()));
         }
-        pause.ifPresent(wanted -> {
-            if (wanted.compareTo(PresentationSettings.MINIMUM_PAUSE) < 0
-                    || wanted.compareTo(PresentationSettings.MAXIMUM_PAUSE) > 0) {
-                throw new AutomationException(AutomationError.INVALID_PARAMETER, "The pause is "
-                        + PresentationSettings.MINIMUM_PAUSE.toMillis() + " to "
-                        + PresentationSettings.MAXIMUM_PAUSE.toMillis() + " ms",
-                        Map.of("pauseMillis", wanted.toMillis()));
-            }
-        });
+        pause.ifPresent(AutomationApi::requirePauseInRange);
         if (!presenting) {
             throw new AutomationException(AutomationError.NOT_ALLOWED, "A task runs on " + document.value()
                     + ": «Presentar» stays on until it ends; a pace or pause goes with presenting true",
@@ -508,18 +500,32 @@ public final class AutomationApi {
         return switchPresentation(document, true, pace, pause);
     }
 
+    private static void requirePauseInRange(Duration wanted) {
+        if (wanted.compareTo(PresentationSettings.MINIMUM_PAUSE) < 0
+                || wanted.compareTo(PresentationSettings.MAXIMUM_PAUSE) > 0) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The pause is "
+                    + PresentationSettings.MINIMUM_PAUSE.toMillis() + " to "
+                    + PresentationSettings.MAXIMUM_PAUSE.toMillis() + " ms",
+                    Map.of("pauseMillis", wanted.toMillis()));
+        }
+    }
+
     /** Sets «Presentar» (and, when given, the task's pace and pause) on the editor thread; announces the settings. */
     private PresentationSettings switchPresentation(DocumentId document, boolean presenting,
                                                     Optional<PresentationPace> pace, Optional<Duration> pause) {
-        PresentationSettings settings = onEditorThread(access -> {
-            host.setPresenting(document, presenting);
-            if (pace.isPresent() || pause.isPresent()) {
-                host.layerPresentation(document, pace, pause);
-            }
-            return host.presentationSettings(document);
-        });
+        PresentationSettings settings = onEditorThread(
+                access -> setAndReadPresentation(document, presenting, pace, pause));
         presentation.settingsChanged(document, settings);
         return settings;
+    }
+
+    private PresentationSettings setAndReadPresentation(DocumentId document, boolean presenting,
+                                                        Optional<PresentationPace> pace, Optional<Duration> pause) {
+        host.setPresenting(document, presenting);
+        if (pace.isPresent() || pause.isPresent()) {
+            host.layerPresentation(document, pace, pause);
+        }
+        return host.presentationSettings(document);
     }
 
     /** The editor: the user changed the presentation mode of {@code document}'s window. Off the editor thread. */

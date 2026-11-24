@@ -121,18 +121,21 @@ public final class SimulationOperations {
         }
         if (first) {
             Operation started = operation;
-            host.simulate(request).whenComplete((receipt, failure) -> {
-                if (failure != null) {
-                    synchronized (operations) {
-                        operations.remove(key, started); // a refused call may be retried with the same id
-                    }
-                    started.receipt().completeExceptionally(failure);
-                } else {
-                    started.receipt().complete(receipt);
-                }
-            });
+            host.simulate(request).whenComplete((receipt, failure) -> finish(key, started, receipt, failure));
         }
         return checked(await(operation.receipt()));
+    }
+
+    /** Answers the waiting callers; a failed operation is forgotten, so a refused call may be retried with its id. */
+    private void finish(OperationKey key, Operation started, SimulationReceipt receipt, Throwable failure) {
+        if (failure != null) {
+            synchronized (operations) {
+                operations.remove(key, started);
+            }
+            started.receipt().completeExceptionally(failure);
+        } else {
+            started.receipt().complete(receipt);
+        }
     }
 
     /** One step of {@code kind}; {@code eventBudget} 0 means {@value #DEFAULT_EVENT_BUDGET}. Paused only. */

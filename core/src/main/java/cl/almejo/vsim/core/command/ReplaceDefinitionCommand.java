@@ -107,7 +107,8 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         Map<String, ComponentDefinition> reconciledParents = new LinkedHashMap<>();
         List<DefinitionUpdateProblem> nestedProblems = new ArrayList<>();
         List<RemovedPinWire> removedPinWires = new ArrayList<>();
-        before.ifPresent(old -> {
+        if (before.isPresent()) {
+            ComponentDefinition old = before.get();
             if (refuseBusyEdges) {
                 reconcileParents(document, old, replacement, previousParents, reconciledParents);
             } else {
@@ -116,7 +117,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
                 removedPinWires.addAll(PieceUpdatePlanner.removedPinWires(document, registry, old, replacement,
                         Optional.empty()));
             }
-        });
+        }
         PieceUpdatePlanner.Result pieces = before
                 .map(old -> PieceUpdatePlanner.plan(document, registry, bundle, old, refuseBusyEdges))
                 .orElseGet(() -> new PieceUpdatePlanner.Result(PieceUpdatePlanner.emptyPlan(), List.of()));
@@ -222,37 +223,42 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         if (document != target || !wasApplied && isStale(document)) {
             throw new IllegalStateException("the circuit changed after preparing the definition update");
         }
-        document.batch(() -> {
-            dependencies.apply(document);
-            previous = document.definition(replacement.id()).orElse(null);
-            try {
-                document.putDefinition(replacement);
-                reconciledParents.values().forEach(document::putDefinition);
-            } catch (RuntimeException exception) {
-                if (previous != null) {
-                    document.putDefinition(previous);
-                }
-                previousParents.values().forEach(document::putDefinition);
-                dependencies.revert(document);
-                throw exception;
-            }
-            pieces.apply(document);
-        });
+        document.batch(() -> putDefinitionsAndPieces(document));
         wasApplied = true;
     }
 
-    @Override
-    public void revert(CircuitDocument document) {
-        document.batch(() -> {
-            pieces.revert(document);
-            if (previous == null) {
-                document.removeDefinition(replacement.id());
-            } else {
+    /** Applies the dependencies, writes the definitions (back to what they were if that fails), then the pieces. */
+    private void putDefinitionsAndPieces(CircuitDocument document) {
+        dependencies.apply(document);
+        previous = document.definition(replacement.id()).orElse(null);
+        try {
+            document.putDefinition(replacement);
+            reconciledParents.values().forEach(document::putDefinition);
+        } catch (RuntimeException exception) {
+            if (previous != null) {
                 document.putDefinition(previous);
             }
             previousParents.values().forEach(document::putDefinition);
             dependencies.revert(document);
-        });
+            throw exception;
+        }
+        pieces.apply(document);
+    }
+
+    @Override
+    public void revert(CircuitDocument document) {
+        document.batch(() -> putPreviousDefinitionsBack(document));
+    }
+
+    private void putPreviousDefinitionsBack(CircuitDocument document) {
+        pieces.revert(document);
+        if (previous == null) {
+            document.removeDefinition(replacement.id());
+        } else {
+            document.putDefinition(previous);
+        }
+        previousParents.values().forEach(document::putDefinition);
+        dependencies.revert(document);
     }
 
     @Override

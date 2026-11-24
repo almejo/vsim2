@@ -237,24 +237,27 @@ public final class CircuitFlattener {
                 members.computeIfAbsent(find(netId), root -> new ArrayList<>()).add(netId);
             }
             List<FlatNet> result = new ArrayList<>();
-            members.forEach((root, ids) -> {
-                NetBuilder rootNet = nets.get(root);
-                List<FlatPinRef> pins = new ArrayList<>();
-                List<String> aliases = new ArrayList<>();
-                boolean mismatch = false;
-                for (String id : ids) {
-                    NetBuilder member = nets.get(id);
-                    pins.addAll(member.pins);
-                    mismatch |= member.widthMismatch || member.width != rootNet.width;
-                    if (!id.equals(root)) {
-                        aliases.add(id);
-                    }
-                }
-                pins.sort(Comparator.comparing(FlatPinRef::componentId).thenComparingInt(FlatPinRef::pinIndex));
-                Collections.sort(aliases);
-                result.add(new FlatNet(root, pins, rootNet.width, mismatch, aliases));
-            });
+            members.forEach((root, ids) -> result.add(mergedNet(root, ids)));
             return result;
+        }
+
+        /** The net {@code root} with the pins of every net in {@code ids} (itself and its aliases). */
+        private FlatNet mergedNet(String root, List<String> ids) {
+            NetBuilder rootNet = nets.get(root);
+            List<FlatPinRef> pins = new ArrayList<>();
+            List<String> aliases = new ArrayList<>();
+            boolean mismatch = false;
+            for (String id : ids) {
+                NetBuilder member = nets.get(id);
+                pins.addAll(member.pins);
+                mismatch |= member.widthMismatch || member.width != rootNet.width;
+                if (!id.equals(root)) {
+                    aliases.add(id);
+                }
+            }
+            pins.sort(Comparator.comparing(FlatPinRef::componentId).thenComparingInt(FlatPinRef::pinIndex));
+            Collections.sort(aliases);
+            return new FlatNet(root, pins, rootNet.width, mismatch, aliases);
         }
     }
 }

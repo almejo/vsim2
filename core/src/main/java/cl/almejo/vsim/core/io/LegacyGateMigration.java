@@ -106,12 +106,14 @@ public final class LegacyGateMigration {
         entry.put(TYPE, replacement.typeId());
         ObjectNode parameters = entry.path(PARAMETERS) instanceof ObjectNode existing ? existing
                 : entry.putObject(PARAMETERS);
-        replacement.parameters().forEach((name, value) -> {
-            switch (value) {
-                case Boolean flag -> parameters.put(name, flag);
-                case Integer number -> parameters.put(name, number);
-                default -> throw new IllegalStateException("unexpected parameter " + name + ": " + value);
-            }
-        });
+        replacement.parameters().forEach((name, value) -> putParameter(parameters, name, value));
+    }
+
+    private static void putParameter(ObjectNode parameters, String name, Object value) {
+        switch (value) {
+            case Boolean flag -> parameters.put(name, flag);
+            case Integer number -> parameters.put(name, number);
+            default -> throw new IllegalStateException("unexpected parameter " + name + ": " + value);
+        }
     }
 }

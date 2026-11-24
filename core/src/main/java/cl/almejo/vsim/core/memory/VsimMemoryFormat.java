@@ -152,26 +152,32 @@ public final class VsimMemoryFormat implements MemoryFileFormat {
         }
         int digits = Math.max(1, (width + 3) / 4);
         long[] state = {-1, 0};
-        file.contents().forEachNonZero((address, value) -> {
-            if (address != state[0]) {
-                if (state[1] > 0) {
-                    text.append('\n');
-                }
-                text.append('@').append(HexText.hexDigits(address, 3, true)).append('\n');
-                state[1] = 0;
-            } else if (state[1] == 8) {
-                text.append('\n');
-                state[1] = 0;
-            } else {
-                text.append(' ');
-            }
-            text.append(HexText.hexDigits(value, digits, true));
-            state[1]++;
-            state[0] = address + 1;
-        });
+        file.contents().forEachNonZero((address, value) -> appendWord(text, state, digits, address, value));
         if (state[1] > 0) {
             text.append('\n');
         }
         return text.toString();
+    }
+
+    /**
+     * Appends a word: after an {@code @address} line when it is not the next one, else on the current line (eight per
+     * line). {@code state} holds the next address and the words on the current line.
+     */
+    private static void appendWord(StringBuilder text, long[] state, int digits, long address, long value) {
+        if (address != state[0]) {
+            if (state[1] > 0) {
+                text.append('\n');
+            }
+            text.append('@').append(HexText.hexDigits(address, 3, true)).append('\n');
+            state[1] = 0;
+        } else if (state[1] == 8) {
+            text.append('\n');
+            state[1] = 0;
+        } else {
+            text.append(' ');
+        }
+        text.append(HexText.hexDigits(value, digits, true));
+        state[1]++;
+        state[0] = address + 1;
     }
 }

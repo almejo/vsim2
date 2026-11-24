@@ -40,14 +40,17 @@ public final class DefinitionUpdateSafety {
 
     /** Throws before any mutation; name, drawing and internal-logic changes with the same interface remain valid. */
     public static void requireSafe(CircuitDocument document, ComponentDefinition replacement) {
-        document.definition(replacement.id()).ifPresent(before -> {
-            if (!sameInterface(before, replacement)) {
-                List<String> parents = containingNames(document, replacement.id());
-                if (!parents.isEmpty()) {
-                    throw new UnsafeDefinitionUpdateException(replacement.id(), parents);
-                }
+        document.definition(replacement.id()).ifPresent(before -> requireNoParentsAffected(document, before, replacement));
+    }
+
+    private static void requireNoParentsAffected(CircuitDocument document, ComponentDefinition before,
+                                                 ComponentDefinition replacement) {
+        if (!sameInterface(before, replacement)) {
+            List<String> parents = containingNames(document, replacement.id());
+            if (!parents.isEmpty()) {
+                throw new UnsafeDefinitionUpdateException(replacement.id(), parents);
             }
-        });
+        }
     }
 
     /**

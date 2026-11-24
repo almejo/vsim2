@@ -204,16 +204,7 @@ public final class DefinitionBuilder {
                                      ComponentTypeRegistry registry) {
         Map<ElementId, String> names = new HashMap<>(defaultNames);
         Map<ElementId, String> relabels = new HashMap<>();
-        renamed.forEach((pin, newName) -> {
-            String stripped = newName == null ? "" : newName.strip();
-            if (stripped.isEmpty()) {
-                throw new IllegalArgumentException("a pin name cannot be blank: " + pin);
-            }
-            if (!stripped.equals(defaultNames.get(pin))) {
-                names.put(pin, stripped);
-                relabels.put(pin, stripped);
-            }
-        });
+        renamed.forEach((pin, newName) -> applyRename(pin, newName, defaultNames, names, relabels));
         List<DefinitionPin> pinout = new ArrayList<>();
         for (int index = 0; index < pinOrder.inputs().size(); index++) {
             ElementId source = pinOrder.inputs().get(index);
@@ -252,6 +243,19 @@ public final class DefinitionBuilder {
     /** True when {@code given} lists each pin of {@code expected} once, on the same side. */
     static boolean sameOrder(PinOrder given, PinOrder expected) {
         return samePins(given.inputs(), expected.inputs()) && samePins(given.outputs(), expected.outputs());
+    }
+
+    /** Records the new name of {@code pin} in {@code names} and {@code relabels} when it differs from its default. */
+    private static void applyRename(ElementId pin, String newName, Map<ElementId, String> defaultNames,
+                                    Map<ElementId, String> names, Map<ElementId, String> relabels) {
+        String stripped = newName == null ? "" : newName.strip();
+        if (stripped.isEmpty()) {
+            throw new IllegalArgumentException("a pin name cannot be blank: " + pin);
+        }
+        if (!stripped.equals(defaultNames.get(pin))) {
+            names.put(pin, stripped);
+            relabels.put(pin, stripped);
+        }
     }
 
     private static boolean samePins(List<ElementId> given, List<ElementId> expected) {

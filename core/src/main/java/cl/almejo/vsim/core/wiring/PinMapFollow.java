@@ -76,15 +76,18 @@ final class PinMapFollow implements ContactProbe.Layout {
         }
         graph = WireGraph.of(document.wires(), pinsAt);
         document.wires().forEach(wire -> wireRoots.put(wire.id(), original.find(wire.start())));
-        pinsAt.forEach((point, pins) -> {
-            GridPoint target = pinsAfter.get(pins.get(0));
-            boolean sameDestination = pins.stream().allMatch(pin -> pinsAfter.get(pin).equals(target));
-            boolean interiorJunction = graph.wiresThrough(point).stream()
-                    .anyMatch(wire -> WireGraph.isInterior(wire, point));
-            if (!point.equals(target) && sameDestination && !interiorJunction) {
-                movedEnds.put(point, target);
-            }
-        });
+        pinsAt.forEach(this::recordMovedEnd);
+    }
+
+    /** Remembers where wire ends at {@code point} go when all its pins move to one other place and it is no T. */
+    private void recordMovedEnd(GridPoint point, List<PinRef> pins) {
+        GridPoint target = pinsAfter.get(pins.get(0));
+        boolean sameDestination = pins.stream().allMatch(pin -> pinsAfter.get(pin).equals(target));
+        boolean interiorJunction = graph.wiresThrough(point).stream()
+                .anyMatch(wire -> WireGraph.isInterior(wire, point));
+        if (!point.equals(target) && sameDestination && !interiorJunction) {
+            movedEnds.put(point, target);
+        }
     }
 
     static FollowPlan plan(CircuitDocument document, ComponentTypeRegistry registry, PinMoves moves,

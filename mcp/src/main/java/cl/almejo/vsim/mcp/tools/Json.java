@@ -80,13 +80,15 @@ final class Json {
         Map<String, Object> object = new LinkedHashMap<>();
         map.entrySet().stream()
                 .sorted((first, second) -> String.valueOf(first.getKey()).compareTo(String.valueOf(second.getKey())))
-                .forEach(entry -> {
-                    Object converted = toJson(entry.getValue());
-                    if (converted != null) {
-                        object.put(String.valueOf(entry.getKey()), converted);
-                    }
-                });
+                .forEach(entry -> putIfNotNull(object, entry));
         return object;
+    }
+
+    private static void putIfNotNull(Map<String, Object> object, Map.Entry<?, ?> entry) {
+        Object converted = toJson(entry.getValue());
+        if (converted != null) {
+            object.put(String.valueOf(entry.getKey()), converted);
+        }
     }
 
     private static List<Object> list(Collection<?> collection) {
