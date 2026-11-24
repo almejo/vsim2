@@ -1071,18 +1071,21 @@ public final class WindowTabs extends JPanel {
             Map<String, List<TabStripModel.Tab>> byDefinition = new LinkedHashMap<>();
             group.componentTabs().forEach(tab -> byDefinition
                     .computeIfAbsent(tab.definitionId().orElseThrow(), key -> new ArrayList<>()).add(tab));
-            byDefinition.forEach((definitionId, tabs) -> {
-                String name = nameOf(document, definitionId);
-                for (int index = 0; index < tabs.size(); index++) {
-                    TabStripModel.Tab tab = tabs.get(index);
-                    if (document.document().definition(definitionId).isPresent()) {
-                        entries.get(tab.id()).definitionName = name;
-                    }
-                    String note = entries.get(tab.id()).view.draftGuards().titleNote().orElse("");
-                    model.update(new TabStripModel.Tab(tab.id(), document, tab.definitionId(),
-                            DocumentWindows.viewTitle(name, tabs.size() > 1 ? index + 1 : 0) + note, false));
-                }
-            });
+            byDefinition.forEach((definitionId, tabs) -> retitleComponentTabs(document, definitionId, tabs));
+        }
+    }
+
+    /** Retitles the tabs of one definition (its name, numbered when it has several) and keeps its name for later. */
+    private void retitleComponentTabs(OpenDocument document, String definitionId, List<TabStripModel.Tab> tabs) {
+        String name = nameOf(document, definitionId);
+        for (int index = 0; index < tabs.size(); index++) {
+            TabStripModel.Tab tab = tabs.get(index);
+            if (document.document().definition(definitionId).isPresent()) {
+                entries.get(tab.id()).definitionName = name;
+            }
+            String note = entries.get(tab.id()).view.draftGuards().titleNote().orElse("");
+            model.update(new TabStripModel.Tab(tab.id(), document, tab.definitionId(),
+                    DocumentWindows.viewTitle(name, tabs.size() > 1 ? index + 1 : 0) + note, false));
         }
     }
 

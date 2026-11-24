@@ -406,13 +406,15 @@ public final class PlaceBar extends JPanel {
         libraryHold = hold;
         libraryButton.setEnabled(false);
         libraryButton.setToolTipText(reason);
-        return () -> {
-            if (libraryHold == hold) {
-                libraryHold = Optional.empty();
-                libraryButton.setEnabled(true);
-                libraryButton.setToolTipText(null);
-            }
-        };
+        return () -> releaseLibraryButton(hold);
+    }
+
+    private void releaseLibraryButton(Optional<String> hold) {
+        if (libraryHold == hold) {
+            libraryHold = Optional.empty();
+            libraryButton.setEnabled(true);
+            libraryButton.setToolTipText(null);
+        }
     }
 
     /**
@@ -425,12 +427,14 @@ public final class PlaceBar extends JPanel {
         machineTestButton.setVisible(true);
         revalidate();
         repaint();
-        return () -> {
-            machineTestButton.removeActionListener(start);
-            machineTestButton.setVisible(false);
-            revalidate();
-            repaint();
-        };
+        return () -> hideMachineActions(start);
+    }
+
+    private void hideMachineActions(ActionListener start) {
+        machineTestButton.removeActionListener(start);
+        machineTestButton.setVisible(false);
+        revalidate();
+        repaint();
     }
 
     /** «Probar…» is disabled with «Ya estás probando» while the machine's tab tests, enabled again when it ends. */
@@ -483,14 +487,16 @@ public final class PlaceBar extends JPanel {
     }
 
     private void libraryAction() {
-        libraryBundle.ifPresent(bundle -> {
-            if (libraryOffersAdd) {
-                callbacks.addToLibrary(bundle);
-            } else {
-                callbacks.saveToLibrary(bundle);
-            }
-        });
+        libraryBundle.ifPresent(this::addOrSaveToLibrary);
         refresh();
+    }
+
+    private void addOrSaveToLibrary(DefinitionBundle bundle) {
+        if (libraryOffersAdd) {
+            callbacks.addToLibrary(bundle);
+        } else {
+            callbacks.saveToLibrary(bundle);
+        }
     }
 
     // --- what the tests read ---

@@ -92,13 +92,15 @@ final class UndoInItsPlace implements EditorActions.StepRunner {
             }
         }
         touched.addAll(removed.values());
-        DrawnBounds.of(touched, place.registry()).ifPresent(bounds -> {
-            CircuitCanvas canvas = target.canvas();
-            if (!isInView(canvas, bounds)) {
-                canvas.travelTo(bounds);
-            }
-            canvas.glow(bounds);
-        });
+        DrawnBounds.of(touched, place.registry()).ifPresent(bounds -> showGlow(target, bounds));
+    }
+
+    private static void showGlow(EditorView target, Bounds bounds) {
+        CircuitCanvas canvas = target.canvas();
+        if (!isInView(canvas, bounds)) {
+            canvas.travelTo(bounds);
+        }
+        canvas.glow(bounds);
     }
 
     /** Whether {@code bounds} are wholly on the canvas as it is now (a canvas not laid out yet shows nothing). */

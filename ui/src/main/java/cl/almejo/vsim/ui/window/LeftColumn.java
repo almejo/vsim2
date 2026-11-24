@@ -157,17 +157,20 @@ public final class LeftColumn extends JPanel {
         toggles.values().forEach(action -> action.setEnabled(true));
         layOutPanels();
         boolean[] removed = {false};
-        return () -> {
-            if (removed[0]) {
-                return;
-            }
-            removed[0] = true;
-            drags.dispose();
-            panels.remove(Section.CIRCUIT, circuit);
-            circuit.dispose();
-            toggles.values().forEach(action -> action.setEnabled(false));
-            layOutPanels();
-        };
+        return () -> removeAbovePalette(removed, drags, circuit);
+    }
+
+    /** Once: takes the panel above the palette away, with its divider drags and its toggles. */
+    private void removeAbovePalette(boolean[] removed, DividerDrags drags, Panel circuit) {
+        if (removed[0]) {
+            return;
+        }
+        removed[0] = true;
+        drags.dispose();
+        panels.remove(Section.CIRCUIT, circuit);
+        circuit.dispose();
+        toggles.values().forEach(action -> action.setEnabled(false));
+        layOutPanels();
     }
 
     /**
@@ -182,15 +185,18 @@ public final class LeftColumn extends JPanel {
         panels.put(Section.PALETTE, replacement);
         layOutPanels();
         boolean[] restored = {false};
-        return () -> {
-            if (restored[0]) {
-                return;
-            }
-            restored[0] = true;
-            panels.put(Section.PALETTE, palette);
-            replacement.dispose();
-            layOutPanels();
-        };
+        return () -> restorePalette(restored, palette, replacement);
+    }
+
+    /** Once: the palette is back in its place, and what replaced it is disposed. */
+    private void restorePalette(boolean[] restored, Panel palette, Panel replacement) {
+        if (restored[0]) {
+            return;
+        }
+        restored[0] = true;
+        panels.put(Section.PALETTE, palette);
+        replacement.dispose();
+        layOutPanels();
     }
 
     /** The header text of {@code section}, when it shows one (headers show only with a panel above the palette). */

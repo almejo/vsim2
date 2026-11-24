@@ -46,12 +46,14 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.panels.ZoomControl;
 import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import cl.almejo.vsim.ui.shortcuts.ShortcutEntry;
 import cl.almejo.vsim.ui.terminal.CapturedKeys;
 import cl.almejo.vsim.ui.terminal.KeyboardCapture;
 import cl.almejo.vsim.ui.terminal.KeyboardInspectorRows;
@@ -238,14 +240,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
         selectionActions.showNoticesWith(this::showNotice);
-        this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
-            if (entry.id().equals(MachineCreation.PALETTE_ID)) {
-                setToolOnEveryPane(() -> new PlaceMachineTool(services.library()::ids));
-            } else {
-                setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
-            }
-            canvas().requestFocusInWindow();
-        });
+        this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(),
+                this::choosePaletteEntry);
         this.leftColumn = new LeftColumn(palette, services.preferences(), services.appearance()::interfaceZoom, viewFocus,
                 () -> viewFocus.request(focusTarget()));
         createInspectorToggles();
@@ -343,16 +339,28 @@ public final class EditorView extends JPanel implements CanvasHost {
         addContextMenuContributor(selectionActions.contributor());
         // «Pegar» asks the clipboard again when it may have changed elsewhere: Editar opens, a pane gets the focus back
         Menus.onOpen(edit, selectionActions::refreshPaste);
-        forEachPane(pane -> {
-            FocusListener refresh = new FocusAdapter() {
-                @Override
-                public void focusGained(FocusEvent event) {
-                    selectionActions.refreshPaste();
-                }
-            };
-            pane.addFocusListener(refresh);
-            return () -> pane.removeFocusListener(refresh);
-        });
+        forEachPane(this::refreshPasteOnFocus);
+    }
+
+    private Runnable refreshPasteOnFocus(CircuitCanvas pane) {
+        FocusListener refresh = new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent event) {
+                selectionActions.refreshPaste();
+            }
+        };
+        pane.addFocusListener(refresh);
+        return () -> pane.removeFocusListener(refresh);
+    }
+
+    /** The user picked {@code entry} in the palette: its tool goes on every pane and the canvas takes the focus. */
+    private void choosePaletteEntry(PaletteEntry entry) {
+        if (entry.id().equals(MachineCreation.PALETTE_ID)) {
+            setToolOnEveryPane(() -> new PlaceMachineTool(services.library()::ids));
+        } else {
+            setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
+        }
+        canvas().requestFocusInWindow();
     }
 
     public OpenDocument openDocument() { return openDocument; }
@@ -404,19 +412,22 @@ public final class EditorView extends JPanel implements CanvasHost {
         Runnable stopZooming = actions.zoomContentInstead(zoom);
         Runnable stopFollowingTheZoom = zoom.addViewListener(() -> statusBar.showZoom(zoom.zoom()));
         statusBar.showZoom(zoom.zoom());
-        return () -> {
-            if (canvasSubstitute.isEmpty() || canvasSubstitute.get() != content) {
-                return;
-            }
-            stopFollowingTheZoom.run();
-            stopZooming.run();
-            canvasArea.remove(content);
-            canvasArea.add(canvasPanes, BorderLayout.CENTER);
-            canvasSubstitute = Optional.empty();
-            substituteFocus = Optional.empty();
-            canvasArea.layOutNow();
-            statusBar.showZoom(canvas().viewport().zoom());
-        };
+        return () -> restoreCanvas(content, stopFollowingTheZoom, stopZooming);
+    }
+
+    /** Puts the panes back where {@code content} stood, unless something else took the canvas's place since. */
+    private void restoreCanvas(JComponent content, Runnable stopFollowingTheZoom, Runnable stopZooming) {
+        if (canvasSubstitute.isEmpty() || canvasSubstitute.get() != content) {
+            return;
+        }
+        stopFollowingTheZoom.run();
+        stopZooming.run();
+        canvasArea.remove(content);
+        canvasArea.add(canvasPanes, BorderLayout.CENTER);
+        canvasSubstitute = Optional.empty();
+        substituteFocus = Optional.empty();
+        canvasArea.layOutNow();
+        statusBar.showZoom(canvas().viewport().zoom());
     }
 
     /** Every pane of this window, in reading order. */
@@ -731,12 +742,14 @@ public final class EditorView extends JPanel implements CanvasHost {
     public Runnable addAboveCanvas(JComponent header) {
         canvasArea.add(header, BorderLayout.NORTH);
         canvasArea.layOutNow();
-        return () -> {
-            if (header.getParent() == canvasArea) {
-                canvasArea.remove(header);
-                canvasArea.layOutNow();
-            }
-        };
+        return () -> removeAboveCanvas(header);
+    }
+
+    private void removeAboveCanvas(JComponent header) {
+        if (header.getParent() == canvasArea) {
+            canvasArea.remove(header);
+            canvasArea.layOutNow();
+        }
     }
 
     /** Adds items to every context menu from now on; the returned runnable takes the contributor back. */
@@ -894,12 +907,15 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     @Override
     public void enterComponent(Component instance) {
-        EnterableInstances.definitionOf(openDocument, instance).ifPresent(definitionId -> {
-            OpenDocument circuit = openDocument.parent().orElse(openDocument);
-            Optional<ViewState> from = Animations.viewMoves(services.preferences())
-                    ? enteringStart(circuit, definitionId, instance) : Optional.empty();
-            windowCommands.enter(circuit, definitionId, EnterableInstances.contextOf(openDocument, instance), from);
-        });
+        EnterableInstances.definitionOf(openDocument, instance)
+                .ifPresent(definitionId -> enterDefinition(definitionId, instance));
+    }
+
+    private void enterDefinition(String definitionId, Component instance) {
+        OpenDocument circuit = openDocument.parent().orElse(openDocument);
+        Optional<ViewState> from = Animations.viewMoves(services.preferences())
+                ? enteringStart(circuit, definitionId, instance) : Optional.empty();
+        windowCommands.enter(circuit, definitionId, EnterableInstances.contextOf(openDocument, instance), from);
     }
 
     /** Where the entered body's view starts: on screen where, and as big as, {@code instance} is drawn now. */
@@ -1280,25 +1296,31 @@ public final class EditorView extends JPanel implements CanvasHost {
         revalidate();
         repaint();
         fullScreenLayoutListeners.fire(Runnable::run);
-        return () -> {
-            stopFollowingTheInspector.run();
-            unregisterRight.run();
-            unregisterLeft.run();
-            remove(stage);
-            stage.removeAll();
-            fullScreenStage = null;
-            split.setLeftComponent(leftColumn);
-            inspectorSplit.setLeftComponent(bottomDock);
-            inspectorSplit.setRightComponent(inspector);
-            splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
-            add(splitAndStrip, BorderLayout.CENTER);
-            statusBar.setVisible(true);
-            leftColumnWidth.restore(keptWidth);
-            inspectorSplit.setDividerLocation(inspectorDivider);
-            revalidate();
-            repaint();
-            fullScreenLayoutListeners.fire(Runnable::run);
-        };
+        return () -> leaveFullScreen(stage, keptWidth, inspectorDivider, stopFollowingTheInspector, unregisterRight,
+                unregisterLeft);
+    }
+
+    /** Puts every piece back where it was before {@link #layOutForFullScreen}, the dividers included. */
+    private void leaveFullScreen(FullScreenStage stage, LeftColumnWidth.Kept keptWidth, int inspectorDivider,
+                                 Runnable stopFollowingTheInspector, Runnable unregisterRight,
+                                 Runnable unregisterLeft) {
+        stopFollowingTheInspector.run();
+        unregisterRight.run();
+        unregisterLeft.run();
+        remove(stage);
+        stage.removeAll();
+        fullScreenStage = null;
+        split.setLeftComponent(leftColumn);
+        inspectorSplit.setLeftComponent(bottomDock);
+        inspectorSplit.setRightComponent(inspector);
+        splitAndStrip.add(inspector.strip(), BorderLayout.EAST);
+        add(splitAndStrip, BorderLayout.CENTER);
+        statusBar.setVisible(true);
+        leftColumnWidth.restore(keptWidth);
+        inspectorSplit.setDividerLocation(inspectorDivider);
+        revalidate();
+        repaint();
+        fullScreenLayoutListeners.fire(Runnable::run);
     }
 
     /** A bar for presentation mode: opaque, as wide as {@code width} says, with a line on its inner side. */
@@ -1380,12 +1402,15 @@ public final class EditorView extends JPanel implements CanvasHost {
             if (panes.getWidth() > 0 && panes.getHeight() > 0) {
                 panes.doLayout(); // in the same pass, so each pane is where the compensation measures it
             }
-            topsBefore.forEach((pane, topBefore) -> {
-                int shift = panes.getY() + pane.getY() - topBefore;
-                if (shift != 0) {
-                    pane.compensateCanvasMove(0, -shift);
-                }
-            });
+            topsBefore.forEach(this::keepInPlace);
+        }
+
+        /** {@code pane}'s circuit stays where it was on screen: the pane's top edge moved since {@code topBefore}. */
+        private void keepInPlace(CircuitCanvas pane, int topBefore) {
+            int shift = panes.getY() + pane.getY() - topBefore;
+            if (shift != 0) {
+                pane.compensateCanvasMove(0, -shift);
+            }
         }
 
         /**
@@ -1444,7 +1469,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvasKeys.put("view.zoomTool", actions.zoomTool());
         canvasKeys.put("view.zoomToFit", actions.zoomToFit());
         canvasKeys.put("view.zoomToSelection", actions.zoomToSelection());
-        canvasKeys.forEach((id, action) -> ShortcutCatalog.find(id).flatMap(entry -> entry.defaultStroke())
+        canvasKeys.forEach((id, action) -> ShortcutCatalog.find(id).flatMap(ShortcutEntry::defaultStroke)
                 .ifPresent(stroke -> bindKey(pane, bound, stroke, id, action)));
         if (toolChoice != null) {
             pane.setTool(toolChoice.get());
@@ -1455,23 +1480,32 @@ public final class EditorView extends JPanel implements CanvasHost {
                 statusBar.showZoom(pane.viewport().zoom());
             }
         });
-        Consumer<SimulationSnapshot> snapshotListener = snapshot -> {
-            if (pane == canvas()) {
-                statusBar.showSnapshot(snapshot);
-                statusBar.showPauseNotice(openDocument.latestPauseNotice());
-                statusBar.showSpeed(openDocument.achievedSpeed());
-                actions.refreshSimulationButtons(snapshot.running());
-            }
-        };
+        Consumer<SimulationSnapshot> snapshotListener = snapshot -> showSnapshotOf(pane, snapshot);
         pane.addSnapshotListener(snapshotListener);
-        return () -> {
-            inlineEditor.cancelIfOpenIn(pane); // the edit's field lives on the pane that goes away
-            stopFollowingAnimations.run();
-            removeToolListener.run();
-            removeViewListener.run();
-            pane.removeSnapshotListener(snapshotListener);
-            bound.forEach(pane::unbindKey);
-        };
+        return () -> releasePane(pane, bound, stopFollowingAnimations, removeToolListener, removeViewListener,
+                snapshotListener);
+    }
+
+    /** The status bar follows the simulation of the active pane only. */
+    private void showSnapshotOf(CircuitCanvas pane, SimulationSnapshot snapshot) {
+        if (pane == canvas()) {
+            statusBar.showSnapshot(snapshot);
+            statusBar.showPauseNotice(openDocument.latestPauseNotice());
+            statusBar.showSpeed(openDocument.achievedSpeed());
+            actions.refreshSimulationButtons(snapshot.running());
+        }
+    }
+
+    /** What {@link #configurePane} did to {@code pane} is undone: it goes away. */
+    private void releasePane(CircuitCanvas pane, Map<KeyStroke, String> bound, Runnable stopFollowingAnimations,
+                             Runnable removeToolListener, Runnable removeViewListener,
+                             Consumer<SimulationSnapshot> snapshotListener) {
+        inlineEditor.cancelIfOpenIn(pane); // the edit's field lives on the pane that goes away
+        stopFollowingAnimations.run();
+        removeToolListener.run();
+        removeViewListener.run();
+        pane.removeSnapshotListener(snapshotListener);
+        bound.forEach(pane::unbindKey);
     }
 
     /**

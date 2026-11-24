@@ -54,12 +54,14 @@ final class ImportExportGroup {
 
     /** What takes {@code item} back out of {@code menu}, and the submenu out of the group once it is empty. */
     static Runnable removal(JMenu file, JMenu menu, JMenuItem item) {
-        return () -> {
-            menu.remove(item);
-            if (menu.getMenuComponentCount() == 0) {
-                remove(file, menu);
-            }
-        };
+        return () -> removeItem(file, menu, item);
+    }
+
+    private static void removeItem(JMenu file, JMenu menu, JMenuItem item) {
+        menu.remove(item);
+        if (menu.getMenuComponentCount() == 0) {
+            remove(file, menu);
+        }
     }
 
     /** Takes {@code menu} out and, when no submenu of the group is left, the group's separator too. */

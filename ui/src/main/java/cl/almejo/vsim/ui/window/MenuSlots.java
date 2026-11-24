@@ -33,14 +33,16 @@ public final class MenuSlots {
         }
         Optional<JMenu> container = submenu.parent().isEmpty() ? Optional.of(menu)
                 : find(menu, submenu.parent().orElseThrow());
-        return container.flatMap(holder -> {
-            for (Component child : holder.getMenuComponents()) {
-                if (child instanceof JMenu candidate && candidate.getClientProperty(SLOT) == submenu) {
-                    return Optional.of(candidate);
-                }
+        return container.flatMap(holder -> submenuIn(holder, submenu));
+    }
+
+    private static Optional<JMenu> submenuIn(JMenu holder, MenuSlot submenu) {
+        for (Component child : holder.getMenuComponents()) {
+            if (child instanceof JMenu candidate && candidate.getClientProperty(SLOT) == submenu) {
+                return Optional.of(candidate);
             }
-            return Optional.empty();
-        });
+        }
+        return Optional.empty();
     }
 
     /** Like {@link #add(JMenu, MenuSlot, JMenuItem)} in {@code view}'s menu of the slot. */
@@ -92,12 +94,14 @@ public final class MenuSlots {
             return menu;
         }
         MenuSlot submenuSlot = slot.parent().orElseThrow();
-        return find(menu, submenuSlot).orElseGet(() -> {
-            JMenu submenu = new JMenu(Messages.text(submenuSlot.titleKey().orElseThrow()));
-            submenu.putClientProperty(SLOT, submenuSlot);
-            place(containerOf(menu, submenuSlot), submenu);
-            return submenu;
-        });
+        return find(menu, submenuSlot).orElseGet(() -> newSubmenu(menu, submenuSlot));
+    }
+
+    private static JMenu newSubmenu(JMenu menu, MenuSlot submenuSlot) {
+        JMenu submenu = new JMenu(Messages.text(submenuSlot.titleKey().orElseThrow()));
+        submenu.putClientProperty(SLOT, submenuSlot);
+        place(containerOf(menu, submenuSlot), submenu);
+        return submenu;
     }
 
     /** Inserts {@code entry} before the first sibling of a later slot, then lays the separators again. */

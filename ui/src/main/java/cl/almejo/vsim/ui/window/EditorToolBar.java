@@ -75,12 +75,14 @@ final class EditorToolBar {
         extraToolButtons.put(toolType, button);
         toolBar.add(button, indexOfToolButton(selectButton) + 1);
         toolBar.revalidate();
-        return () -> {
-            extraToolButtons.remove(toolType, button);
-            toolButtons.remove(button);
-            toolBar.remove(button);
-            toolBar.revalidate();
-        };
+        return () -> removeToolButton(toolType, button);
+    }
+
+    private void removeToolButton(Class<? extends Tool> toolType, JToggleButton button) {
+        extraToolButtons.remove(toolType, button);
+        toolButtons.remove(button);
+        toolBar.remove(button);
+        toolBar.revalidate();
     }
 
     /** See {@link EditorView#addToolbarToggleAfterTools}. */
@@ -131,12 +133,14 @@ final class EditorToolBar {
         entries.add(position, new SlotEntry(component, order));
         toolBar.add(component, indexAfter(slot) + position);
         toolBar.revalidate();
-        return () -> {
-            entries.removeIf(entry -> entry.component == component);
-            toolBar.remove(component);
-            toolBar.revalidate();
-            toolBar.repaint();
-        };
+        return () -> removeComponent(entries, component);
+    }
+
+    private void removeComponent(List<SlotEntry> entries, JComponent component) {
+        entries.removeIf(entry -> entry.component == component);
+        toolBar.remove(component);
+        toolBar.revalidate();
+        toolBar.repaint();
     }
 
     /** The toolbar index right after the component the slot follows (the slot's own components come next). */
