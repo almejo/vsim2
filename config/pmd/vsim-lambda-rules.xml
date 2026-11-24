@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The lambda rules of conventions.md §5 (calidad-codigo T4). While the T4 executors clean the code area by area, this
+  file is applied only to the modules listed in the Gradle property `vsim.pmd.lambdaModules` (gradle.properties);
+  when every module is clean, the rules move into vsim-rules.xml and this file and the property go away.
+-->
+<ruleset name="vsim-lambda-rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>VSim 2 lambda rules, being rolled out module by module.</description>
+
+    <!-- conventions.md §5: a lambda is one expression or a body of at most 3 lines; longer logic is a named method
+         passed as a method reference. The block's braces are 4 lines apart when the body has 3. -->
+    <rule name="LambdaBodyAtMostThreeLines"
+          language="java"
+          message="A lambda body longer than 3 lines: make it a named method and pass a method reference (conventions.md §5)"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>A block lambda whose body spans more than 3 lines.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//LambdaExpression/Block[@EndLine - @BeginLine > 4]
+]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- conventions.md §5: a lambda that only calls a method is that method's reference (Foo::bar). -->
+    <rule ref="category/java/codestyle.xml/LambdaCanBeMethodReference"/>
+</ruleset>

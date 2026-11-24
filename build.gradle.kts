@@ -28,7 +28,11 @@ subprojects {
         toolVersion = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs").findVersion("pmd").get().requiredVersion
         sourceSets = listOf(the<SourceSetContainer>()["main"])
         ruleSets = emptyList()
-        ruleSetFiles = rootProject.files("config/pmd/vsim-rules.xml")
+        // The lambda rules (config/pmd/vsim-lambda-rules.xml) apply only to the modules in vsim.pmd.lambdaModules while
+        // calidad-codigo T4 cleans them area by area; then they join vsim-rules.xml and this switch goes away.
+        val lambdaModules = (findProperty("vsim.pmd.lambdaModules") as String? ?: "").split(",").map { it.trim() }
+        ruleSetFiles = rootProject.files(listOfNotNull("config/pmd/vsim-rules.xml",
+            "config/pmd/vsim-lambda-rules.xml".takeIf { project.name in lambdaModules }))
         isConsoleOutput = true
         isIgnoreFailures = false
     }
