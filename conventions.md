@@ -100,8 +100,9 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   `MouseClicks`, `PopupMouseListener`, `TextChanges`) and in `ui.actions` (`Actions.of`, `unnamed`, `doNothing`): use
   them before writing an anonymous `WindowAdapter`, `FocusAdapter`, `ComponentAdapter`, `MouseAdapter`,
   `DocumentListener` or `AbstractAction`. Automatic checks
-  (PMD, `config/pmd/vsim-rules.xml`): `LambdaBodyAtMostThreeLines` and
-  `LambdaCanBeMethodReference`; the `vsim-rules-reviewer` judges the repeated listeners.
+  (PMD, `config/pmd/vsim-rules.xml`): `LambdaBodyAtMostThreeLines` (measures the lines between the block's braces,
+  comments and blank lines included, so a body of 3 statements plus a comment fails; a lambda written as an
+  expression is not measured) and `LambdaCanBeMethodReference`; the `vsim-rules-reviewer` judges the repeated listeners.
 - Compilation runs with `-Xlint:all`: new code introduces no warnings. The build also runs PMD
   (`config/pmd/vsim-rules.xml`) and CPD; every rule in this file with an automatic check names it, and an exception is
   explicit in place (`@SuppressWarnings("PMD.<Rule>")` or `// CPD-OFF`, with the reason beside it).
