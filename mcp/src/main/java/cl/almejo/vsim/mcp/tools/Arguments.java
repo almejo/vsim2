@@ -236,13 +236,15 @@ final class Arguments {
     }
 
     Optional<Bounds> optionalBounds(String name) {
-        return optionalObject(name).map(box -> {
-            try {
-                return new Bounds(box.integer("x"), box.integer("y"), box.integer("width"), box.integer("height"));
-            } catch (IllegalArgumentException exception) {
-                throw invalid(name, exception.getMessage());
-            }
-        });
+        return optionalObject(name).map(box -> boundsOf(name, box));
+    }
+
+    private Bounds boundsOf(String name, Arguments box) {
+        try {
+            return new Bounds(box.integer("x"), box.integer("y"), box.integer("width"), box.integer("height"));
+        } catch (IllegalArgumentException exception) {
+            throw invalid(name, exception.getMessage());
+        }
     }
 
     /** {@code {elementId, pinName, index}} as a pin reference; index 0 when absent. */

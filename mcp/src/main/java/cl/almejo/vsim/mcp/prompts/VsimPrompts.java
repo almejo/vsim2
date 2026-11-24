@@ -96,13 +96,16 @@ public final class VsimPrompts {
     public static List<McpServerFeatures.SyncPromptSpecification> specifications() {
         return DEFINITIONS.stream()
                 .map(definition -> new McpServerFeatures.SyncPromptSpecification(definition.prompt(),
-                        (exchange, request) -> {
-                            if (TIMING.isInfoEnabled()) {
-                                TIMING.info(received(definition.name(), request.arguments()));
-                            }
-                            return definition.answer(request.arguments());
-                        }))
+                        (exchange, request) -> answerLogged(definition, request)))
                 .toList();
+    }
+
+    /** What {@code definition} answers to {@code request}, after logging what the prompt received (when timing). */
+    private static McpSchema.GetPromptResult answerLogged(Definition definition, McpSchema.GetPromptRequest request) {
+        if (TIMING.isInfoEnabled()) {
+            TIMING.info(received(definition.name(), request.arguments()));
+        }
+        return definition.answer(request.arguments());
     }
 
     /** The log line of what prompt {@code name} received, in the order VSim reads the values. */

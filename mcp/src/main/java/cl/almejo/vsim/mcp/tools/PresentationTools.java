@@ -115,14 +115,16 @@ final class PresentationTools {
                 List.of(Map.of("document", "circuit-1", "presenting", true),
                         Map.of("document", "circuit-1", "presenting", true, "pace", "CONTINUOUS",
                                 "pauseMillis", 1500)),
-                arguments -> {
-                    Optional<PresentationPace> pace = arguments.has("pace")
-                            ? Optional.of(arguments.enumeration("pace", PresentationPace.class)) : Optional.empty();
-                    Optional<Duration> pause = arguments.has("pauseMillis")
-                            ? Optional.of(Duration.ofMillis(arguments.longValue("pauseMillis"))) : Optional.empty();
-                    return Tool.Output.of(settings(arguments.document(), api.setPresentation(arguments.document(),
-                            arguments.bool("presenting", false), pace, pause)));
-                });
+                arguments -> setPresentationCall(api, arguments));
+    }
+
+    private static Tool.Output setPresentationCall(AutomationApi api, Arguments arguments) {
+        Optional<PresentationPace> pace = arguments.has("pace")
+                ? Optional.of(arguments.enumeration("pace", PresentationPace.class)) : Optional.empty();
+        Optional<Duration> pause = arguments.has("pauseMillis")
+                ? Optional.of(Duration.ofMillis(arguments.longValue("pauseMillis"))) : Optional.empty();
+        return Tool.Output.of(settings(arguments.document(), api.setPresentation(arguments.document(),
+                arguments.bool("presenting", false), pace, pause)));
     }
 
     // --- stages ---
@@ -149,17 +151,19 @@ final class PresentationTools {
                                 .required("x", "y").build())
                         .required("taskId", "stageNumber", "origin").build(),
                 Tool.Hints.CHANGES_IDEMPOTENT, List.of(Map.of("taskId", "task-1", "stageNumber", 2)),
-                arguments -> {
-                    String taskId = arguments.string("taskId");
-                    int stageNumber = arguments.integer("stageNumber");
-                    StageOrigin origin = api.beginStage(taskId, stageNumber - 1,
-                            arguments.optionalString("narration").filter(line -> !line.isBlank()));
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("taskId", taskId);
-                    result.put("stageNumber", (long) stageNumber);
-                    result.put("origin", Map.of("x", (long) origin.x(), "y", (long) origin.y()));
-                    return Tool.Output.of(result);
-                });
+                arguments -> beginStageCall(api, arguments));
+    }
+
+    private static Tool.Output beginStageCall(AutomationApi api, Arguments arguments) {
+        String taskId = arguments.string("taskId");
+        int stageNumber = arguments.integer("stageNumber");
+        StageOrigin origin = api.beginStage(taskId, stageNumber - 1,
+                arguments.optionalString("narration").filter(line -> !line.isBlank()));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("taskId", taskId);
+        result.put("stageNumber", (long) stageNumber);
+        result.put("origin", Map.of("x", (long) origin.x(), "y", (long) origin.y()));
+        return Tool.Output.of(result);
     }
 
     // --- what the AI says (IA.3) ---
@@ -190,15 +194,17 @@ final class PresentationTools {
                         .required("taskId", "shown", "presenting", "stageNumber").build(),
                 Tool.Hints.CHANGES_IDEMPOTENT,
                 List.of(Map.of("taskId", "task-1", "text", "Ahora copio el circuito para hacer un componente")),
-                arguments -> {
-                    Narration narration = api.say(arguments.string("taskId"), arguments.string("text"));
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("taskId", narration.taskId());
-                    result.put("shown", true);
-                    result.put("presenting", narration.presenting());
-                    result.put("stageNumber", (long) narration.stageIndex() + 1);
-                    return Tool.Output.of(result);
-                });
+                arguments -> sayCall(api, arguments));
+    }
+
+    private static Tool.Output sayCall(AutomationApi api, Arguments arguments) {
+        Narration narration = api.say(arguments.string("taskId"), arguments.string("text"));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("taskId", narration.taskId());
+        result.put("shown", true);
+        result.put("presenting", narration.presenting());
+        result.put("stageNumber", (long) narration.stageIndex() + 1);
+        return Tool.Output.of(result);
     }
 
     // --- waiting for «Siguiente» ---
@@ -224,14 +230,16 @@ final class PresentationTools {
                                 .required("version").build())
                         .required("taskId", "status").build(),
                 Tool.Hints.READS, List.of(Map.of("taskId", "task-1")),
-                arguments -> {
-                    String taskId = arguments.string("taskId");
-                    StepOutcome outcome = api.awaitStep(taskId, stepWait);
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("taskId", taskId);
-                    result.put("status", outcome.status().name());
-                    outcome.receipt().ifPresent(receipt -> result.put("receipt", EditTools.receipt(receipt)));
-                    return Tool.Output.of(result);
-                });
+                arguments -> awaitStepCall(api, stepWait, arguments));
+    }
+
+    private static Tool.Output awaitStepCall(AutomationApi api, Duration stepWait, Arguments arguments) {
+        String taskId = arguments.string("taskId");
+        StepOutcome outcome = api.awaitStep(taskId, stepWait);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("taskId", taskId);
+        result.put("status", outcome.status().name());
+        outcome.receipt().ifPresent(receipt -> result.put("receipt", EditTools.receipt(receipt)));
+        return Tool.Output.of(result);
     }
 }
