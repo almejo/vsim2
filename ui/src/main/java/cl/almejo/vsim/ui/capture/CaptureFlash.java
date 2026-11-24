@@ -50,27 +50,32 @@ final class CaptureFlash extends JComponent {
         flash.setBounds(new Rectangle(SwingUtilities.convertPoint(area, 0, 0, layers), area.getSize()));
         flash.repaint();
         long start = nowMillis.getAsLong();
-        Runnable hide = () -> {
-            ticker.stop();
-            if (flash.getParent() != null) {
-                Rectangle bounds = flash.getBounds();
-                layers.remove(flash);
-                layers.repaint(bounds);
-            }
-        };
-        ticker.start(() -> {
-            long elapsed = nowMillis.getAsLong() - start;
-            if (elapsed >= DURATION.toMillis()) {
-                hide.run();
-                return;
-            }
-            // with «Animaciones: No» it stays at its peak, whole, until its time is up: no fade
-            flash.opacity = animations.getAsBoolean()
-                    ? PEAK_OPACITY * (1f - (float) elapsed / DURATION.toMillis()) : PEAK_OPACITY;
-            flash.setBounds(new Rectangle(SwingUtilities.convertPoint(area, 0, 0, layers), area.getSize()));
-            flash.repaint();
-        });
+        Runnable hide = () -> hideFlash(ticker, flash, layers);
+        ticker.start(() -> flashFrame(flash, area, layers, start, nowMillis, animations, hide));
         return hide;
+    }
+
+    private static void hideFlash(FrameTicker ticker, CaptureFlash flash, JLayeredPane layers) {
+        ticker.stop();
+        if (flash.getParent() != null) {
+            Rectangle bounds = flash.getBounds();
+            layers.remove(flash);
+            layers.repaint(bounds);
+        }
+    }
+
+    private static void flashFrame(CaptureFlash flash, JComponent area, JLayeredPane layers, long start,
+                                   LongSupplier nowMillis, BooleanSupplier animations, Runnable hide) {
+        long elapsed = nowMillis.getAsLong() - start;
+        if (elapsed >= DURATION.toMillis()) {
+            hide.run();
+            return;
+        }
+        // with «Animaciones: No» it stays at its peak, whole, until its time is up: no fade
+        flash.opacity = animations.getAsBoolean()
+                ? PEAK_OPACITY * (1f - (float) elapsed / DURATION.toMillis()) : PEAK_OPACITY;
+        flash.setBounds(new Rectangle(SwingUtilities.convertPoint(area, 0, 0, layers), area.getSize()));
+        flash.repaint();
     }
 
     float opacity() {

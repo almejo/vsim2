@@ -47,18 +47,21 @@ final class FrameResync {
         Rectangle target = new Rectangle(Objects.requireNonNull(wanted, "wanted"));
         Insets atStart = insets.get();
         long start = clock.getAsLong();
-        pending = () -> {
-            boolean decorationsChanged = !insets.get().equals(atStart);
-            if (!decorationsChanged && clock.getAsLong() - start < TIMEOUT_MILLISECONDS) {
-                return;
-            }
-            cancel();
-            if (bounds.get().equals(target)) {
-                apply.accept(new Rectangle(target.x, target.y, target.width, target.height - 1));
-            }
-            apply.accept(target);
-        };
-        ticker.start(() -> pending.run());
+        pending = () -> resyncStep(insets, atStart, start, bounds, target, apply);
+        ticker.start(this::check);
+    }
+
+    private void resyncStep(Supplier<Insets> insets, Insets atStart, long start, Supplier<Rectangle> bounds,
+                            Rectangle target, Consumer<Rectangle> apply) {
+        boolean decorationsChanged = !insets.get().equals(atStart);
+        if (!decorationsChanged && clock.getAsLong() - start < TIMEOUT_MILLISECONDS) {
+            return;
+        }
+        cancel();
+        if (bounds.get().equals(target)) {
+            apply.accept(new Rectangle(target.x, target.y, target.width, target.height - 1));
+        }
+        apply.accept(target);
     }
 
     /**

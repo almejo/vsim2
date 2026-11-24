@@ -50,23 +50,29 @@ public final class FullScreenExtension implements EditorExtension {
         Runnable removeButton = view.addToolbarComponent(toolbarButton, ToolbarSlot.RIGHT, 2);
         Runnable removeShortcut = view.registerShortcutAction(SHORTCUT_ID, toggle);
 
-        Runnable follow = () -> {
-            boolean active = features.map(FullScreenFeatures::isActive).orElse(false);
-            toggle.putValue(Action.SELECTED_KEY, active);
-            toolbarButton.setSelected(active);
-            toolbarButton.setToolTipText(tooltip(preferences, active));
-        };
+        Runnable follow = () -> showMode(features, toggle, toolbarButton, preferences);
         follow.run();
         Runnable stopFollowingTheMode = features.map(found -> found.addActiveListener(follow)).orElse(() -> {
         });
         preferences.addListener(follow); // another shortcut for the mode
-        return () -> {
-            preferences.removeListener(follow);
-            stopFollowingTheMode.run();
-            removeShortcut.run();
-            removeButton.run();
-            menuRemover.run();
-        };
+        return () -> uninstall(preferences, follow, stopFollowingTheMode, removeShortcut, removeButton, menuRemover);
+    }
+
+    private static void showMode(Optional<FullScreenFeatures> features, Action toggle, JToggleButton toolbarButton,
+                                 AppPreferences preferences) {
+        boolean active = features.map(FullScreenFeatures::isActive).orElse(false);
+        toggle.putValue(Action.SELECTED_KEY, active);
+        toolbarButton.setSelected(active);
+        toolbarButton.setToolTipText(tooltip(preferences, active));
+    }
+
+    private static void uninstall(AppPreferences preferences, Runnable follow, Runnable stopFollowingTheMode,
+                                  Runnable removeShortcut, Runnable removeButton, Runnable menuRemover) {
+        preferences.removeListener(follow);
+        stopFollowingTheMode.run();
+        removeShortcut.run();
+        removeButton.run();
+        menuRemover.run();
     }
 
     /** «Modo presentación (F11)», or while on «Salir del modo presentación (F11 o Esc)», with the current shortcut. */

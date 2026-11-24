@@ -281,14 +281,17 @@ final class GroupsWindow {
         Insets decorations = decorationsOf(dialog);
         dialog.setSize(preferredDialogSize(Toolkit.getDefaultToolkit().getScreenSize(), decorations));
         // the width stays as the user leaves it; the height follows the content
-        onResize(() -> Toolkit.getDefaultToolkit().getScreenSize(), decorations, size -> {
-            if (dialog.isShowing()) {
-                dialog.setSize(dialog.getWidth(), size.height);
-                dialog.validate();
-            }
-        });
+        onResize(() -> Toolkit.getDefaultToolkit().getScreenSize(), decorations,
+                size -> followScreenHeight(dialog, size));
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
+    }
+
+    private static void followScreenHeight(JDialog dialog, Dimension size) {
+        if (dialog.isShowing()) {
+            dialog.setSize(dialog.getWidth(), size.height);
+            dialog.validate();
+        }
     }
 
     private void build() {

@@ -8,6 +8,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Component;
@@ -23,16 +24,18 @@ public final class ExportOptionsPanel extends JPanel {
     private final JCheckBox printBackground = new JCheckBox(Messages.text("export.printBackground"));
     private final JCheckBox includeStickyNotes = new JCheckBox(Messages.text("export.includeStickyNotes"));
 
+    private static JLabel scaleLabel(JList<? extends Integer> list, Integer value, boolean selected) {
+        JLabel label = new JLabel(value + "×");
+        label.setOpaque(true);
+        label.setBackground(selected ? list.getSelectionBackground() : list.getBackground());
+        label.setForeground(selected ? list.getSelectionForeground() : list.getForeground());
+        return label;
+    }
+
     public ExportOptionsPanel(int initialScale, boolean initialPrintBackground, boolean initialIncludeStickyNotes) {
         super(new MigLayout("wrap 1, insets 8", "[]", "[]4[]12[]4[]"));
         scale.setSelectedItem(initialScale);
-        scale.setRenderer((list, value, index, selected, focus) -> {
-            JLabel label = new JLabel(value + "×");
-            label.setOpaque(true);
-            label.setBackground(selected ? list.getSelectionBackground() : list.getBackground());
-            label.setForeground(selected ? list.getSelectionForeground() : list.getForeground());
-            return label;
-        });
+        scale.setRenderer((list, value, index, selected, focus) -> scaleLabel(list, value, selected));
         printBackground.setSelected(initialPrintBackground);
         add(new JLabel(Messages.text("export.scale")));
         add(scale);
