@@ -38,18 +38,20 @@ public final class SwingFileProblemDialog implements FileProblemDialog {
             scroll.setVisible(false);
             JButton toggle = new JButton(Messages.text("fileproblem.details"));
             toggle.setAlignmentX(Component.LEFT_ALIGNMENT);
-            toggle.addActionListener(action -> {
-                scroll.setVisible(!scroll.isVisible());
-                Window window = SwingUtilities.getWindowAncestor(content);
-                if (window != null) {
-                    window.pack();
-                }
-            });
+            toggle.addActionListener(action -> toggleDetails(scroll, content));
             content.add(Box.createVerticalStrut(8));
             content.add(toggle);
             content.add(scroll);
         }
         JOptionPane.showMessageDialog(parent, content, title, JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static void toggleDetails(JScrollPane scroll, JPanel content) {
+        scroll.setVisible(!scroll.isVisible());
+        Window window = SwingUtilities.getWindowAncestor(content);
+        if (window != null) {
+            window.pack();
+        }
     }
 
     private static String escaped(String text) {

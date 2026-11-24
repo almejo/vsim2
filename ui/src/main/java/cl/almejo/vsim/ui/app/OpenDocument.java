@@ -232,18 +232,7 @@ public final class OpenDocument implements AutoCloseable {
         this.flattener = new CircuitFlattener(this.registry);
         this.simulation = new SimulationThread(new SimulationEngine());
         document.addListener((changed, change) -> documentChanged(change));
-        history.addListener(changed -> {
-            followSpeed();
-            changeCount++;
-            Command top = changed.undoCommand().orElse(null);
-            if (top != topOfHistory) {
-                topOfHistory = top;
-                if (!changedOnlySwitchValues(changed)) {
-                    contentVersion++;
-                }
-            }
-            fireChanged();
-        });
+        history.addListener(this::historyChanged);
         document.addProbeListener(() -> simulation.setProbes(simulationChannels()));
         synchronize();
         simulation.start();
@@ -1308,6 +1297,20 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /** Puts the engine on the document's speed when an undo step (execute, undo, redo) changed it. */
+    /** The history moved (an edit, an undo or a redo): the speed, the change count and the content version follow. */
+    private void historyChanged(History changed) {
+        followSpeed();
+        changeCount++;
+        Command top = changed.undoCommand().orElse(null);
+        if (top != topOfHistory) {
+            topOfHistory = top;
+            if (!changedOnlySwitchValues(changed)) {
+                contentVersion++;
+            }
+        }
+        fireChanged();
+    }
+
     private void followSpeed() {
         double speed = document.simulationSpeed();
         if (speed != engineSpeedRequested) {
@@ -1442,12 +1445,15 @@ public final class OpenDocument implements AutoCloseable {
             return Optional.empty();
         }
         String prefix = contextPath.get() + InstancePath.SEPARATOR;
-        return latest.filter(frame -> frame.request().componentId().startsWith(prefix)).map(frame -> {
-            MemoryMapRequest asked = frame.request();
-            return new MemoryMapFrame(new MemoryMapRequest(asked.componentId().substring(prefix.length()),
-                    asked.firstAddress(), asked.wordsPerCell(), asked.cells()), frame.reads(), frame.writes(),
-                    frame.values(), frame.recent(), frame.time(), frame.wordsPerCounter());
-        });
+        return latest.filter(frame -> frame.request().componentId().startsWith(prefix)).map(frame -> insideBody(frame, prefix));
+    }
+
+    /** {@code frame} as the body's own: its component id without the {@code prefix} of the instance's path. */
+    private static MemoryMapFrame insideBody(MemoryMapFrame frame, String prefix) {
+        MemoryMapRequest asked = frame.request();
+        return new MemoryMapFrame(new MemoryMapRequest(asked.componentId().substring(prefix.length()),
+                asked.firstAddress(), asked.wordsPerCell(), asked.cells()), frame.reads(), frame.writes(),
+                frame.values(), frame.recent(), frame.time(), frame.wordsPerCounter());
     }
 
     /**

@@ -102,13 +102,15 @@ final class ReopeningWindows implements ClosedTabReopener.Windows {
 
     @Override
     public void discard(WindowTabs window) {
-        windowOf(window).ifPresent(created -> {
-            if (created.tabs().isEmpty()) {
-                created.discardUnshown();
-            } else {
-                created.closeQuietly(); // not recorded: the documents it last held close, the entry goes back
-            }
-        });
+        windowOf(window).ifPresent(ReopeningWindows::discardWindow);
+    }
+
+    private static void discardWindow(CircuitWindow created) {
+        if (created.tabs().isEmpty()) {
+            created.discardUnshown();
+        } else {
+            created.closeQuietly(); // not recorded: the documents it last held close, the entry goes back
+        }
     }
 
     @Override

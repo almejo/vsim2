@@ -46,13 +46,16 @@ public final class Animations {
      */
     public static Runnable onChange(AppPreferences preferences, Runnable changed) {
         AtomicBoolean shown = new AtomicBoolean(enabled(preferences));
-        Runnable listener = () -> {
-            boolean now = enabled(preferences);
-            if (shown.getAndSet(now) != now) {
-                changed.run();
-            }
-        };
+        Runnable listener = () -> runWhenChanged(preferences, shown, changed);
         preferences.addListener(listener);
         return () -> preferences.removeListener(listener);
+    }
+
+    /** A preference changed: {@code changed} runs only when «Animaciones» itself did. */
+    private static void runWhenChanged(AppPreferences preferences, AtomicBoolean shown, Runnable changed) {
+        boolean now = enabled(preferences);
+        if (shown.getAndSet(now) != now) {
+            changed.run();
+        }
     }
 }

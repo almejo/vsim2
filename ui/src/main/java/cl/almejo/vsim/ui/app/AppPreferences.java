@@ -593,14 +593,7 @@ public final class AppPreferences {
 
     /** The folder of the last image export; empty until the first one. */
     public Optional<Path> exportDirectory() {
-        return optional(EXPORT_DIRECTORY).flatMap(stored -> {
-            try {
-                return Optional.of(Path.of(stored));
-            } catch (InvalidPathException exception) {
-                LOGGER.warn("Ignoring the stored export directory {}", stored, exception);
-                return Optional.empty();
-            }
-        });
+        return optional(EXPORT_DIRECTORY).flatMap(stored -> storedDirectory(stored, "export directory"));
     }
 
     public void setExportDirectory(Path directory) {
@@ -752,14 +745,17 @@ public final class AppPreferences {
 
     /** The folder of the last saved PDF; empty until the first one. */
     public Optional<Path> printDirectory() {
-        return optional(PRINT_DIRECTORY).flatMap(stored -> {
-            try {
-                return Optional.of(Path.of(stored));
-            } catch (InvalidPathException exception) {
-                LOGGER.warn("Ignoring the stored PDF directory {}", stored, exception);
-                return Optional.empty();
-            }
-        });
+        return optional(PRINT_DIRECTORY).flatMap(stored -> storedDirectory(stored, "PDF directory"));
+    }
+
+    /** The stored folder as a path; one that is no valid path is logged (as {@code what}) and ignored. */
+    private static Optional<Path> storedDirectory(String stored, String what) {
+        try {
+            return Optional.of(Path.of(stored));
+        } catch (InvalidPathException exception) {
+            LOGGER.warn("Ignoring the stored {} {}", what, stored, exception);
+            return Optional.empty();
+        }
     }
 
     public void setPrintDirectory(Path directory) {

@@ -18,6 +18,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.KeyboardFocusManager;
 import java.awt.Taskbar;
+import java.awt.desktop.QuitResponse;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
@@ -49,21 +50,26 @@ public final class Main {
         SystemOpenFiles incoming = new SystemOpenFiles();
         installOpenFileHandler(incoming);
         splash.ifPresent(StartupSplash::awaitFirstPaint);
-        SwingUtilities.invokeLater(() -> {
-            Application application = new Application(preferences);
-            application.setSystemOpenFiles(incoming);
-            installQuitHandler(application);
-            installPreferencesHandler(application);
-            installAboutHandler();
-            installDockIcon();
-            application.start(files, () -> splash.ifPresent(StartupSplash::awaitMinimumTime));
-            if (!commandLine.unusable().isEmpty()) {
-                // The same message as any file that does not open; the start goes on behind it.
-                JOptionPane.showMessageDialog(null,
-                        Messages.format("session.missing", String.join(", ", commandLine.unusable())),
-                        Messages.text("startup.arguments.title"), JOptionPane.WARNING_MESSAGE);
-            }
-        });
+        SwingUtilities.invokeLater(() -> startApplication(preferences, incoming, splash, files, commandLine));
+    }
+
+    /** On the EDT: builds the application, installs the system handlers and opens {@code files}. */
+    private static void startApplication(AppPreferences preferences, SystemOpenFiles incoming,
+                                         Optional<StartupSplash> splash, List<Path> files,
+                                         CommandLineFiles commandLine) {
+        Application application = new Application(preferences);
+        application.setSystemOpenFiles(incoming);
+        installQuitHandler(application);
+        installPreferencesHandler(application);
+        installAboutHandler();
+        installDockIcon();
+        application.start(files, () -> splash.ifPresent(StartupSplash::awaitMinimumTime));
+        if (!commandLine.unusable().isEmpty()) {
+            // The same message as any file that does not open; the start goes on behind it.
+            JOptionPane.showMessageDialog(null,
+                    Messages.format("session.missing", String.join(", ", commandLine.unusable())),
+                    Messages.text("startup.arguments.title"), JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     /** macOS Cmd+Q: ask to save modified documents instead of quitting at once. No-op elsewhere. */
@@ -72,13 +78,15 @@ public final class Main {
                 || !Desktop.getDesktop().isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
             return;
         }
-        Desktop.getDesktop().setQuitHandler((event, response) -> {
-            if (application.exit()) {
-                response.performQuit();
-            } else {
-                response.cancelQuit();
-            }
-        });
+        Desktop.getDesktop().setQuitHandler((event, response) -> answerQuit(application, response));
+    }
+
+    private static void answerQuit(Application application, QuitResponse response) {
+        if (application.exit()) {
+            response.performQuit();
+        } else {
+            response.cancelQuit();
+        }
     }
 
     /** macOS Finder double click / drop on the Dock icon: the files wait in {@code incoming}. No-op elsewhere. */

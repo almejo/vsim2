@@ -402,18 +402,21 @@ public final class Application {
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
         aiServer.startAtLaunch(System.err);
         // Not a daemon: it keeps the JVM alive until the EDT has the rest of the start queued.
-        Thread scan = new Thread(() -> {
-            Optional<RecoveryChoices<RecoveryCopy>> choices = Optional.empty();
-            try {
-                choices = scanRecoveryCopies();
-                beforeWindows.run();
-            } finally {
-                // Even after an Error on this thread the application starts, then without a recovery offer.
-                Optional<RecoveryChoices<RecoveryCopy>> offered = choices;
-                SwingUtilities.invokeLater(() -> finishStart(files, offered));
-            }
-        }, "vsim-recovery-scan");
+        Thread scan = new Thread(() -> scanThenFinishStart(files, beforeWindows), "vsim-recovery-scan");
         scan.start();
+    }
+
+    /** On the scan thread: looks for recovery copies and runs {@code beforeWindows}, then hands the start to the EDT. */
+    private void scanThenFinishStart(List<Path> files, Runnable beforeWindows) {
+        Optional<RecoveryChoices<RecoveryCopy>> choices = Optional.empty();
+        try {
+            choices = scanRecoveryCopies();
+            beforeWindows.run();
+        } finally {
+            // Even after an Error on this thread the application starts, then without a recovery offer.
+            Optional<RecoveryChoices<RecoveryCopy>> offered = choices;
+            SwingUtilities.invokeLater(() -> finishStart(files, offered));
+        }
     }
 
     /**
@@ -440,65 +443,82 @@ public final class Application {
         // The first document that needs a window of its own takes the stand-in's place; null once it did.
         AtomicReference<StandIn> unused = new AtomicReference<>(standIn.orElse(null));
         // The files that do not open at the start (session, recovered copies, command line) get one message together.
-        StartupSteps.run(() -> openingFiles.collecting(() -> {
-            List<RecoveryCopy> recovered = choices.map(offered -> askAboutRecoveryCopies(offered, standIn.map(StandIn::window).orElse(null)))
-                    .orElse(List.of());
-            StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
-                    circuits, Files::isRegularFile);
-            // Every file opens once; then the session's windows come back with their tabs (spec §4.7).
-            Map<Path, OpenDocument> opened = new LinkedHashMap<>();
-            List<OpenDocument> untitled = new ArrayList<>();
-            Map<RecoveryCopy, OpenDocument> recoveredDocuments = new LinkedHashMap<>();
-            StartupSteps.openEach(plan.openings(), opening -> {
-                switch (opening) {
-                    case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document -> {
-                        recoveredDocuments.put(copy.copy(), document);
-                        copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
-                                original -> opened.put(original, document), () -> untitled.add(document));
-                    });
-                    case StartupSequence.FromSession session -> read(session.path(), null).ifPresent(document -> {
-                        rememberDirectory(session.path());
-                        opened.put(FileNames.normalized(session.path()), document);
-                    });
-                }
-            });
-            List<String> notOpened = new ArrayList<>(plan.missing().stream().map(Path::toString).toList());
-            StartupSteps.openEach(plan.windows(), window -> restoreWindow(window, opened).forEach(tab ->
-                    notOpened.add(Messages.format("session.missingComponent", tab.definitionName().orElseThrow(),
-                            tab.path().toString()))));
-            // A recovered copy not in the session, or a file whose window could not come back: a window of its own.
-            List<OpenDocument> unplaced = new ArrayList<>(untitled);
-            opened.values().stream().filter(document -> windows.windowsOf(document).isEmpty())
-                    .forEach(unplaced::add);
-            StartupSteps.openEach(unplaced, document -> showViews(document,
-                    document.path().flatMap(recentFiles::stateFor).stream().toList(),
-                    Optional.ofNullable(unused.getAndSet(null))));
-            // A recovered machine test resumes once the start is done (its first-time help bubble is a start popup
-            // too: it must not show before the recovery question's stand-in window has gone).
-            List<Map.Entry<RecoveryCopy, OpenDocument>> testsToResume = List.copyOf(recoveredDocuments.entrySet());
-            startHold.whenReleased(() -> StartupSteps.openEach(testsToResume,
-                    entry -> resumeRecoveredTests(entry.getKey(), entry.getValue())));
-            if (!notOpened.isEmpty()) {
-                JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
-                        Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
-            }
-            // Through the already-open check (a session file is only focused, never opened twice), as new groups of
-            // the active window (the last restored one); one file each so a failure skips only that one.
-            StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
-            Optional.ofNullable(unused.get()).ifPresent(stand -> StartupSteps.dropStandIn(windows.documents().size(),
-                    () -> stand.window().closeGroup(stand.document())));
-        }), () -> !windows.isEmpty(), this::newDocument, () -> {
-            if (!components.isEmpty()) {
-                // A component file on the command line is imported into the library, as a drop on the window would.
-                windows.all().get(0).openOrImport(components);
-            }
-        }, () -> {
+        StartupSteps.run(() -> openingFiles.collecting(
+                        () -> openStartupFiles(choices, standIn, unused, circuits, reopened)),
+                () -> !windows.isEmpty(), this::newDocument, () -> importComponentFiles(components), () -> {
             startAutosave(reopened);
             // After this event, which closes the stand-in and settles the windows; always, whatever failed above.
             SwingUtilities.invokeLater(startHold::release);
         });
         // Files the system sent while the start was running (macOS open-file events) open now, after the start's own.
         systemOpenFiles.attach(this::openFromSystem);
+    }
+
+    /**
+     * The files of the start (recovered copies, session, command line), all inside {@link OpeningFiles#collecting} so
+     * the ones that do not open get one message together.
+     */
+    private void openStartupFiles(Optional<RecoveryChoices<RecoveryCopy>> choices, Optional<StandIn> standIn,
+                                  AtomicReference<StandIn> unused, List<Path> circuits, List<RecoveryCopy> reopened) {
+        List<RecoveryCopy> recovered = choices.map(offered -> askAboutRecoveryCopies(offered, standIn.map(StandIn::window).orElse(null)))
+                .orElse(List.of());
+        StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
+                circuits, Files::isRegularFile);
+        // Every file opens once; then the session's windows come back with their tabs (spec §4.7).
+        Map<Path, OpenDocument> opened = new LinkedHashMap<>();
+        List<OpenDocument> untitled = new ArrayList<>();
+        Map<RecoveryCopy, OpenDocument> recoveredDocuments = new LinkedHashMap<>();
+        StartupSteps.openEach(plan.openings(),
+                opening -> openOpening(opening, reopened, opened, untitled, recoveredDocuments));
+        List<String> notOpened = new ArrayList<>(plan.missing().stream().map(Path::toString).toList());
+        StartupSteps.openEach(plan.windows(), window -> restoreWindow(window, opened).forEach(tab ->
+                notOpened.add(Messages.format("session.missingComponent", tab.definitionName().orElseThrow(),
+                        tab.path().toString()))));
+        // A recovered copy not in the session, or a file whose window could not come back: a window of its own.
+        List<OpenDocument> unplaced = new ArrayList<>(untitled);
+        opened.values().stream().filter(document -> windows.windowsOf(document).isEmpty())
+                .forEach(unplaced::add);
+        StartupSteps.openEach(unplaced, document -> showViews(document,
+                document.path().flatMap(recentFiles::stateFor).stream().toList(),
+                Optional.ofNullable(unused.getAndSet(null))));
+        // A recovered machine test resumes once the start is done (its first-time help bubble is a start popup
+        // too: it must not show before the recovery question's stand-in window has gone).
+        List<Map.Entry<RecoveryCopy, OpenDocument>> testsToResume = List.copyOf(recoveredDocuments.entrySet());
+        startHold.whenReleased(() -> StartupSteps.openEach(testsToResume,
+                entry -> resumeRecoveredTests(entry.getKey(), entry.getValue())));
+        if (!notOpened.isEmpty()) {
+            JOptionPane.showMessageDialog(null, Messages.format("session.missing", String.join(", ", notOpened)),
+                    Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
+        }
+        // Through the already-open check (a session file is only focused, never opened twice), as new groups of
+        // the active window (the last restored one); one file each so a failure skips only that one.
+        StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
+        Optional.ofNullable(unused.get()).ifPresent(stand -> StartupSteps.dropStandIn(windows.documents().size(),
+                () -> stand.window().closeGroup(stand.document())));
+    }
+
+    /** One of the start's openings: a recovered copy or a file of the session; what opened is noted for the windows. */
+    private void openOpening(StartupSequence.Opening opening, List<RecoveryCopy> reopened,
+                             Map<Path, OpenDocument> opened, List<OpenDocument> untitled,
+                             Map<RecoveryCopy, OpenDocument> recoveredDocuments) {
+        switch (opening) {
+            case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document -> {
+                recoveredDocuments.put(copy.copy(), document);
+                copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
+                        original -> opened.put(original, document), () -> untitled.add(document));
+            });
+            case StartupSequence.FromSession session -> read(session.path(), null).ifPresent(document -> {
+                rememberDirectory(session.path());
+                opened.put(FileNames.normalized(session.path()), document);
+            });
+        }
+    }
+
+    /** A component file on the command line is imported into the library, as a drop on the window would. */
+    private void importComponentFiles(List<Path> components) {
+        if (!components.isEmpty()) {
+            windows.all().get(0).openOrImport(components);
+        }
     }
 
     /**
@@ -560,12 +580,14 @@ public final class Application {
     public CircuitWindow newWindow(CircuitWindow source) {
         NewViewPlacement placement = NewViewPlacement.after(source.getLocation(), source.viewState());
         // setLocation also cancels the platform placement of the constructor
-        return showInNewWindow(source.activeDocument(), window -> {
-            // inside a machine or a component, the new window shows that place too, not only the circuit
-            source.tabs().showActivePlaceIn(window.tabs());
-            placement.applyTo(state -> window.tabs().setInitialViewState(window.activeView(), state),
-                    window::setLocation);
-        });
+        return showInNewWindow(source.activeDocument(), window -> placeLikeSource(window, source, placement));
+    }
+
+    private static void placeLikeSource(CircuitWindow window, CircuitWindow source, NewViewPlacement placement) {
+        // inside a machine or a component, the new window shows that place too, not only the circuit
+        source.tabs().showActivePlaceIn(window.tabs());
+        placement.applyTo(state -> window.tabs().setInitialViewState(window.activeView(), state),
+                window::setLocation);
     }
 
     /**
@@ -606,12 +628,14 @@ public final class Application {
                 case OpeningTarget.NewWindow<CircuitWindow> newWindow -> openFile(path, null);
             }
         }
-        received.forEach(window -> {
-            closeReplaced(window);
-            if (window != requester) {
-                focus(window); // a file sent from outside brings its window to the front
-            }
-        });
+        received.forEach(window -> closeReplacedAndFocus(window, requester));
+    }
+
+    private void closeReplacedAndFocus(CircuitWindow window, CircuitWindow requester) {
+        closeReplaced(window);
+        if (window != requester) {
+            focus(window); // a file sent from outside brings its window to the front
+        }
     }
 
     /** Reads {@code path} and shows it in {@code requester}, or in a new window when it is null; false if unread. */

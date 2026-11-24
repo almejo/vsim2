@@ -10,11 +10,13 @@ public interface Delay {
 
     /** A one-shot Swing {@link Timer}. */
     static Delay swing() {
-        return (milliseconds, task) -> {
-            Timer timer = new Timer(milliseconds, event -> task.run());
-            timer.setRepeats(false);
-            timer.start();
-            return timer::stop;
-        };
+        return Delay::startOneShotTimer;
+    }
+
+    private static Runnable startOneShotTimer(int milliseconds, Runnable task) {
+        Timer timer = new Timer(milliseconds, event -> task.run());
+        timer.setRepeats(false);
+        timer.start();
+        return timer::stop;
     }
 }
