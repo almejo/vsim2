@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.machine;
 
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -83,14 +82,10 @@ final class MachineTestEntries {
 
     /** «Probar la máquina…» on the right-click menu of a machine's piece: enters that copy and tests it. */
     private ContextMenuContributor pieceContributor() {
-        return (menu, target, selection, gridPosition) -> {
-            Optional<DocumentElement> element = target.filter(found -> selection.size() == 1
-                    && selection.contains(found.id()));
-            if (element.isPresent() && element.get() instanceof Component piece
-                    && MachineDuplicationActions.isMachinePiece(view.openDocument(), piece)) {
-                menu.add(new JMenuItem(Actions.of(Messages.text("action.testMachine"), () -> testPiece(piece))));
-            }
-        };
+        return (menu, target, selection, gridPosition) -> MachineDuplicationActions
+                .soleMachinePiece(view.openDocument(), target, selection)
+                .ifPresent(piece -> menu.add(new JMenuItem(Actions.of(Messages.text("action.testMachine"),
+                        () -> testPiece(piece)))));
     }
 
     private void testPiece(Component piece) {
