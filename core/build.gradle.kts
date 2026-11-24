@@ -35,6 +35,12 @@ sourceSets.named("main") {
 // showcase, write the class circuits) work as a side effect: with one of them set the test task runs every time, never
 // UP-TO-DATE.
 tasks.named<Test>("test") {
+    // SourceRulesTest (dangling and self-pointing Javadoc) reads src/main/java of the four modules from disk, so a change
+    // in any of them must rerun core's tests: they are declared as inputs.
+    val moduleNames = listOf("core", "automation", "mcp", "ui")
+    inputs.files(moduleNames.map { moduleName ->
+        fileTree(rootProject.layout.projectDirectory.dir("$moduleName/src/main/java")) { include("**/*.java") }
+    }).withPropertyName("allMainSources").withPathSensitivity(PathSensitivity.RELATIVE)
     val toolVariables = listOf("VSIM_WRITE_BUNDLED", "VSIM_MIGRATE_PATHS", "VSIM_WRITE_SHOWCASE",
         "VSIM_WRITE_PARTS_SHOWCASE")
     if (toolVariables.any { variable -> System.getenv(variable) != null }) {
