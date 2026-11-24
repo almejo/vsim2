@@ -85,6 +85,17 @@ public final class AiServerService {
 
     /** Hears the server's state and the AI's tasks, on the EDT. */
     public interface Listener {
+
+        /** A listener that runs {@code action} when the state changes and hears nothing else. */
+        static Listener onStateChanged(Runnable action) {
+            return new Listener() {
+                @Override
+                public void stateChanged() {
+                    action.run();
+                }
+            };
+        }
+
         default void stateChanged() {
         }
 

@@ -33,12 +33,7 @@ final class AiStatusIndicator extends JLabel {
         setIconTextGap(DOT_TEXT_GAP);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         addMouseListener(MouseClicks.onLeftClick(openPanel));
-        this.removeServiceListener = service.addListener(new AiServerService.Listener() {
-            @Override
-            public void stateChanged() {
-                refresh();
-            }
-        });
+        this.removeServiceListener = service.addListener(AiServerService.Listener.onStateChanged(this::refresh));
         refresh();
     }
 

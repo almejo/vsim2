@@ -42,12 +42,8 @@ public final class WhatsNewExtension implements EditorExtension {
 
                 @Override
                 public Runnable addListener(Runnable listener) {
-                    return server.addListener(new AiServerService.Listener() {
-                        @Override
-                        public void stateChanged() {
-                            listener.run(); // a task beginning or ending changes the state too
-                        }
-                    });
+                    // a task beginning or ending changes the state too
+                    return server.addListener(AiServerService.Listener.onStateChanged(listener));
                 }
             };
         }
