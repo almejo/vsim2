@@ -14,12 +14,14 @@ public final class CircuitTreeExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         CircuitTree tree = new CircuitTree(view);
         Runnable removal = view.addAbovePalette(Messages.text("tree.title"), tree);
-        return () -> {
-            try {
-                removal.run();
-            } finally {
-                tree.dispose();
-            }
-        };
+        return () -> removeAndDispose(removal, tree);
+    }
+
+    private static void removeAndDispose(Runnable removal, CircuitTree tree) {
+        try {
+            removal.run();
+        } finally {
+            tree.dispose();
+        }
     }
 }

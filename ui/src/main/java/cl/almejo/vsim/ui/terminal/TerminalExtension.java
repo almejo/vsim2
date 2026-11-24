@@ -81,17 +81,20 @@ public final class TerminalExtension implements EditorExtension {
         DocumentListener placed = (changed, change) -> openPlacedWindows(changed, change, windows, view, owner);
         document.document().addListener(placed);
         removers.add(() -> document.document().removeListener(placed));
-        services.later().execute(() -> {
-            Shared shared = documents.get(document);
-            if (shared != null && shared.terminals == terminals) {
-                openShownWindows(document, windows, view, owner);
-            }
-        });
+        services.later().execute(() -> openShownWindowsIfStillOpen(document, terminals, windows, view, owner));
         removers.add(() -> windows.closeOpenedBy(view));
         return () -> {
             removers.reversed().forEach(Runnable::run);
             release(document);
         };
+    }
+
+    private void openShownWindowsIfStillOpen(OpenDocument document, TerminalDocument terminals,
+                                             TerminalWindows windows, EditorView view, TerminalWindowOwner owner) {
+        Shared shared = documents.get(document);
+        if (shared != null && shared.terminals == terminals) {
+            openShownWindows(document, windows, view, owner);
+        }
     }
 
     private TerminalDocument acquire(OpenDocument document, EditorView view) {

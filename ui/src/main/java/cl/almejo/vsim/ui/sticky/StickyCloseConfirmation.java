@@ -21,14 +21,16 @@ public interface StickyCloseConfirmation {
 
     /** The real dialog. */
     static StickyCloseConfirmation dialog() {
-        return (parent, firstLine) -> {
-            String unstick = Messages.text("stickyNotes.close.confirm");
-            String cancel = Messages.text("stickyNotes.close.cancel");
-            int answer = JOptionPane.showOptionDialog(parent, question(firstLine),
-                    Messages.text("stickyNotes.close.title"), JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.QUESTION_MESSAGE, null, new Object[] {cancel, unstick}, unstick);
-            return answer == 1;
-        };
+        return StickyCloseConfirmation::askInADialog;
+    }
+
+    private static boolean askInADialog(Component parent, String firstLine) {
+        String unstick = Messages.text("stickyNotes.close.confirm");
+        String cancel = Messages.text("stickyNotes.close.cancel");
+        int answer = JOptionPane.showOptionDialog(parent, question(firstLine),
+                Messages.text("stickyNotes.close.title"), JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE, null, new Object[] {cancel, unstick}, unstick);
+        return answer == 1;
     }
 
     /** The question for a note whose summary line is {@code firstLine}: quoted and cut, or without a quote. */

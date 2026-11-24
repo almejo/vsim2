@@ -33,12 +33,14 @@ public final class StickyNoteEdits {
 
     /** {@code change} applied to the note as one {@link ChangeStickyNoteCommand}. */
     public void change(ElementId id, UnaryOperator<StickyNote> change) {
-        editable(id).ifPresent(before -> {
-            StickyNote after = change.apply(before);
-            if (!after.equals(before)) {
-                openDocument.execute(new ChangeStickyNoteCommand(before, after));
-            }
-        });
+        editable(id).ifPresent(before -> applyChange(before, change));
+    }
+
+    private void applyChange(StickyNote before, UnaryOperator<StickyNote> change) {
+        StickyNote after = change.apply(before);
+        if (!after.equals(before)) {
+            openDocument.execute(new ChangeStickyNoteCommand(before, after));
+        }
     }
 
     public void setColor(ElementId id, StickyColor color) {

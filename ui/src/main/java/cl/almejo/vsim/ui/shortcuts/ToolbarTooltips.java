@@ -8,6 +8,7 @@ import javax.swing.Action;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import java.awt.Component;
+import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -45,18 +46,20 @@ final class ToolbarTooltips {
                     && ids.containsKey(button.getAction())) {
                 Action action = button.getAction();
                 idsByButton.put(button, ids.get(action));
-                PropertyChangeListener follower = event -> {
-                    if (Action.NAME.equals(event.getPropertyName())
-                            || Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) {
-                        refresh(button);
-                    }
-                };
+                PropertyChangeListener follower = event -> refreshOnTextChange(button, event);
                 action.addPropertyChangeListener(follower);
                 removals.add(() -> action.removePropertyChangeListener(follower));
                 PropertyChangeListener noteFollower = event -> refresh(button);
                 button.addPropertyChangeListener(Actions.TOOLBAR_NOTE, noteFollower);
                 removals.add(() -> button.removePropertyChangeListener(Actions.TOOLBAR_NOTE, noteFollower));
             }
+        }
+    }
+
+    private void refreshOnTextChange(AbstractButton button, PropertyChangeEvent event) {
+        if (Action.NAME.equals(event.getPropertyName())
+                || Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) {
+            refresh(button);
         }
     }
 

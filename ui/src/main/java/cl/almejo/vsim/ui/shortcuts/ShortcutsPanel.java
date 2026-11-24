@@ -158,12 +158,14 @@ public final class ShortcutsPanel extends JPanel {
         if (model.pendingConflict().isPresent()) {
             return;
         }
-        selectedEntry().ifPresent(entry -> {
-            model.beginCapture(entry.id());
-            showMessage();
-            capture.start();
-            table.requestFocusInWindow();
-        });
+        selectedEntry().ifPresent(this::beginCaptureFor);
+    }
+
+    private void beginCaptureFor(ShortcutEntry entry) {
+        model.beginCapture(entry.id());
+        showMessage();
+        capture.start();
+        table.requestFocusInWindow();
     }
 
     private void captured(KeyStroke stroke) {

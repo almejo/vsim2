@@ -44,13 +44,16 @@ public final class ContactCache {
             probe = null;
         }
         Key key = new Key(List.copyOf(movedElements), deltaX, deltaY, Set.copyOf(excludedIds));
-        return contacts.computeIfAbsent(key, missing -> {
-            if (probe == null) {
-                probe = ContactProbe.of(document, registry);
-            }
-            probeRuns++;
-            return List.copyOf(probe.newContacts(missing.movedElements(), deltaX, deltaY, missing.excludedIds()));
-        });
+        return contacts.computeIfAbsent(key, missing -> workOutContacts(missing, document, registry, deltaX, deltaY));
+    }
+
+    private List<NewContact> workOutContacts(Key missing, CircuitDocument document, ComponentTypeRegistry registry,
+                                             int deltaX, int deltaY) {
+        if (probe == null) {
+            probe = ContactProbe.of(document, registry);
+        }
+        probeRuns++;
+        return List.copyOf(probe.newContacts(missing.movedElements(), deltaX, deltaY, missing.excludedIds()));
     }
 
     /** How many document elements the last worked-out delta looked at (those within the moved box). */

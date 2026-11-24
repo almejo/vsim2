@@ -165,25 +165,31 @@ public final class KeyBindings {
         InputMap keys = component.getInputMap(JComponent.WHEN_FOCUSED);
         component.getActionMap().put(actionName, action);
         KeyStroke[] bound = new KeyStroke[1];
-        Runnable followTheBinding = () -> {
-            if (bound[0] != null) {
-                keys.remove(bound[0]);
-                bound[0] = null;
-            }
-            bindings.strokeFor(shortcutId).filter(stroke -> !leftAlone.contains(stroke)).ifPresent(stroke -> {
-                keys.put(stroke, actionName);
-                bound[0] = stroke;
-            });
-        };
+        Runnable followTheBinding = () -> rebind(bindings, shortcutId, leftAlone, keys, actionName, bound);
         followTheBinding.run();
         preferences.addListener(followTheBinding);
-        return () -> {
-            preferences.removeListener(followTheBinding);
-            if (bound[0] != null) {
-                keys.remove(bound[0]);
-            }
-            component.getActionMap().remove(actionName);
-        };
+        return () -> unfollow(preferences, followTheBinding, bound, keys, component, actionName);
+    }
+
+    private static void rebind(KeyBindings bindings, String shortcutId, Set<KeyStroke> leftAlone, InputMap keys,
+                               String actionName, KeyStroke[] bound) {
+        if (bound[0] != null) {
+            keys.remove(bound[0]);
+            bound[0] = null;
+        }
+        bindings.strokeFor(shortcutId).filter(stroke -> !leftAlone.contains(stroke)).ifPresent(stroke -> {
+            keys.put(stroke, actionName);
+            bound[0] = stroke;
+        });
+    }
+
+    private static void unfollow(AppPreferences preferences, Runnable followTheBinding, KeyStroke[] bound,
+                                 InputMap keys, JComponent component, String actionName) {
+        preferences.removeListener(followTheBinding);
+        if (bound[0] != null) {
+            keys.remove(bound[0]);
+        }
+        component.getActionMap().remove(actionName);
     }
 
     /** Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso and the fixed zoom aliases (spec §5.2) are never assignable. */

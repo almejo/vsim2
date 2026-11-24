@@ -175,14 +175,16 @@ public final class TunnelFeatures {
         Map<String, Integer> colors = Tunnels.colorsByName(state.document());
         graphics.setStroke(OUTLINE);
         for (ElementId id : lit) {
-            state.document().component(id).ifPresent(tunnel -> {
-                Rectangle2D bounds = ComponentDrawing.documentBounds(openDocument.registry().typeOf(tunnel), tunnel);
-                graphics.setColor(scheme.tunnelColor(TunnelPainter.colorIndex(tunnel, colors)));
-                graphics.draw(new RoundRectangle2D.Double(bounds.getX() - OUTLINE_GAP, bounds.getY() - OUTLINE_GAP,
-                        bounds.getWidth() + 2 * OUTLINE_GAP, bounds.getHeight() + 2 * OUTLINE_GAP, OUTLINE_CORNER,
-                        OUTLINE_CORNER));
-            });
+            state.document().component(id).ifPresent(tunnel -> outline(graphics, scheme, colors, tunnel));
         }
+    }
+
+    private void outline(Graphics2D graphics, ColorScheme scheme, Map<String, Integer> colors, Component tunnel) {
+        Rectangle2D bounds = ComponentDrawing.documentBounds(openDocument.registry().typeOf(tunnel), tunnel);
+        graphics.setColor(scheme.tunnelColor(TunnelPainter.colorIndex(tunnel, colors)));
+        graphics.draw(new RoundRectangle2D.Double(bounds.getX() - OUTLINE_GAP, bounds.getY() - OUTLINE_GAP,
+                bounds.getWidth() + 2 * OUTLINE_GAP, bounds.getHeight() + 2 * OUTLINE_GAP, OUTLINE_CORNER,
+                OUTLINE_CORNER));
     }
 
     private void contribute(JPopupMenu menu, Optional<DocumentElement> target) {
