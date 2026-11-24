@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -236,11 +235,10 @@ public final class LibraryPalette {
      * is disabled, with its reason, when the library already has the component.
      */
     ContextMenuContributor addToLibraryContributor() {
-        return this::contributeAddToLibrary;
+        return (menu, target, selection, gridPosition) -> contributeAddToLibrary(menu, target, selection);
     }
 
-    private void contributeAddToLibrary(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
-                                        Point2D gridPosition) {
+    private void contributeAddToLibrary(JPopupMenu menu, Optional<DocumentElement> target, Selection selection) {
         if (selection.size() != 1 || target.isEmpty() || !selection.contains(target.get().id())
                 || !(target.get() instanceof Component piece)) {
             return;

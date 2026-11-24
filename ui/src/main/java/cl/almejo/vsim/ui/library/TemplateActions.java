@@ -54,7 +54,6 @@ import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -357,11 +356,10 @@ public final class TemplateActions {
      * "Desarmar" and, when outdated, "Actualizar desde la librería" on a single instance.
      */
     public ContextMenuContributor contributor() {
-        return this::contributeTemplateEntries;
+        return (menu, target, selection, gridPosition) -> contributeTemplateEntries(menu, target, selection);
     }
 
-    private void contributeTemplateEntries(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
-                                           Point2D gridPosition) {
+    private void contributeTemplateEntries(JPopupMenu menu, Optional<DocumentElement> target, Selection selection) {
         if (target.isEmpty() || !selection.contains(target.get().id())) {
             return;
         }
