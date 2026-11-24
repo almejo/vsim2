@@ -100,7 +100,7 @@ final class ConnectivityProblemViews {
                 String definitionId = problem.netId().substring(
                         ConnectivityProblem.UNSUPPORTED_DRAWING_PREFIX.length());
                 yield references.view(kind, true, problem.netId(), "The drawing of the component \""
-                        + source.document().definition(definitionId).map(definition -> definition.name())
+                        + source.document().definition(definitionId).map(ComponentDefinition::name)
                         .orElse(definitionId) + "\" (" + (unused ? "no piece uses it" : "used by "
                         + pieceName(source, elementId)) + ") has a path VSim"
                         + " cannot read: the default box is shown. Saving the circuit writes the component without"

@@ -88,21 +88,26 @@ public final class Storyboard implements PresentationService.StageBoundary {
     public StageOrigin beginStage(String taskId, int stageIndex) {
         AiTask task = edits.requireTask(taskId);
         DocumentId document = task.info().document();
-        GridPoint origin = edits.onCircuit(document, circuit -> {
-            requireNoPendingStep(taskId);
-            edits.enterStage(taskId, stageIndex);
-            boolean presenting = host.presentationSettings(document).presenting();
-            if (presenting) {
-                frameStagesBefore(circuit, task, stageIndex);
-            }
-            GridPoint free = originOf(circuit.document(), circuit.registry(), host.textMeasure(), task, stageIndex);
-            task.recordStageOrigin(stageIndex, free);
-            if (presenting) {
-                host.travelToStageOrigin(document, free);
-            }
-            return free;
-        });
+        GridPoint origin = edits.onCircuit(document, circuit -> enterStage(circuit, task, stageIndex));
         return new StageOrigin(origin.x(), origin.y());
+    }
+
+    /** Editor thread: enters stage {@code stageIndex}, framing the earlier ones when presenting; where it starts. */
+    private GridPoint enterStage(EditableCircuit circuit, AiTask task, int stageIndex) {
+        DocumentId document = task.info().document();
+        String taskId = task.info().taskId();
+        requireNoPendingStep(taskId);
+        edits.enterStage(taskId, stageIndex);
+        boolean presenting = host.presentationSettings(document).presenting();
+        if (presenting) {
+            frameStagesBefore(circuit, task, stageIndex);
+        }
+        GridPoint free = originOf(circuit.document(), circuit.registry(), host.textMeasure(), task, stageIndex);
+        task.recordStageOrigin(stageIndex, free);
+        if (presenting) {
+            host.travelToStageOrigin(document, free);
+        }
+        return free;
     }
 
     /** Editor thread, «Presentar»: a step of stage {@code stageIndex} arrives; a later stage begins with it. */
@@ -123,17 +128,19 @@ public final class Storyboard implements PresentationService.StageBoundary {
         AiTask task = found.get();
         DocumentId document = task.info().document();
         try {
-            edits.onCircuit(document, circuit -> {
-                if (host.presentationSettings(document).presenting()) {
-                    frameStagesBefore(circuit, task, Integer.MAX_VALUE);
-                }
-                return Boolean.TRUE;
-            });
+            edits.onCircuit(document, circuit -> frameAllStagesWhenPresenting(circuit, task));
         } catch (AutomationException closed) {
             if (closed.error() != AutomationError.DOCUMENT_CLOSED) {
                 throw closed;
             }
         }
+    }
+
+    private Boolean frameAllStagesWhenPresenting(EditableCircuit circuit, AiTask task) {
+        if (host.presentationSettings(task.info().document()).presenting()) {
+            frameStagesBefore(circuit, task, Integer.MAX_VALUE);
+        }
+        return Boolean.TRUE;
     }
 
     /**
@@ -144,14 +151,17 @@ public final class Storyboard implements PresentationService.StageBoundary {
      */
     public int keepOnlyResult(String taskId) {
         AiTask task = edits.requireTask(taskId);
-        return edits.onCircuit(task.info().document(), circuit -> {
-            requireNoPendingStep(taskId);
-            if (task.state() == AiTask.State.RUNNING) {
-                throw new AutomationException(AutomationError.NOT_ALLOWED, "«Dejar solo el resultado» comes when "
-                        + "the task " + taskId + " has ended", Map.of("taskId", taskId));
-            }
-            return keepOnlyResult(circuit, task);
-        });
+        return edits.onCircuit(task.info().document(), circuit -> keepOnlyResultOfEndedTask(circuit, task));
+    }
+
+    private int keepOnlyResultOfEndedTask(EditableCircuit circuit, AiTask task) {
+        String taskId = task.info().taskId();
+        requireNoPendingStep(taskId);
+        if (task.state() == AiTask.State.RUNNING) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "«Dejar solo el resultado» comes when "
+                    + "the task " + taskId + " has ended", Map.of("taskId", taskId));
+        }
+        return keepOnlyResult(circuit, task);
     }
 
     private int keepOnlyResult(EditableCircuit circuit, AiTask task) {
@@ -187,19 +197,21 @@ public final class Storyboard implements PresentationService.StageBoundary {
         }
         AiTask task = found.get();
         try {
-            return edits.onCircuit(task.info().document(), circuit -> {
-                boolean canUndo = task.latestStageWithAppliedEdits().isPresent();
-                boolean canKeep = task.state() != AiTask.State.RUNNING && !stepPending.test(taskId)
-                        && removable(circuit.document(), circuit.registry(), task)
-                        .filter(removed -> !removed.isEmpty()).isPresent();
-                return new StoryboardState(canUndo, canKeep);
-            });
+            return edits.onCircuit(task.info().document(), circuit -> stateOn(circuit, task));
         } catch (AutomationException closed) {
             if (closed.error() != AutomationError.DOCUMENT_CLOSED) {
                 throw closed;
             }
             return StoryboardState.NONE;
         }
+    }
+
+    private StoryboardState stateOn(EditableCircuit circuit, AiTask task) {
+        boolean canUndo = task.latestStageWithAppliedEdits().isPresent();
+        boolean canKeep = task.state() != AiTask.State.RUNNING && !stepPending.test(task.info().taskId())
+                && removable(circuit.document(), circuit.registry(), task)
+                .filter(removed -> !removed.isEmpty()).isPresent();
+        return new StoryboardState(canUndo, canKeep);
     }
 
     /**
