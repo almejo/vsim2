@@ -87,6 +87,15 @@ public final class ComponentFormPanel extends JPanel {
         refresh();
     }
 
+    private void targetChosen() {
+        if (target.getSelectedItem() instanceof ComponentDefinition definition
+                && !form.target().map(definition::equals).orElse(false)) {
+            form.setTarget(definition);
+            name.setText(form.name());
+            description.setText(form.description());
+        }
+    }
+
     private void addTargetChooser() {
         if (form.mode() == ComponentForm.Mode.UPDATE) {
             form.targets().forEach(target::addItem);
@@ -102,14 +111,7 @@ public final class ComponentFormPanel extends JPanel {
                     return this;
                 }
             });
-            target.addActionListener(event -> {
-                if (target.getSelectedItem() instanceof ComponentDefinition definition
-                        && !form.target().map(definition::equals).orElse(false)) {
-                    form.setTarget(definition);
-                    name.setText(form.name());
-                    description.setText(form.description());
-                }
-            });
+            target.addActionListener(event -> targetChosen());
             add(new JLabel(Messages.text("template.dialog.target")), "span 2");
             add(target, "span 2");
         }

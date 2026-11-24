@@ -63,12 +63,7 @@ public final class TemplateFeatures {
         JMenuItem importItem = new JMenuItem(importComponent);
         importItem.setText(Messages.text("menu.file.import.component"));
         Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), importItem);
-        Runnable menuItemsRemover = () -> {
-            importItemRemover.run();
-            edit.remove(updateItem);
-            edit.remove(createItem);
-            edit.remove(editSeparator);
-        };
+        Runnable menuItemsRemover = () -> removeEditItems(importItemRemover, edit, updateItem, createItem, editSeparator);
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();
@@ -85,15 +80,7 @@ public final class TemplateFeatures {
         outdatedPieces.install();
 
         // Also on library changes: whether a broken file "can be deleted" depends on what the library holds.
-        Runnable problemsListener = () -> {
-            List<LibraryProblem> problems = service.problems();
-            int fileCount = (int) problems.stream()
-                    .filter(problem -> problem.kind() != LibraryProblem.Kind.DIRECTORY_GONE)
-                    .count();
-            view.problems().showLibraryProblems(problems.stream()
-                    .map(problem -> LibraryProblemText.describe(problem, service.library()::find))
-                    .toList(), fileCount);
-        };
+        Runnable problemsListener = () -> showLibraryProblems(view, service);
         service.addProblemsListener(problemsListener);
         service.library().addListener(problemsListener);
         problemsListener.run();
@@ -108,13 +95,36 @@ public final class TemplateFeatures {
             return () -> pane.removeIncomingFragmentListener(keptVersionsWarning);
         });
         return new TemplateFeatures(view, service, actions, palette, importComponent, menuItemsRemover, badge,
-                problemsListener, () -> {
-                    removeEnterRows.run();
-                    removeDescriptionRows.run();
-                    removeWarnings.run();
-                    removeBadges.run();
-                    outdatedPieces.dispose();
-                });
+                problemsListener, () -> removeFromTheView(removeEnterRows, removeDescriptionRows, removeWarnings,
+                removeBadges, outdatedPieces));
+    }
+
+    private static void removeEditItems(Runnable importItemRemover, JMenu edit, JMenuItem updateItem,
+                                        JMenuItem createItem, JPopupMenu.Separator editSeparator) {
+        importItemRemover.run();
+        edit.remove(updateItem);
+        edit.remove(createItem);
+        edit.remove(editSeparator);
+    }
+
+    private static void showLibraryProblems(EditorView view, LibraryService service) {
+        List<LibraryProblem> problems = service.problems();
+        int fileCount = (int) problems.stream()
+                .filter(problem -> problem.kind() != LibraryProblem.Kind.DIRECTORY_GONE)
+                .count();
+        view.problems().showLibraryProblems(problems.stream()
+                .map(problem -> LibraryProblemText.describe(problem, service.library()::find))
+                .toList(), fileCount);
+    }
+
+    private static void removeFromTheView(Runnable removeEnterRows, Runnable removeDescriptionRows,
+                                          Runnable removeWarnings, Runnable removeBadges,
+                                          OutdatedPiecesReporter outdatedPieces) {
+        removeEnterRows.run();
+        removeDescriptionRows.run();
+        removeWarnings.run();
+        removeBadges.run();
+        outdatedPieces.dispose();
     }
 
     public TemplateActions actions() {

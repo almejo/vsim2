@@ -39,26 +39,32 @@ public final class InlineValidators {
      */
     public static Function<String, Optional<String>> busValue(IntSupplier currentWidth, Supplier<String> currentFormat,
                                                               IntSupplier currentFraction) {
-        return text -> {
-            int width = currentWidth.getAsInt();
-            String format = currentFormat.get();
-            // a float has no format at some widths, so «1.5» is not a number there
-            if (!ConstantValue.isValidText(text, ConstantValue.resolveFormat(format, width))) {
-                return Optional.of(Messages.text("constant.invalidValue"));
-            }
-            return ConstantValue.fitsText(text, width, format, currentFraction.getAsInt()) ? Optional.empty()
-                    : Optional.of(Messages.format("constant.doesNotFit", width));
-        };
+        return text -> checkBusValue(text, currentWidth, currentFormat, currentFraction);
+    }
+
+    static Optional<String> checkBusValue(String text, IntSupplier currentWidth, Supplier<String> currentFormat,
+                                          IntSupplier currentFraction) {
+        int width = currentWidth.getAsInt();
+        String format = currentFormat.get();
+        // a float has no format at some widths, so «1.5» is not a number there
+        if (!ConstantValue.isValidText(text, ConstantValue.resolveFormat(format, width))) {
+            return Optional.of(Messages.text("constant.invalidValue"));
+        }
+        return ConstantValue.fitsText(text, width, format, currentFraction.getAsInt()) ? Optional.empty()
+                : Optional.of(Messages.format("constant.doesNotFit", width));
     }
 
     /** Same, asking {@code currentParameters} on every check, so a width changed meanwhile is taken into account. */
     public static Function<String, Optional<String>> constantValue(ComponentType type,
                                                                    Supplier<Map<String, Object>> currentParameters) {
-        return text -> {
-            Map<String, Object> typed = new HashMap<>(currentParameters.get());
-            typed.put("value", text.strip());
-            Optional<ParameterProblem> problem = type.check(typed);
-            return problem.map(found -> Messages.format(found.messageKey(), found.arguments().toArray()));
-        };
+        return text -> checkConstantValue(text, type, currentParameters);
+    }
+
+    static Optional<String> checkConstantValue(String text, ComponentType type,
+                                               Supplier<Map<String, Object>> currentParameters) {
+        Map<String, Object> typed = new HashMap<>(currentParameters.get());
+        typed.put("value", text.strip());
+        Optional<ParameterProblem> problem = type.check(typed);
+        return problem.map(found -> Messages.format(found.messageKey(), found.arguments().toArray()));
     }
 }

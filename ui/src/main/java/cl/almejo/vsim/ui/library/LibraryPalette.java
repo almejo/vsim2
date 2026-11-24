@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
@@ -11,6 +12,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
@@ -23,7 +25,9 @@ import org.slf4j.LoggerFactory;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import java.awt.geom.Point2D;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -163,17 +167,19 @@ public final class LibraryPalette {
     private void disableWhatCannotGoInside() {
         Map<String, String> reasons = new HashMap<>();
         OpenDocument place = view.openDocument();
-        place.definitionId().ifPresent(definitionId -> {
-            CircuitDocument circuit = circuitOf(place).document();
-            for (PaletteEntry entry : view.palette().entries()) {
-                entry.userComponent().flatMap(component -> reasonInside(component.bundle(), definitionId, circuit))
-                        .ifPresent(reason -> reasons.put(entry.id(), reason));
-            }
-        });
+        place.definitionId().ifPresent(definitionId -> collectReasonsInside(place, definitionId, reasons));
         disabledIds.stream().filter(id -> !reasons.containsKey(id))
                 .forEach(id -> view.palette().setDisabledReason(id, Optional.empty()));
         reasons.forEach((id, reason) -> view.palette().setDisabledReason(id, Optional.of(reason)));
         disabledIds = Set.copyOf(reasons.keySet());
+    }
+
+    private void collectReasonsInside(OpenDocument place, String definitionId, Map<String, String> reasons) {
+        CircuitDocument circuit = circuitOf(place).document();
+        for (PaletteEntry entry : view.palette().entries()) {
+            entry.userComponent().flatMap(component -> reasonInside(component.bundle(), definitionId, circuit))
+                    .ifPresent(reason -> reasons.put(entry.id(), reason));
+        }
     }
 
     /**
@@ -205,22 +211,24 @@ public final class LibraryPalette {
     /** The palette's right-click menu for {@code entry} (none: only "Importar componente…"). */
     public Optional<JPopupMenu> menuFor(Optional<PalettePanel.UserComponent> entry) {
         JPopupMenu menu = new JPopupMenu();
-        entry.ifPresent(component -> {
-            DefinitionBundle bundle = component.bundle();
-            String id = bundle.root().id();
-            if (component.inLibrary()) {
-                menu.add(item(Messages.text("action.renameComponent"), () -> rename(id)));
-                menu.add(item(Messages.text("action.exportComponent"), () -> export(id)));
-                menu.add(item(Messages.text("action.showInFolder"),
-                        () -> dialogs.showInFolder(view, service.fileOf(id))));
-                menu.add(item(Messages.text("action.removeFromLibrary"), () -> remove(bundle)));
-            } else {
-                menu.add(item(Messages.text("action.addToLibrary"), () -> addToLibrary(bundle)));
-            }
-            menu.addSeparator();
-        });
+        entry.ifPresent(component -> addUserComponentEntries(menu, component));
         menu.add(new JMenuItem(importComponent));
         return Optional.of(menu);
+    }
+
+    private void addUserComponentEntries(JPopupMenu menu, PalettePanel.UserComponent component) {
+        DefinitionBundle bundle = component.bundle();
+        String id = bundle.root().id();
+        if (component.inLibrary()) {
+            menu.add(item(Messages.text("action.renameComponent"), () -> rename(id)));
+            menu.add(item(Messages.text("action.exportComponent"), () -> export(id)));
+            menu.add(item(Messages.text("action.showInFolder"),
+                    () -> dialogs.showInFolder(view, service.fileOf(id))));
+            menu.add(item(Messages.text("action.removeFromLibrary"), () -> remove(bundle)));
+        } else {
+            menu.add(item(Messages.text("action.addToLibrary"), () -> addToLibrary(bundle)));
+        }
+        menu.addSeparator();
     }
 
     /**
@@ -228,32 +236,37 @@ public final class LibraryPalette {
      * is disabled, with its reason, when the library already has the component.
      */
     ContextMenuContributor addToLibraryContributor() {
-        return (menu, target, selection, gridPosition) -> {
-            if (selection.size() != 1 || target.isEmpty() || !selection.contains(target.get().id())
-                    || !(target.get() instanceof Component piece)) {
-                return;
-            }
-            Optional<String> definitionId = SubcircuitTypes.definitionIdOf(piece.typeId());
-            CircuitDocument circuit = circuitOf(view.openDocument()).document();
-            Optional<ComponentDefinition> definition = definitionId.flatMap(circuit::definition);
-            if (definition.isEmpty()) {
-                return;
-            }
-            JMenuItem entry = new JMenuItem(Messages.text("action.addToLibrary"));
-            if (service.library().find(definition.get().id()).isPresent()) {
-                entry.setEnabled(false);
-                entry.setToolTipText(Messages.text("action.addToLibrary.already"));
-            } else {
-                entry.addActionListener(event -> {
-                    try {
-                        addToLibrary(DefinitionBundle.of(definition.get(), circuit::definition));
-                    } catch (IllegalArgumentException exception) {
-                        LOGGER.warn("Definition {} cannot be added to the library", definition.get().id(), exception);
-                    }
-                });
-            }
-            menu.add(entry);
-        };
+        return this::contributeAddToLibrary;
+    }
+
+    private void contributeAddToLibrary(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
+                                        Point2D gridPosition) {
+        if (selection.size() != 1 || target.isEmpty() || !selection.contains(target.get().id())
+                || !(target.get() instanceof Component piece)) {
+            return;
+        }
+        Optional<String> definitionId = SubcircuitTypes.definitionIdOf(piece.typeId());
+        CircuitDocument circuit = circuitOf(view.openDocument()).document();
+        Optional<ComponentDefinition> definition = definitionId.flatMap(circuit::definition);
+        if (definition.isEmpty()) {
+            return;
+        }
+        JMenuItem entry = new JMenuItem(Messages.text("action.addToLibrary"));
+        if (service.library().find(definition.get().id()).isPresent()) {
+            entry.setEnabled(false);
+            entry.setToolTipText(Messages.text("action.addToLibrary.already"));
+        } else {
+            entry.addActionListener(event -> addDefinitionToLibrary(definition.get(), circuit));
+        }
+        menu.add(entry);
+    }
+
+    private void addDefinitionToLibrary(ComponentDefinition definition, CircuitDocument circuit) {
+        try {
+            addToLibrary(DefinitionBundle.of(definition, circuit::definition));
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Definition {} cannot be added to the library", definition.id(), exception);
+        }
     }
 
     private void place(PalettePanel.UserComponent component) {
@@ -267,31 +280,35 @@ public final class LibraryPalette {
         if (bundle.isEmpty()) {
             return;
         }
-        dialogs.askNewName(view, bundle.get().root().name()).ifPresent(newName -> {
-            Optional<DefinitionNames.NameProblem> problem = DefinitionNames.problem(newName, namesOtherThan(id));
-            if (problem.isPresent()) {
-                dialogs.showError(view, ComponentForm.describe(problem.get(), newName));
-                return;
-            }
-            try {
-                service.rename(id, newName.strip());
-            } catch (IOException exception) {
-                LOGGER.warn("Could not rename {}", id, exception);
-                dialogs.showError(view, service.writeError(id, exception));
-            }
-        });
+        dialogs.askNewName(view, bundle.get().root().name()).ifPresent(newName -> renameTo(id, newName));
+    }
+
+    private void renameTo(String id, String newName) {
+        Optional<DefinitionNames.NameProblem> problem = DefinitionNames.problem(newName, namesOtherThan(id));
+        if (problem.isPresent()) {
+            dialogs.showError(view, ComponentForm.describe(problem.get(), newName));
+            return;
+        }
+        try {
+            service.rename(id, newName.strip());
+        } catch (IOException exception) {
+            LOGGER.warn("Could not rename {}", id, exception);
+            dialogs.showError(view, service.writeError(id, exception));
+        }
     }
 
     private void export(String id) {
-        dialogs.chooseExportFile(view, id + DefinitionFormat.FILE_SUFFIX).ifPresent(target -> {
-            try {
-                service.export(id, target);
-            } catch (IOException exception) {
-                LOGGER.warn("Could not export {} to {}", id, target, exception);
-                dialogs.showError(view, Messages.format("library.error.write", target,
-                        String.valueOf(exception.getMessage())));
-            }
-        });
+        dialogs.chooseExportFile(view, id + DefinitionFormat.FILE_SUFFIX).ifPresent(target -> exportTo(id, target));
+    }
+
+    private void exportTo(String id, Path target) {
+        try {
+            service.export(id, target);
+        } catch (IOException exception) {
+            LOGGER.warn("Could not export {} to {}", id, target, exception);
+            dialogs.showError(view, Messages.format("library.error.write", target,
+                    String.valueOf(exception.getMessage())));
+        }
     }
 
     /** Circuits that use it keep their embedded copy, so nothing but the library changes (spec §5.6). */
