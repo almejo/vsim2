@@ -11,7 +11,6 @@ import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.ElementDrawingTool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
-import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.util.List;
 
@@ -80,11 +79,6 @@ public final class StickyNoteTool extends ElementDrawingTool {
         }
         StickyNote preview = noteBeingDrawn(new ElementId("preview"));
         StickyNotePainter.paintGhost(graphics, preview, context.scheme().preview());
-    }
-
-    @Override
-    public Cursor cursor() {
-        return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 
     @Override

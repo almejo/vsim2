@@ -13,7 +13,6 @@ import cl.almejo.vsim.ui.tools.ElementDrawingTool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
 import java.awt.BasicStroke;
-import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -165,11 +164,6 @@ public final class FrameTool extends ElementDrawingTool {
                 (float) context.selectionDashPhase()));
         graphics.draw(new Rectangle2D.Double(rectangle.getX() * scale, rectangle.getY() * scale,
                 rectangle.getWidth() * scale, rectangle.getHeight() * scale));
-    }
-
-    @Override
-    public Cursor cursor() {
-        return Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
     }
 
     @Override

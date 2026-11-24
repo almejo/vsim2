@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.ui.frames.FrameTool;
+import cl.almejo.vsim.ui.sticky.StickyNoteTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +36,13 @@ class ToolCursorsTest {
     void placingAComponentShowsTheCrosshair() {
         PlaceComponentTool tool = new PlaceComponentTool(registry.require(StandardComponentTypes.BUFFER));
         assertThat(tool.cursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
+    }
+
+    @Test
+    void theToolsThatPlaceOrDrawShowTheCrosshairOfOneSharedBase() {
+        assertThat(CrosshairTool.class).isAssignableFrom(PlacingTool.class).isAssignableFrom(ElementDrawingTool.class);
+        assertThat(new FrameTool().cursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
+        assertThat(new StickyNoteTool().cursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
     }
 
     @Test
