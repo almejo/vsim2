@@ -92,19 +92,9 @@ public final class AiExtension implements EditorExtension {
         Runnable removeShortcut = view.registerShortcutAction(SHORTCUT_ID, open);
         AiStatusIndicator indicator = new AiStatusIndicator(service, panelWindow::show);
         Runnable removeIndicator = view.statusBar().addIndicator(indicator);
-        return () -> uninstall(window, item, separator, indicator, removeIndicator, removeShortcut, panelWindow, status);
-    }
-
-    private static void uninstall(JMenu window, JMenuItem item, JSeparator separator, AiStatusIndicator indicator,
-                                  Runnable removeIndicator, Runnable removeShortcut, PanelWindow panelWindow,
-                                  AiStatusFeatures status) {
-        removeIndicator.run();
-        indicator.dispose();
-        removeShortcut.run();
-        window.remove(item);
-        window.remove(separator);
-        panelWindow.dispose();
-        status.dispose();
+        List<Runnable> undos = List.of(removeIndicator, indicator::dispose, removeShortcut,
+                () -> window.remove(item), () -> window.remove(separator), panelWindow::dispose, status::dispose);
+        return () -> undos.forEach(Runnable::run);
     }
 
     /** The panel of one window, made the first time it is asked for and kept until the view goes. */

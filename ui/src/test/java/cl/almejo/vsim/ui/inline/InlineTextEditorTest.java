@@ -446,7 +446,9 @@ class InlineTextEditorTest {
     }
 
     @Test
-    void aFontChangeConfirmsAnOpenEditAndLeavesNoListenerBehind() {
+    void aFontChangeConfirmsAnOpenEditAndLeavesNoListenerBehind() throws Exception {
+        // TextFonts is JVM-wide: what earlier tests' views remove on the EDT must be gone before the baseline is read
+        SwingUtilities.invokeAndWait(() -> { });
         int listeners = TextFonts.listenerCount();
         try {
             editor.open(request("uno"));

@@ -98,22 +98,28 @@ final class SimulationHostSupport {
         DocumentVersion version = versionOf(document);
         long netlistToken = document.netlistToken();
         Started started = start(document, version, request);
+        Pending pending = new Pending(request, document, version, netlistToken, started);
         started.report().whenComplete((report, failure) -> editorThread.execute(
-                () -> completeReceipt(result, request, document, version, netlistToken, started, report, failure)));
+                () -> completeReceipt(result, pending, report, failure)));
+    }
+
+    /** What the receipt of a simulation request needs from the moment it started. */
+    private record Pending(SimulationRequest request, OpenDocument document, DocumentVersion version,
+                           long netlistToken, Started started) {
     }
 
     /** On the EDT: the report of the simulation request is in (or failed); completes {@code result} with its receipt. */
-    private void completeReceipt(CompletableFuture<SimulationReceipt> result, SimulationRequest request,
-                                 OpenDocument document, DocumentVersion version, long netlistToken, Started started,
-                                 RequestReport report, Throwable failure) {
+    private void completeReceipt(CompletableFuture<SimulationReceipt> result, Pending pending, RequestReport report,
+                                 Throwable failure) {
         if (failure != null) {
-            result.completeExceptionally(closedOr(failure, request.document()));
+            result.completeExceptionally(closedOr(failure, pending.request().document()));
             return;
         }
         try {
-            result.complete(SimulationReceipt.of(request.document(), version, versionOf(document),
-                    netlistToken, started.eventBudget(), report, started.asked(), started.observed(),
-                    notice -> pauseReason(document, notice)));
+            result.complete(SimulationReceipt.of(pending.request().document(), pending.version(),
+                    versionOf(pending.document()), pending.netlistToken(), pending.started().eventBudget(), report,
+                    pending.started().asked(), pending.started().observed(),
+                    notice -> pauseReason(pending.document(), notice)));
         } catch (RuntimeException exception) {
             result.completeExceptionally(exception);
         }

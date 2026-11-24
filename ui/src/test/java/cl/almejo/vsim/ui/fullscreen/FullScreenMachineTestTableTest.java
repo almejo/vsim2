@@ -43,8 +43,11 @@ class FullScreenMachineTestTableTest {
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
+        // The real help bubble opens through invokeLater and would mutate the fixture's root pane on the EDT while
+        // this thread mutates it too.
         fixture = new FullScreenFixture(List.of(new WaveformsExtension(NO_ANSWER, (parent, message) -> { }),
                 new WaveformsToolbarExtension(), new MachineModeExtension()));
+        fixture.preferences.setMachineTestHelpSeen(true);
         OpenDocument document = MachineFixtures.circuitWithGeneratedMachines(1);
         view = fixture.addComponentTab(document, MachineFixtures.DEFINITION_ID,
                 Optional.of(MachineFixtures.copies(document).get(0)));

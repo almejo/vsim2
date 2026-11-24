@@ -468,8 +468,8 @@ public final class Application {
         Map<Path, OpenDocument> opened = new LinkedHashMap<>();
         List<OpenDocument> untitled = new ArrayList<>();
         Map<RecoveryCopy, OpenDocument> recoveredDocuments = new LinkedHashMap<>();
-        StartupSteps.openEach(plan.openings(),
-                opening -> openOpening(opening, reopened, opened, untitled, recoveredDocuments));
+        Opened openedSoFar = new Opened(opened, untitled, recoveredDocuments);
+        StartupSteps.openEach(plan.openings(), opening -> openOpening(opening, reopened, openedSoFar));
         List<String> notOpened = new ArrayList<>(plan.missing().stream().map(Path::toString).toList());
         StartupSteps.openEach(plan.windows(), window -> restoreWindow(window, opened).forEach(tab ->
                 notOpened.add(Messages.format("session.missingComponent", tab.definitionName().orElseThrow(),
@@ -498,20 +498,27 @@ public final class Application {
     }
 
     /** One of the start's openings: a recovered copy or a file of the session; what opened is noted for the windows. */
-    private void openOpening(StartupSequence.Opening opening, List<RecoveryCopy> reopened,
-                             Map<Path, OpenDocument> opened, List<OpenDocument> untitled,
-                             Map<RecoveryCopy, OpenDocument> recoveredDocuments) {
+    private void openOpening(StartupSequence.Opening opening, List<RecoveryCopy> reopened, Opened openedSoFar) {
         switch (opening) {
-            case StartupSequence.Recovered copy -> openRecovered(copy, reopened).ifPresent(document -> {
-                recoveredDocuments.put(copy.copy(), document);
-                copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
-                        original -> opened.put(original, document), () -> untitled.add(document));
-            });
+            case StartupSequence.Recovered copy -> openRecovered(copy, reopened)
+                    .ifPresent(document -> noteRecovered(copy, document, openedSoFar));
             case StartupSequence.FromSession session -> read(session.path(), null).ifPresent(document -> {
                 rememberDirectory(session.path());
-                opened.put(FileNames.normalized(session.path()), document);
+                openedSoFar.opened().put(FileNames.normalized(session.path()), document);
             });
         }
+    }
+
+    private static void noteRecovered(StartupSequence.Recovered copy, OpenDocument document, Opened openedSoFar) {
+        openedSoFar.recoveredDocuments().put(copy.copy(), document);
+        copy.copy().originalPath().map(FileNames::normalized).ifPresentOrElse(
+                original -> openedSoFar.opened().put(original, document),
+                () -> openedSoFar.untitled().add(document));
+    }
+
+    /** What the start's openings opened so far, filled in place: files by path, untitled copies, recovered copies. */
+    private record Opened(Map<Path, OpenDocument> opened, List<OpenDocument> untitled,
+                          Map<RecoveryCopy, OpenDocument> recoveredDocuments) {
     }
 
     /** A component file on the command line is imported into the library, as a drop on the window would. */
