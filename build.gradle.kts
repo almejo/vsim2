@@ -33,6 +33,23 @@ subprojects {
         isIgnoreFailures = false
     }
 
+    // A ruleset that cannot be parsed, or that has no active rule, would make PMD report «No files to analyze» and pass:
+    // fail the build instead.
+    tasks.withType<Pmd>().configureEach {
+        val rulesetFile = rootProject.layout.projectDirectory.file("config/pmd/vsim-rules.xml").asFile
+        doFirst {
+            val ruleCount = try {
+                javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(rulesetFile)
+                    .getElementsByTagName("rule").length
+            } catch (exception: Exception) {
+                throw GradleException("PMD ruleset $rulesetFile cannot be loaded: ${exception.message}", exception)
+            }
+            if (ruleCount == 0) {
+                throw GradleException("PMD ruleset $rulesetFile has no active rule")
+            }
+        }
+    }
+
     tasks.withType<Test>().configureEach {
         // The source checks (PMD per module, CPD over the four) run with the tests: `test` does not run `check`, and
         // CI and the pre-commit command are `./gradlew test ...`. Both are up to date unless a source changes.
