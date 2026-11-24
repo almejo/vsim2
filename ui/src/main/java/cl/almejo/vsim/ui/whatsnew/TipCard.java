@@ -2,20 +2,15 @@ package cl.almejo.vsim.ui.whatsnew;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.panels.CardLook;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.CardLook;
+import cl.almejo.vsim.ui.panels.MouseClicks;
 import cl.almejo.vsim.ui.theme.ThemeColors;
+
 import com.formdev.flatlaf.util.UIScale;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractButton;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -24,14 +19,19 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.swing.AbstractButton;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 /**
  * The card of the tip of the day (mockup v11): rounded, with a soft shadow, in the theme's colours read at paint time.
@@ -139,12 +139,8 @@ final class TipCard extends JComponent {
         add(tryButton);
         add(previousButton);
         add(nextButton);
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                requestFocusInWindow(); // a click on the card gives it the focus; it never takes it by itself
-            }
-        });
+        // a click on the card gives it the focus; it never takes it by itself
+        addMouseListener(MouseClicks.onPress(this::requestFocusInWindow));
     }
 
     /** A text's cell: the card's inner width and the height its text takes now (the title a little apart). */

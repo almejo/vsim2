@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.ai.AiIcons;
 import cl.almejo.vsim.ui.ai.AiPanel;
 import cl.almejo.vsim.ui.ai.AiUndoNotices;
@@ -24,7 +25,6 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Insets;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -225,14 +224,12 @@ final class PresentationPanel extends JPanel {
     private void bindEnterToNext() {
         getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), NEXT_KEY);
-        getActionMap().put(NEXT_KEY, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                if (nextButton.isEnabled()) {
-                    nextButton.doClick();
-                }
+        // Enter is consumed even while «Siguiente» is off, so it never reaches what is behind the panel
+        getActionMap().put(NEXT_KEY, Actions.unnamed(() -> {
+            if (nextButton.isEnabled()) {
+                nextButton.doClick();
             }
-        });
+        }));
     }
 
     /**

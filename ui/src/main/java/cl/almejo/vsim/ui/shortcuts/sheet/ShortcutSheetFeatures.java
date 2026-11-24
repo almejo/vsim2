@@ -7,14 +7,23 @@ import cl.almejo.vsim.ui.app.Teardown;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.ComponentEvents;
 import cl.almejo.vsim.ui.preferences.PreferencesDialog;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutEchoExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
-import cl.almejo.vsim.ui.panels.ComponentEvents;
 
+import java.awt.Component;
+import java.awt.KeyEventDispatcher;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ComponentListener;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.util.List;
+import java.util.Optional;
 import javax.swing.Action;
 import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
@@ -24,17 +33,6 @@ import javax.swing.KeyStroke;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
-import java.awt.Component;
-import java.awt.KeyEventDispatcher;
-import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * The sheet of shortcuts of one editor view: a card on a dimmed circuit area (not the menus) with a selection of the
@@ -208,12 +206,8 @@ final class ShortcutSheetFeatures {
         ComponentListener areaListener = ComponentEvents.onMovedOrResized(() -> place(layers));
         view.addComponentListener(areaListener);
         whileOpen.add(() -> view.removeComponentListener(areaListener));
-        ComponentListener hiddenListener = new ComponentAdapter() {
-            @Override
-            public void componentHidden(ComponentEvent event) {
-                close(); // another tab of the window came to the front
-            }
-        };
+        // another tab of the window came to the front
+        ComponentListener hiddenListener = ComponentEvents.onHidden(this::close);
         view.addComponentListener(hiddenListener);
         whileOpen.add(() -> view.removeComponentListener(hiddenListener));
     }
