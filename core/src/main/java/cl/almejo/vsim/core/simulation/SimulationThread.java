@@ -216,15 +216,22 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> driveNow(componentId, value));
     }
 
+    /** On the simulation thread: drives the button; while paused the change is a published step. */
     private void driveNow(String componentId, Value value) {
+        Runnable drive = running ? () -> engine.setInput(componentId, value)
+                : () -> publishStep(engine.setInputTracked(componentId, value));
+        skippingAGoneInput(componentId, drive);
+    }
+
+    /**
+     * Runs {@code setting}, which sets the input {@code componentId}; one that is gone or is not an input is skipped
+     * (the circuit may have changed since the request was queued).
+     */
+    private static void skippingAGoneInput(String componentId, Runnable setting) {
         try {
-            if (running) {
-                engine.setInput(componentId, value);
-            } else {
-                publishStep(engine.setInputTracked(componentId, value));
-            }
+            setting.run();
         } catch (IllegalArgumentException exception) {
-            LOGGER.debug("Button {} not driven: {}", componentId, exception.getMessage());
+            LOGGER.debug("Input {} not set: {}", componentId, exception.getMessage());
         }
     }
 
@@ -254,6 +261,7 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> editTypingNow(componentId, edit));
     }
 
+    /** On the simulation thread: edits the typed text; while paused the change is a published step. */
     private void editTypingNow(String componentId, TypingEdit edit) {
         if (running) {
             engine.editTyping(componentId, edit);
@@ -299,6 +307,7 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> interactNow(componentId));
     }
 
+    /** On the simulation thread: clicks the component; while paused the change is a published step. */
     private void interactNow(String componentId) {
         if (running) {
             engine.interact(componentId);
@@ -317,6 +326,7 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> takeLiveValuesNow(copy));
     }
 
+    /** On the simulation thread: takes the new live values; while paused a change is a published step. */
     private void takeLiveValuesNow(Map<String, Map<String, Object>> parametersById) {
         if (running) {
             engine.takeLiveValues(parametersById);
@@ -330,6 +340,7 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> interactBitNow(componentId, bit));
     }
 
+    /** On the simulation thread: clicks the bit; while paused the change is a published step. */
     private void interactBitNow(String componentId, int bit) {
         if (running) {
             engine.interactBit(componentId, bit);
@@ -344,11 +355,11 @@ public final class SimulationThread implements AutoCloseable {
      * failure in the snapshot.
      */
     public void advanceToNextEvent() {
-        requests.add(() -> advanceWhenPaused(engine::advanceToNextEvent));
+        requests.add(() -> advanceNow(engine::advanceToNextEvent));
     }
 
     /** On the simulation thread: when paused, finishes the step in progress and publishes what {@code advance} did. */
-    private void advanceWhenPaused(Supplier<StepResult> advance) {
+    private void advanceNow(Supplier<StepResult> advance) {
         if (!running) {
             finishStep();
             publishStep(advance.get());
@@ -362,7 +373,7 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void advanceToNextClockEdge(ClockEdgeMode mode) {
         Objects.requireNonNull(mode, "mode");
-        requests.add(() -> advanceWhenPaused(() -> engine.advanceToNextClockEdge(mode)));
+        requests.add(() -> advanceNow(() -> engine.advanceToNextClockEdge(mode)));
     }
 
     /**
@@ -413,12 +424,9 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> copy.forEach(this::setInputNow));
     }
 
+    /** On the simulation thread: sets the input like a click, skipping one that is gone or is not an input. */
     private void setInputNow(String componentId, Value value) {
-        try {
-            engine.setInput(componentId, value);
-        } catch (IllegalArgumentException exception) {
-            LOGGER.debug("Input {} not set: {}", componentId, exception.getMessage());
-        }
+        skippingAGoneInput(componentId, () -> engine.setInput(componentId, value));
     }
 
     /**
@@ -537,10 +545,11 @@ public final class SimulationThread implements AutoCloseable {
      * tick. A step that ends within its first budget publishes exactly what one call did.
      */
     public void step(long duration) {
-        requests.add(() -> startStepWhenPaused(duration));
+        requests.add(() -> stepNow(duration));
     }
 
-    private void startStepWhenPaused(long duration) {
+    /** On the simulation thread: when paused, finishes the step in progress and starts this one. */
+    private void stepNow(long duration) {
         if (!running) {
             finishStep();
             stepInProgress = new StepInProgress(engine.now(), Scheduler.later(engine.now(), duration));
@@ -649,11 +658,11 @@ public final class SimulationThread implements AutoCloseable {
      */
     public void setMemoryMapRequest(Optional<MemoryMapRequest> request) {
         MemoryMapRequest wanted = request.orElse(null);
-        requests.add(() -> changeMemoryMapRequest(wanted));
+        requests.add(() -> setMemoryMapRequestNow(wanted));
     }
 
     /** On the simulation thread: aims the memory map at {@code wanted} (null: none), dropping the old frame. */
-    private void changeMemoryMapRequest(MemoryMapRequest wanted) {
+    private void setMemoryMapRequestNow(MemoryMapRequest wanted) {
         if (wanted != null && (memoryMapRequest == null
                 || !memoryMapRequest.componentId().equals(wanted.componentId()))) {
             engine.memory(wanted.componentId()).ifPresent(memory -> memory.accessLog().drainRecent());
@@ -855,6 +864,7 @@ public final class SimulationThread implements AutoCloseable {
         return future;
     }
 
+    /** On the simulation thread: the AI's «Avanzar N t» within the budget, refused when the time would overflow. */
     private void advanceByNow(CompletableFuture<RequestReport> future, long duration, long eventBudget) {
         if (duration > Long.MAX_VALUE - engine.now()) {
             future.complete(reportOf(RequestReport.Status.REFUSED_TIME_OVERFLOW, engine.now(), 0, List.of()));
